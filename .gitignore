@@ -1,0 +1,24 @@
+node_modules/
+.env
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.DS_Store
+
+# build output
+backend/dist/
+frontend/dist/
+frontend/.angular/
+
+# Prisma
+backend/prisma/migrations/dev.db*
+
+# logs
+*.log
+npm-debug.log*
+
+# Claude harness local files (only launch.json should be tracked)
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/worktrees/

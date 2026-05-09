@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Character {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  displayName String
+  profileText String
+  createdAt   DateTime  @default(now())
+  sessions    Session[]
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  hashedPassword  String?  // null for OAuth-only users
+  displayName     String?
+  provider        String   @default("local") // "local" | "google" | "facebook"
+  providerUserId  String?  // OAuth subject id
+  refreshTokenHash String?
+  createdAt       DateTime @default(now())
+  sessions        Session[]
+}
+
+model Session {
+  id          Int       @id @default(autoincrement())
+  character   Character @relation(fields: [characterId], references: [id])
+  characterId Int
+  user        User?     @relation(fields: [userId], references: [id])
+  userId      Int?
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  feedback    String?
+  messages    Message[]
+  notes       Note[]
+
+  @@index([characterId])
+  @@index([userId])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  session   Session  @relation(fields: [sessionId], references: [id])
+  sessionId Int
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+  notes     Note[]
+
+  @@index([sessionId])
+}
+
+model Note {
+  id               Int      @id @default(autoincrement())
+  session          Session  @relation(fields: [sessionId], references: [id])
+  sessionId        Int
+  anchorMessage    Message? @relation(fields: [anchorMessageId], references: [id])
+  anchorMessageId  Int?
+  anchorText       String?
+  noteText         String
+  createdAt        DateTime @default(now())
+
+  @@index([sessionId])
+}
