@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from './auth.service';
+import { AuthService, type AuthResult, type AuthUser } from './auth.service';
 
 export type ProgressBadge = 'improving' | 'stable' | 'worsening' | 'unknown';
 
@@ -387,6 +387,31 @@ export class ApiService {
   deleteNote(sessionId: number, noteId: number): Promise<void> {
     return firstValueFrom(
       this.http.delete<void>(`${this.base}/sessions/${sessionId}/notes/${noteId}`),
+    );
+  }
+
+  // ─── Profile ────────────────────────────────────────────────────────────
+
+  /**
+   * PATCH the user's identity fields. Backend returns the fresh user
+   * shape — caller should push into AuthService so the header etc. see
+   * the new displayName immediately.
+   */
+  updateProfile(patch: { displayName?: string; bio?: string }): Promise<AuthUser> {
+    return firstValueFrom(this.http.patch<AuthUser>(`${this.base}/auth/me`, patch));
+  }
+
+  /**
+   * Change password. Returns AuthResult with fresh tokens (refresh hash
+   * rotated on backend). Caller must call AuthService.applyAuthResult so
+   * cached tokens stay valid; otherwise next request 401's.
+   */
+  changePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
+    return firstValueFrom(
+      this.http.post<AuthResult>(`${this.base}/auth/me/password`, {
+        currentPassword,
+        newPassword,
+      }),
     );
   }
 

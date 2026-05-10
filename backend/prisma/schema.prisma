@@ -26,6 +26,7 @@ model User {
   email           String   @unique
   hashedPassword  String?  // null for OAuth-only users
   displayName     String?
+  bio             String?  // free-text "about me" — year of study, modality interests, etc.
   provider        String   @default("local") // "local" | "google" | "facebook"
   providerUserId  String?  // OAuth subject id
   refreshTokenHash String?

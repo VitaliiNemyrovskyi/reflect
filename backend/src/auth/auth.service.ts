@@ -154,7 +154,84 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
     const isAdmin = await this.reconcileAdmin(user);
-    return { id: user.id, email: user.email, displayName: user.displayName, isAdmin };
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      bio: user.bio,
+      provider: user.provider,
+      hasPassword: !!user.hashedPassword,
+      isAdmin,
+    };
+  }
+
+  /**
+   * Update the user's own identity fields. Email is intentionally NOT
+   * editable here — too easy to lock yourself out by typo. We'd need a
+   * verify-by-email flow to change it safely; not in MVP scope.
+   */
+  async updateProfile(
+    userId: number,
+    patch: { displayName?: string; bio?: string },
+  ) {
+    const data: { displayName?: string | null; bio?: string | null } = {};
+    if (patch.displayName !== undefined) {
+      const trimmed = patch.displayName.trim();
+      data.displayName = trimmed.length > 0 ? trimmed : null;
+    }
+    if (patch.bio !== undefined) {
+      const trimmed = patch.bio.trim();
+      data.bio = trimmed.length > 0 ? trimmed : null;
+    }
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      bio: user.bio,
+      provider: user.provider,
+      hasPassword: !!user.hashedPassword,
+      isAdmin: user.isAdmin,
+    };
+  }
+
+  /**
+   * Change password. For local accounts the current password is required
+   * (defends against XSRF / stolen access token). OAuth-only users (no
+   * hashedPassword) can set an initial password — they'll then have BOTH
+   * SSO and password login available.
+   *
+   * On success, refresh-token-rotates: the existing refresh tokens for
+   * other devices/sessions get invalidated. Caller is responsible for
+   * re-storing the new tokens (returned from this method via issueAndReturn).
+   */
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<AuthResult> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    if (user.hashedPassword) {
+      const ok = await bcrypt.compare(currentPassword, user.hashedPassword);
+      if (!ok) {
+        throw new UnauthorizedException('Поточний пароль неправильний');
+      }
+    }
+    // OAuth-only users can SET an initial password (currentPassword is
+    // ignored — they have no password to verify against). Document this
+    // behaviour clearly in the UI to avoid surprise.
+
+    const newHash = await bcrypt.hash(newPassword, 12);
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { hashedPassword: newHash, refreshTokenHash: null }, // force re-auth
+    });
+    return this.issueAndReturn(updated);
   }
 
   /**

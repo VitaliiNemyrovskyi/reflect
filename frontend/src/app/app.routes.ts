@@ -67,6 +67,12 @@ export const routes: Routes = [
       import('./pages/settings.component').then((m) => m.SettingsComponent),
   },
   {
+    path: 'profile',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/profile.component').then((m) => m.ProfileComponent),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -17,7 +17,9 @@ import { AuthService } from '../auth.service';
         </div>
         @if (auth.user(); as u) {
           <div class="user-area">
-            <span class="user-name">{{ u.displayName ?? u.email }}</span>
+            <a routerLink="/profile" class="user-name-link" title="Мій профіль">
+              {{ u.displayName ?? u.email }}
+            </a>
             @if (u.isAdmin) {
               <a routerLink="/admin"
                  class="ghost icon small admin-link"
@@ -142,12 +144,17 @@ import { AuthService } from '../auth.service';
       font-size: 13px;
       color: var(--fg-dim);
     }
-    .user-name {
+    .user-name-link {
       max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      color: var(--fg-dim);
+      text-decoration: none;
+      transition: color .15s ease;
+      cursor: pointer;
     }
+    .user-name-link:hover { color: var(--accent); }
     button.small, .small {
       padding: 6px 12px;
       font-size: 13px;
@@ -211,7 +218,7 @@ import { AuthService } from '../auth.service';
       .patient-grid {
         grid-template-columns: 1fr;
       }
-      .user-name { max-width: 120px; font-size: 12px; }
+      .user-name-link { max-width: 120px; font-size: 12px; }
       .header h1 { font-size: 22px; }
       .filters { gap: 4px; }
       .chip { padding: 5px 10px; font-size: 11px; }

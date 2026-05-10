@@ -11,11 +11,16 @@ export interface AuthUser {
   id: number;
   email: string;
   displayName: string | null;
+  bio?: string | null;
+  /** "local" | "google" | "facebook" — drives whether password change requires currentPassword. */
+  provider?: string;
+  /** false for OAuth-only users who haven't set a password yet — UI can adapt copy. */
+  hasPassword?: boolean;
   /** Granted via ADMIN_EMAILS env var on backend; reconciled on every login. */
   isAdmin?: boolean;
 }
 
-interface AuthResult {
+export interface AuthResult {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
@@ -135,6 +140,24 @@ export class AuthService {
 
   redirectToOAuth(provider: 'google' | 'facebook') {
     window.location.href = `/api/auth/${provider}`;
+  }
+
+  /**
+   * Push a fresh user object into the signal + localStorage cache. Called
+   * by ProfileComponent after PATCH /me succeeds, so the header / etc. see
+   * the updated displayName immediately without a refresh.
+   */
+  applyProfileUpdate(user: AuthUser) {
+    this.user.set(user);
+    this.storeUser(user);
+  }
+
+  /**
+   * Apply a fresh AuthResult — e.g. after password change which rotates
+   * tokens. Same as the private applyAuth path used by login.
+   */
+  applyAuthResult(result: AuthResult) {
+    this.applyAuth(result);
   }
 
   private applyAuth(result: AuthResult) {

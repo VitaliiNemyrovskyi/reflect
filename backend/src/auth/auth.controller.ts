@@ -13,7 +13,13 @@ import {
 import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService, type UserPreferences } from './auth.service';
-import { LoginDto, RefreshDto, RegisterDto } from './dto';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RefreshDto,
+  RegisterDto,
+  UpdateProfileDto,
+} from './dto';
 import { CurrentUser, type AuthUser } from './current-user.decorator';
 import { Public } from './public.decorator';
 import { GoogleStrategy } from './google.strategy';
@@ -63,6 +69,28 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.auth.getProfile(user.id);
+  }
+
+  /**
+   * PATCH — update displayName / bio. Email isn't editable (would need a
+   * verify-by-email flow we don't have).
+   */
+  @Patch('me')
+  updateMe(@CurrentUser() user: AuthUser, @Body() patch: UpdateProfileDto) {
+    return this.auth.updateProfile(user.id, patch);
+  }
+
+  /**
+   * Change password. Returns fresh tokens — frontend should replace its
+   * stored access/refresh pair, since this rotates refresh hash.
+   */
+  @HttpCode(HttpStatus.OK)
+  @Post('me/password')
+  changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changePassword(user.id, dto.currentPassword, dto.newPassword);
   }
 
   @Get('me/preferences')
