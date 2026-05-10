@@ -1,0 +1,56 @@
+# Reflect's own ingress — independent of bober/swiftmail. Owns :443 on
+# the host directly. Cert managed by Caddy via Let's Encrypt + DNS-01
+# challenge against Cloudflare (so we don't need :80, which bober has).
+#
+# Cloudflare for reflect.swift-mail.app is configured DNS-only (gray
+# cloud) — DNS query returns the server's real IP, browser connects
+# straight to this Caddy. No CF proxy/cache, but full visibility of
+# real client IPs, no port-80 wars, and no cross-project coupling.
+
+{
+    # Tell Caddy not to try HTTP-01 (would bind :80 which bober has).
+    # DNS-01 via Cloudflare API token (see CADDY_CF_API_TOKEN env var).
+    email noreply@swift-mail.app
+    auto_https disable_redirects
+}
+
+reflect.swift-mail.app {
+    tls {
+        dns cloudflare {env.CADDY_CF_API_TOKEN}
+    }
+
+    # Backend API + auth + SSE-streaming feedback.
+    handle /api/* {
+        reverse_proxy reflect_api:3000 {
+            # Streaming feedback (/api/sessions/:id/end-stream) needs
+            # HTTP/1.1 + chunked + no buffering for tokens to reach the
+            # client immediately. Caddy disables buffering automatically
+            # for SSE responses, but explicit timeouts are still useful.
+            transport http {
+                read_timeout 300s
+                write_timeout 300s
+            }
+        }
+    }
+
+    # Static SPA — Angular bundle served from reflect_web.
+    handle {
+        reverse_proxy reflect_web:80
+    }
+
+    encode gzip zstd
+
+    # Security headers, mirror what Cloudflare would have added at edge.
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    log {
+        output stderr
+        format json
+    }
+}

@@ -1,122 +1,131 @@
 # Deploy — `reflect.swift-mail.app`
 
-Тимчасовий деплой Reflect на ту саму Contabo-VPS, де живе SwiftMail.
-Підключаємось через існуючий `bober-web` nginx-ingress (той самий патерн,
-що й `app.swift-mail.app` → `swiftmail_web`).
+Reflect живе на тій самій Contabo-VPS, що й SwiftMail/Bober, **але повністю
+архітектурно ізольований** — свій Caddy-ingress на host :443, свій
+Let's Encrypt cert, своя docker-network. Жодних `docker cp` injection-ів
+у чужі контейнери, жодної залежності від bober/swiftmail nginx.
 
 ## Архітектура
 
 ```
-       Cloudflare (proxy + TLS)
-              │
-              ▼
-       Contabo VPS :80
-              │
-       bober-web (nginx)  ← тримає :80 на хості
-              │
-   ┌──────────┴──────────┐
-   │                     │
-reflect_web          reflect_api          (на shared `proxy` docker-network)
-(nginx + Angular)    (NestJS + Prisma + SQLite)
-                          │
-                          └─ volume: reflect_data → /data/reflect.db
+                    Browser
+                       │
+                       ▼  HTTPS (валідний LE cert)
+       Contabo VPS host :443
+                       │
+                  reflect_caddy
+              (Let's Encrypt + DNS-01)
+                       │
+                       │  reflect_net (private docker network)
+                       │
+            ┌──────────┴──────────┐
+            ▼                     ▼
+       reflect_web          reflect_api
+       (nginx + Angular)    (NestJS + Prisma + SQLite)
+                                  │
+                                  └─ volume reflect_data → /data/reflect.db
 ```
 
-- **Cloudflare** робить TLS; nginx у контейнері говорить тільки HTTP.
-- **bober-web** — nginx-ingress на :80, маршрутизує по `Host:` хедеру.
-- **reflect_web** — Angular bundle, обслуговується внутрішнім nginx.
-- **reflect_api** — NestJS, SQLite на named docker volume (виживає рестарти).
+- **Cloudflare** для зони — DNS-only (сіра хмара), не проксює. DNS-запит
+  повертає реальний IP сервера, браузер з'єднується безпосередньо з Caddy
+- **Caddy** тримає :443 хоста, видає валідний Let's Encrypt cert через
+  ACME DNS-01 challenge (Cloudflare API token у `.env`). Не потребує :80
+  (який тримає bober) — вся валідація через DNS-записи
+- **reflect_net** — приватна docker-network тільки для reflect-сервісів.
+  bober/swiftmail на іншій (shared `proxy` між ними), не торкаємось
 
 ## Що треба до першого деплою
 
 1. **DNS у Cloudflare** для зони `swift-mail.app`:
-   - Тип `A`, ім'я `reflect`, значення = IP сервера (той самий, що в `app`)
-   - Proxy: `Proxied` (помаранчева хмарка) — щоб успадкувати TLS
-2. **Google OAuth** (опційно — якщо хочемо вхід через Google):
-   - https://console.cloud.google.com/apis/credentials → редагуємо OAuth-клієнт
+   - Тип `A`, ім'я `reflect`, значення = IP сервера
+   - Proxy: **DNS only** (сіра хмара) — щоб браузер ішов прямо в Caddy
+2. **Cloudflare API token** з правами:
+   - `Zone → Zone → Read` (для будь-якої зони)
+   - `Zone → DNS → Edit` (специфічно для `swift-mail.app`)
+3. **Google OAuth** (опційно):
+   - https://console.cloud.google.com/apis/credentials
    - В `Authorized redirect URIs` додаємо
      `https://reflect.swift-mail.app/api/auth/google/callback`
-3. **Push коду** в GitHub (приватний репо OK):
-   ```bash
-   gh repo create reflect --private --source=. --push
-   ```
-4. **SSH-ключ** на сервері — той самий, що для swift-mail.
 
 ## Перший деплой
 
-З машини розробника:
 ```bash
-ssh root@<vps-ip>
+ssh deploy@<vps-ip>
 
-# Раз — клонуємо репо в /opt/reflect.
-git clone git@github.com:<owner>/reflect.git /opt/reflect
+# Раз — клонуємо.
+git clone https://github.com/<owner>/reflect.git /opt/reflect
 cd /opt/reflect
 
-# Раз — створюємо .env.
+# Раз — конфіг.
 cp deploy/.env.prod.example .env
-# Згенерувати JWT-секрети:
-#   openssl rand -base64 48
+# openssl rand -base64 48  → JWT_ACCESS_SECRET
+# openssl rand -base64 48  → JWT_REFRESH_SECRET
+# вставити CLOUDFLARE_API_TOKEN, OPENROUTER_API_KEY (або ANTHROPIC_*)
 nano .env
 
-# Деплой.
 bash deploy/setup-reflect.sh
 ```
 
+Сетап-скрипт:
+1. Білдить 3 image: `reflect/api`, `reflect/web`, `reflect/caddy`
+2. Піднімає всі контейнери на власній мережі `reflect_net`
+3. Caddy робить ACME DNS-01 → Let's Encrypt видає cert (~30 сек)
+4. Чекає поки api відповість на health-check
+
 ## Подальші деплої
 
-Простий шлях («тимчасово»):
+Швидкий шлях (білд локально на M-Mac, push image-tarball на сервер):
 ```bash
-ssh root@<vps-ip>
-cd /opt/reflect
-git pull
-docker compose -f docker-compose.prod.yml build --parallel
-docker compose -f docker-compose.prod.yml up -d
-deploy/reconcile-reflect-ingress.sh   # idempotent
-docker image prune -f
+# Локально:
+docker buildx build --platform linux/amd64 -f backend/Dockerfile  -t reflect/api:latest --load .
+docker buildx build --platform linux/amd64 -f frontend/Dockerfile -t reflect/web:latest --load .
+docker save reflect/api:latest reflect/web:latest | gzip -1 \
+  | ssh deploy@<vps-ip> 'gunzip | docker load'
+
+# На сервері:
+ssh deploy@<vps-ip>
+cd /opt/reflect && git pull
+docker compose -f docker-compose.prod.yml up -d --force-recreate api web
 ```
 
-CI-варіант (на майбутнє): copy `.github/workflows/deploy.yml` зі swift-mail
-і поправ шляхи (`/opt/swiftmail` → `/opt/reflect`, `swiftmail_*` → `reflect_*`,
-`docker-compose.prod.yml` той самий).
+(Caddy-image майже ніколи не міняється — окремий rebuild не потрібен.)
 
 ## Корисні команди
 
 ```bash
-# Тейлити логи (api+web разом)
+# Тейлити логи
 docker compose -f docker-compose.prod.yml logs -f
 
-# Тільки api
-docker compose -f docker-compose.prod.yml logs -f api
-
-# Запустити Prisma Studio (через тунель)
-ssh -L 5555:localhost:5555 root@<vps-ip>
-docker compose -f docker-compose.prod.yml exec api npx prisma studio --port 5555
+# Чи cert успішно випущено
+docker logs reflect_caddy 2>&1 | grep -E "obtained|certificate"
 
 # Бекап SQLite
 docker compose -f docker-compose.prod.yml exec api sh -c \
   'sqlite3 /data/reflect.db ".backup /data/reflect-backup-$(date +%F).db"'
 
-# Подивитись, що nginx-ingress має наш конфіг
-docker exec bober-web-1 cat /etc/nginx/conf.d/reflect.conf
+# Подивитись поточний Caddyfile у контейнері
+docker exec reflect_caddy cat /etc/caddy/Caddyfile
 
-# Хто слухає :80 на хості (debug)
-ss -tlnp | grep :80
+# Перевірити що :443 справді тримає reflect_caddy
+ss -tlnp | grep :443
 ```
 
 ## Troubleshooting
 
-**502 Bad Gateway** після deploy:
-- `docker compose ps` — обидва контейнери `Up`?
-- `docker compose logs api` — Prisma помилка зазвичай через відсутній `/data` volume
-- `bober-web-1` приєднаний до `proxy` мережі? → `deploy/reconcile-reflect-ingress.sh`
+**Caddy не може випустити cert** (`acme: Could not validate`):
+- Перевір що `CLOUDFLARE_API_TOKEN` має `Zone DNS Edit` для `swift-mail.app`
+- `docker logs reflect_caddy` покаже точну помилку валідації
+- Тимчасово можна вручну запустити:
+  `docker exec reflect_caddy caddy reload --config /etc/caddy/Caddyfile`
 
 **SSE-стрім фідбеку рветься через ~30s**:
-- `proxy_read_timeout` уже виставлено на `300s` у `nginx-reflect.conf`
-- Якщо все одно рветься — перевір Cloudflare-таймаути (free план обмежує
-  100s на запит). Workaround: вимкнути проксі-режим (DNS-only, сіра хмарка)
-  і налаштувати TLS через Caddy на сервері.
+- У `Caddyfile` уже виставлено `read_timeout 300s` для `/api/*`
+- Якщо все одно — глянь `docker logs reflect_api` чи запит дійшов
 
 **OAuth не повертається назад**:
-- `API_BASE_URL` у `.env` має бути точно `https://reflect.swift-mail.app`
-  (без trailing slash)
+- `API_BASE_URL` має бути точно `https://reflect.swift-mail.app` (без trailing slash)
 - В Google Cloud Console redirect URI має точно збігатись
+
+**Зник cert / ALPN failure**:
+- `caddy_data` volume персистентний — cert + ACME state живуть там, виживають redeploy
+- Якщо volume випадково знищили — Caddy просто запросить новий cert при старті (~30 сек)

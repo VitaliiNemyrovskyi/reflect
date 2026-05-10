@@ -1,12 +1,16 @@
 # Reflect — production stack on the shared Contabo VPS.
 #
-# Pattern mirrors swift-mail/docker-compose.prod.yml: the API + web run on
-# the external `proxy` docker network, no external port mappings. The host's
-# bober-web nginx ingress (which owns :80) proxies Host: reflect.swift-mail.app
-# to these containers via Docker DNS — see deploy/nginx-reflect.conf and
-# deploy/reconcile-reflect-ingress.sh.
+# Architecture: Reflect is FULLY INDEPENDENT of bober/swiftmail.
+#  - Caddy ingress binds host :443 directly, gets its own Let's Encrypt
+#    cert via DNS-01 challenge (Cloudflare API). No reliance on bober's
+#    nginx, no docker cp injection that breaks on container recreate.
+#  - reflect.swift-mail.app is configured DNS-only in Cloudflare (gray
+#    cloud); browsers hit our Caddy directly with a valid TLS cert.
+#  - Internal `proxy` network is private to Reflect — not the shared
+#    `proxy` net used by bober/swiftmail. Cross-project isolation.
 #
-# SQLite lives on a docker volume (`reflect_data`) so deploys don't nuke it.
+# SQLite lives on a docker volume (`reflect_data`) so deploys don't
+# nuke patient data.
 
 services:
   api:
@@ -19,22 +23,17 @@ services:
     environment:
       NODE_ENV: production
       API_PORT: 3000
-      # SQLite db file lives on the named volume below.
       DATABASE_URL: file:/data/reflect.db
       PROMPTS_DIR: /app/prompts
-      # LLM provider — Anthropic OR openrouter. See backend/src/llm/llm.service.ts.
       LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
       LLM_MODEL_CHAT: ${LLM_MODEL_CHAT:-}
       LLM_MODEL_FEEDBACK: ${LLM_MODEL_FEEDBACK:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      # Auth — JWT secrets MUST be set; OAuth is optional.
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
-      # OAuth callback URLs are derived from API_BASE_URL, FRONTEND_URL is
-      # where the auth.controller redirects after OAuth completes.
       API_BASE_URL: https://reflect.swift-mail.app
       FRONTEND_URL: https://reflect.swift-mail.app
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -44,10 +43,6 @@ services:
     volumes:
       - reflect_data:/data
     healthcheck:
-      # NestJS doesn't expose a dedicated health route — /api just 404s
-      # cleanly when the app is up, which is enough to confirm liveness.
-      # Use node directly (already in the image) instead of wget/curl so the
-      # check doesn't depend on Alpine's BusyBox version.
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 5s
@@ -63,16 +58,37 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    # No external port mapping — bober-web nginx routes Host: reflect.swift-mail.app
-    # to this container's :80 over the shared `proxy` network.
+
+  caddy:
+    image: reflect/caddy:${IMAGE_TAG:-latest}
+    build:
+      context: ./deploy/caddy
+    container_name: reflect_caddy
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "443:443/udp" # HTTP/3 (QUIC)
+    environment:
+      # Caddy needs this for the DNS-01 challenge against Cloudflare.
+      # See deploy/Caddyfile for usage.
+      CADDY_CF_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
 
 volumes:
   reflect_data:
+  caddy_data:    # Caddy's auto-issued cert + ACME state lives here.
+  caddy_config:
 
-# External shared network — bober-web nginx attaches itself here so it can
-# resolve `reflect_api` / `reflect_web` by container name. The network is
-# created lazily by deploy/reconcile-reflect-ingress.sh if it doesn't exist.
+# Private network — only reflect's containers. NOT the shared `proxy`
+# network used by bober/swiftmail. Caddy resolves `reflect_api` and
+# `reflect_web` by container name on this internal net.
 networks:
   default:
-    name: proxy
-    external: true
+    name: reflect_net
+    driver: bridge
