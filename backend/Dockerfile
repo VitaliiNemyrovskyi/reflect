@@ -43,11 +43,15 @@ RUN apk add --no-cache tini
 # Trying to reinstall with `--omit=dev` here re-triggers postinstall and
 # fails because prisma is a devDependency. Copying the whole tree is
 # simpler and the size delta is small for an MVP.
+#
+# npm workspaces hoists all deps to /app/node_modules — backend's own
+# node_modules/ ends up empty (or absent), so we don't copy it. Node's
+# module resolver walks up from /app/backend → /app/node_modules and
+# finds everything there.
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/
 COPY backend/prisma ./backend/prisma
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/backend/node_modules ./backend/node_modules
 
 # Compiled JS + runtime assets.
 COPY --from=builder /app/backend/dist ./backend/dist
