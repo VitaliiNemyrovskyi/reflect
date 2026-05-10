@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { marked } from 'marked';
 import { ApiService } from '../api.service';
@@ -218,6 +219,56 @@ marked.setOptions({
        breathing room when they appear inline. */
     .prose td:first-child { white-space: nowrap; }
 
+    /* Audit footer — backend wraps the "N quotes failed verification"
+       list in <details> so it collapses by default. The student sees a
+       single warning line, expands on click if they want to dig in.
+       Avoids the wall-of-red effect that made the whole feedback look
+       suspect when only a few quotes were flagged. */
+    .prose .audit-block {
+      margin-top: 18px;
+      padding: 12px 14px;
+      background: rgba(255, 191, 110, 0.05);
+      border: 1px solid rgba(255, 191, 110, 0.2);
+      border-radius: 8px;
+    }
+    .prose .audit-block summary {
+      cursor: pointer;
+      font-size: 14px;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+    .prose .audit-block summary::before {
+      content: '▸';
+      color: var(--fg-dim);
+      transition: transform .15s ease;
+      display: inline-block;
+    }
+    .prose .audit-block[open] summary::before { transform: rotate(90deg); }
+    .prose .audit-block summary::-webkit-details-marker { display: none; }
+    .prose .audit-block summary strong {
+      color: var(--warn, #fbbf6e);
+      font-weight: 500;
+    }
+    .prose .audit-block[open] summary {
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 191, 110, 0.15);
+    }
+    .prose .audit-issues {
+      margin: 6px 0 0;
+      padding-left: 22px;
+      font-size: 13px;
+    }
+    .prose .audit-issues li {
+      margin: 8px 0;
+      line-height: 1.5;
+      color: var(--fg-dim);
+    }
+    .prose .audit-issues strong { color: var(--fg); }
+
     .actions { display: flex; gap: 10px; margin-top: 24px; }
     .actions button[disabled] { opacity: 0.55; cursor: not-allowed; }
     .hint { color: var(--fg-dim); font-size: 14px; }
@@ -237,6 +288,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private api = inject(ApiService);
   private state = inject(SessionStateService);
+  private sanitizer = inject(DomSanitizer);
 
   feedback = signal<string>('');
   /** Initial wait before first chunk arrives. */
@@ -250,16 +302,23 @@ export class FeedbackComponent implements OnInit, OnDestroy {
    * enough (~5ms for typical feedback) that doing it per-chunk during
    * streaming gives a clean live preview without throttling.
    *
-   * After parsing, we wrap `[L<n>]` line references in inline badges so
+   * Uses `bypassSecurityTrustHtml` because the source is our own LLM
+   * piped through a tightly controlled prompt — Angular's default
+   * sanitizer would strip out the audit-section's <details>/<summary>
+   * elements (it lists them as "non-standard" even though they're
+   * vanilla HTML5) and class attributes we use for styling.
+   *
+   * After parsing we wrap `[L<n>]` line references in inline badges so
    * the visual anchor between supervisor claim and transcript line is
    * obvious. Done as a string post-process because marked doesn't have
    * a clean way to extend inline rules without a custom extension.
    */
-  feedbackHtml = computed(() => {
+  feedbackHtml = computed<SafeHtml>(() => {
     const text = this.feedback();
     if (!text) return '';
     const html = marked.parse(text, { async: false }) as string;
-    return html.replace(/\[L(\d+)\]/g, '<span class="line-ref">[L$1]</span>');
+    const withRefs = html.replace(/\[L(\d+)\]/g, '<span class="line-ref">[L$1]</span>');
+    return this.sanitizer.bypassSecurityTrustHtml(withRefs);
   });
 
   private abort = new AbortController();

@@ -463,12 +463,30 @@ export class SessionsService {
 
     if (issues.length === 0) return feedback;
 
+    // Wrap the audit list in a native <details> block so the feedback page
+    // shows a single compact "⚠ N цитат не пройшли перевірку" line that
+    // expands on click. Without this, 8+ warnings looked like the entire
+    // feedback was suspect — overwhelming for the student. The narrative
+    // above is unaffected; this section is purely a "trust score" footer.
+    //
+    // markdown allows raw HTML, and marked passes <details> through verbatim
+    // so the frontend doesn't need a custom renderer.
+    const summaryWord =
+      issues.length === 1 ? 'цитата' : issues.length < 5 ? 'цитати' : 'цитат';
+    const summaryLabel = `⚠️ ${issues.length} ${summaryWord} не пройшли автоматичну перевірку`;
+
+    const items = issues.map((s) => `<li>${s}</li>`).join('\n');
+
     return (
       feedback +
-      '\n\n---\n\n⚠️ **Автоматична перевірка цитат і посилань**\n\n' +
-      'Ці фрагменти у фідбеку не пройшли звірку з транскриптом — можлива галюцинація моделі. ' +
-      'Перевір перед тим, як приймати на віру:\n\n' +
-      issues.map((s) => `- ${s}`).join('\n')
+      '\n\n---\n\n' +
+      '<details class="audit-block">\n' +
+      `  <summary><strong>${summaryLabel}</strong></summary>\n\n` +
+      'Ці фрагменти у фідбеку не звіряються з транскриптом — можлива галюцинація моделі ' +
+      '(особливо часто на free-tier). Текст вище у фідбеку — структурований розбір — ' +
+      'довіряй. А цитати у лапках, які попали сюди, — перевір вручну або ігноруй.\n\n' +
+      `<ul class="audit-issues">\n${items}\n</ul>\n` +
+      '</details>'
     );
   }
 
