@@ -1,0 +1,32 @@
+# Reapplies reflect.swift-mail.app routing onto whichever nginx container
+# owns port :80 on the shared VPS. See deploy/reconcile-reflect-ingress.sh
+# for the full rationale (TL;DR — bober-web-1 holds :80 and needs our
+# server block injected via `docker cp`, which doesn't survive container
+# recreation).
+#
+# Install on the VPS as /etc/systemd/system/reflect-ingress-reconcile.service,
+# then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable reflect-ingress-reconcile.service
+#   sudo systemctl start reflect-ingress-reconcile.service
+#
+# This is a oneshot — it fires once on every boot AFTER docker.service is
+# up. If bober-web is recreated WITHOUT a reboot, you still need to
+# manually re-run deploy/reconcile-reflect-ingress.sh (or trigger the
+# service: `systemctl start reflect-ingress-reconcile`).
+
+[Unit]
+Description=Reflect ingress routing reconcile
+After=docker.service
+Requires=docker.service
+ConditionPathExists=/opt/reflect/deploy/reconcile-reflect-ingress.sh
+
+[Service]
+Type=oneshot
+# Wait up to 2min for bober-web to come up before applying our block.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do docker inspect "${INGRESS_CONTAINER:-bober-web-1}" >/dev/null 2>&1 && exit 0; sleep 2; done; echo "ingress container not up after 2min"; exit 1'
+ExecStart=/opt/reflect/deploy/reconcile-reflect-ingress.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
