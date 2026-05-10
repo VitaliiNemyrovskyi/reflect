@@ -49,10 +49,23 @@ export class IntroComponent implements OnInit {
   error = signal<string | null>(null);
   private characterId = 0;
 
-  ngOnInit() {
-    this.characterId = Number(this.route.snapshot.paramMap.get('characterId'));
+  async ngOnInit() {
+    this.characterId = Number(
+      this.route.snapshot.paramMap.get('id') ??
+        this.route.snapshot.paramMap.get('characterId'),
+    );
     const fromState = (history.state as { displayName?: string } | undefined)?.displayName;
-    this.displayName.set(fromState ?? null);
+    if (fromState) {
+      this.displayName.set(fromState);
+    } else if (this.characterId) {
+      // Fetch from API if not in history (e.g., coming via deep link)
+      try {
+        const card = await this.api.patientCard(this.characterId);
+        this.displayName.set(card.displayName);
+      } catch {
+        // ignore — user just sees default
+      }
+    }
   }
 
   async start() {
@@ -71,7 +84,11 @@ export class IntroComponent implements OnInit {
   }
 
   back() {
-    void this.router.navigate(['/']);
+    if (this.characterId) {
+      void this.router.navigate(['/patient', this.characterId]);
+    } else {
+      void this.router.navigate(['/']);
+    }
   }
 
   private errMsg(e: unknown): string {

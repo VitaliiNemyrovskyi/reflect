@@ -12,6 +12,10 @@ model Character {
   slug        String    @unique
   displayName String
   profileText String
+  diagnosis   String?   // Short clinical hint: "GAD з perfectionism", "Complicated grief"
+  difficulty  Int?      // 1-5; behavioral difficulty (how hard to engage). Modulates LLM behavior.
+  complexity  Int?      // 1-5; clinical severity (how serious the case is). Informational, doesn't change LLM.
+  avatarUrl   String?   // Link to portrait
   createdAt   DateTime  @default(now())
   sessions    Session[]
 }
@@ -29,16 +33,18 @@ model User {
 }
 
 model Session {
-  id          Int       @id @default(autoincrement())
-  character   Character @relation(fields: [characterId], references: [id])
-  characterId Int
-  user        User?     @relation(fields: [userId], references: [id])
-  userId      Int?
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-  feedback    String?
-  messages    Message[]
-  notes       Note[]
+  id              Int       @id @default(autoincrement())
+  character       Character @relation(fields: [characterId], references: [id])
+  characterId     Int
+  user            User?     @relation(fields: [userId], references: [id])
+  userId          Int?
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  feedback        String?           // Narrative feedback (Markdown)
+  feedbackJson    String?           // Structured supervisor JSON (assessment metrics)
+  patientMemory   String?           // Anna's first-person memory of this session for next time
+  messages        Message[]
+  notes           Note[]
 
   @@index([characterId])
   @@index([userId])

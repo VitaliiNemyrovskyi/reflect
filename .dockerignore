@@ -1,0 +1,43 @@
+# Keep Docker build context small — without these the npm cache and
+# dist/ folders alone push the build context past 1GB.
+
+# Workspace deps + builds
+node_modules
+**/node_modules
+**/dist
+**/.cache
+
+# SQLite + uploads
+*.db
+*.db-journal
+reflect.db*
+
+# Local envs and secrets
+.env
+.env.*
+!deploy/.env.prod.example
+
+# Editor / OS
+.DS_Store
+.vscode
+.idea
+*.log
+.angular
+.nx
+
+# Git + CI metadata that's irrelevant inside the container
+.git
+.gitignore
+.github
+.husky
+.claude
+
+# Docs / wiki — not needed in the container, kept in the repo
+docs
+wiki
+README.md
+*.md
+# Prompts ARE needed at runtime — system prompts for Anna/supervisor and
+# the patient profiles in prompts/profiles/*.md that PromptsService loads.
+!prompts/**
+!backend/prisma/**

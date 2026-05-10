@@ -1,11 +1,75 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { AuthService } from './auth.service';
+
+export type ProgressBadge = 'improving' | 'stable' | 'worsening' | 'unknown';
 
 export interface Character {
   id: number;
   slug: string;
   displayName: string;
+  diagnosis?: string | null;
+  difficulty?: number | null; // behavioral (Поведінка) — modulates LLM
+  complexity?: number | null; // clinical (Тяжкість) — informational
+  avatarUrl?: string | null;
+  summary?: string;
+  sessionCount?: number;
+  completedCount?: number;
+  lastSessionAt?: string | null;
+  progressBadge?: ProgressBadge;
+}
+
+export interface AssessmentJson {
+  patient?: {
+    symptomSeverity?: number | null;
+    insight?: number | null;
+    alliance?: number | null;
+    defensiveness?: number | null;
+    hopefulness?: number | null;
+  };
+  therapist?: {
+    empathy?: number | null;
+    collaboration?: number | null;
+    guidedDiscovery?: number | null;
+    strategyForChange?: number | null;
+  };
+  patientMemory?: string;
+}
+
+export interface SessionSummary {
+  id: number;
+  startedAt: string;
+  endedAt: string | null;
+  messageCount: number;
+  noteCount: number;
+  assessment: AssessmentJson | null;
+  feedbackPreview: string | null;
+}
+
+export interface ProgressTrendPoint {
+  sessionId: number;
+  value: number | null;
+  date: string;
+}
+
+export interface ProgressTrend {
+  metric: string;
+  series: ProgressTrendPoint[];
+}
+
+export interface PatientCard {
+  id: number;
+  slug: string;
+  displayName: string;
+  profileText: string;
+  progressBadge: ProgressBadge;
+  sessionCount: number;
+  completedCount: number;
+  sessions: SessionSummary[];
+  notes: Note[];
+  trends: ProgressTrend[];
+  recentFeedback: string | null;
 }
 
 export interface StartSessionResponse {
@@ -22,6 +86,12 @@ export interface EndSessionResponse {
   feedback: string;
 }
 
+export type FeedbackStreamEvent =
+  | { type: 'cached'; data: { feedback: string } }
+  | { type: 'chunk'; data: { text: string } }
+  | { type: 'done'; data: { feedback: string; assessment: AssessmentJson | null } }
+  | { type: 'error'; data: { message: string } };
+
 export interface Note {
   id: number;
   sessionId: number;
@@ -37,13 +107,43 @@ export interface CreateNoteInput {
   anchorText?: string;
 }
 
+function parseSseFrame(frame: string): { type: string; data: unknown } | null {
+  let evType = 'message';
+  const dataLines: string[] = [];
+  for (const rawLine of frame.split('\n')) {
+    const line = rawLine.replace(/\r$/, '');
+    if (!line || line.startsWith(':')) continue;
+    if (line.startsWith('event:')) {
+      evType = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).replace(/^ /, ''));
+    }
+  }
+  if (dataLines.length === 0) return null;
+  const dataStr = dataLines.join('\n');
+  let data: unknown;
+  try {
+    data = JSON.parse(dataStr);
+  } catch {
+    data = dataStr;
+  }
+  return { type: evType, data };
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
   private base = '/api';
 
   listCharacters(): Promise<Character[]> {
     return firstValueFrom(this.http.get<Character[]>(`${this.base}/characters`));
+  }
+
+  patientCard(characterId: number): Promise<PatientCard> {
+    return firstValueFrom(
+      this.http.get<PatientCard>(`${this.base}/characters/${characterId}/full`),
+    );
   }
 
   startSession(characterId: number): Promise<StartSessionResponse> {
@@ -65,6 +165,76 @@ export class ApiService {
     return firstValueFrom(
       this.http.post<EndSessionResponse>(`${this.base}/sessions/${sessionId}/end`, {}),
     );
+  }
+
+  /**
+   * Streaming variant of endSession. Yields SSE events as they arrive from the
+   * backend. The HttpInterceptor doesn't run here — we use raw fetch — so we
+   * attach the access token manually and bounce on 401 (no auto-refresh).
+   * For MVP that's fine; ending a session is a single explicit action.
+   */
+  async *endSessionStream(
+    sessionId: number,
+    signal?: AbortSignal,
+  ): AsyncGenerator<FeedbackStreamEvent, void, unknown> {
+    const token = this.auth.accessToken();
+    const headers: Record<string, string> = { Accept: 'text/event-stream' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${this.base}/sessions/${sessionId}/end-stream`, {
+      method: 'POST',
+      headers,
+      signal,
+    });
+
+    if (response.status === 401) {
+      this.auth.forceLogout();
+      throw new Error('Сесія авторизації прострочена. Увійди знов.');
+    }
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status}: ${text || 'не вдалося стартувати стрім'}`);
+    }
+    if (!response.body) {
+      throw new Error('Браузер не підтримує streaming response.');
+    }
+
+    yield* this.parseSseStream(response.body);
+  }
+
+  private async *parseSseStream(
+    body: ReadableStream<Uint8Array>,
+  ): AsyncGenerator<FeedbackStreamEvent, void, unknown> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          // Flush trailing buffer if it happens to be a complete frame.
+          if (buffer.trim()) {
+            const ev = parseSseFrame(buffer);
+            if (ev) yield ev as FeedbackStreamEvent;
+          }
+          return;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buffer.indexOf('\n\n')) !== -1) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const ev = parseSseFrame(frame);
+          if (ev) yield ev as FeedbackStreamEvent;
+        }
+      }
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   listNotes(sessionId: number): Promise<Note[]> {

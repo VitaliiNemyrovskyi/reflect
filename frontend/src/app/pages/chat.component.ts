@@ -39,6 +39,14 @@ interface SelectionAnchor {
       </div>
       <div class="actions">
         <button
+          class="ghost icon mobile-only"
+          [class.has-notes]="notes().length > 0"
+          [attr.aria-label]="'Нотатки (' + notes().length + ')'"
+          title="Нотатки"
+          (click)="toggleNotes()">
+          📝{{ notes().length > 0 ? ' ' + notes().length : '' }}
+        </button>
+        <button
           class="ghost icon"
           [class.active]="!voice.muted()"
           [attr.aria-label]="voice.muted() ? 'Увімкнути голос' : 'Вимкнути голос'"
@@ -47,7 +55,7 @@ interface SelectionAnchor {
           {{ voice.muted() ? '🔇' : voice.speaking() ? '🔊' : '🔈' }}
         </button>
         <button class="danger" [disabled]="ending()" (click)="end()">
-          {{ ending() ? 'Готую фідбек…' : 'Завершити сесію' }}
+          {{ ending() ? 'Готую…' : 'Завершити' }}
         </button>
       </div>
     </header>
@@ -96,9 +104,15 @@ interface SelectionAnchor {
         </form>
       </section>
 
-      <aside class="notes-panel">
+      @if (notesOpen()) {
+        <div class="sheet-backdrop visible" (click)="closeNotes()"></div>
+      }
+
+      <aside class="notes-panel" [class.open]="notesOpen()">
+        <button class="sheet-handle mobile-only" (click)="closeNotes()" aria-label="Закрити нотатки">
+        </button>
         <header class="notes-header">
-          <h3>Нотатки</h3>
+          <h3>Нотатки {{ notes().length ? '(' + notes().length + ')' : '' }}</h3>
           <span class="hint">Виділи текст у репліці, щоб приколоти нотатку</span>
         </header>
 
@@ -159,8 +173,17 @@ interface SelectionAnchor {
       border-bottom: 1px solid var(--border);
       padding-bottom: 14px;
       margin-bottom: 0;
+      gap: 8px;
     }
     h2 { font-size: 22px; margin: 0; font-weight: 500; }
+    @media (max-width: 720px) {
+      h2 { font-size: 18px; }
+      .chat-header .danger { padding: 8px 12px; font-size: 13px; }
+      .chat-header .icon { padding: 8px 10px; font-size: 16px; min-width: 44px; min-height: 44px; }
+      .left { gap: 8px; flex-shrink: 1; min-width: 0; }
+      .left h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .actions { flex-shrink: 0; gap: 6px; }
+    }
     .left {
       display: flex;
       align-items: baseline;
@@ -250,6 +273,7 @@ interface SelectionAnchor {
       align-items: flex-end;
       border-top: 1px solid var(--border);
       padding-top: 14px;
+      padding-bottom: var(--safe-bottom);
     }
     .composer textarea {
       flex: 1;
@@ -262,6 +286,26 @@ interface SelectionAnchor {
       font-size: 18px;
       line-height: 1;
       align-self: stretch;
+    }
+    @media (max-width: 720px) {
+      .composer {
+        gap: 6px;
+        padding-top: 10px;
+      }
+      .composer textarea {
+        min-height: 48px;
+        font-size: 16px; // prevents iOS zoom-on-focus
+      }
+      .composer .primary,
+      .composer .mic {
+        min-height: 48px;
+        min-width: 48px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      .composer .mic {
+        font-size: 20px;
+      }
     }
     .mic.listening {
       background: var(--danger);
@@ -281,14 +325,57 @@ interface SelectionAnchor {
       padding-left: 22px;
       min-height: 0;
     }
+    .mobile-only { display: none; }
     @media (max-width: 880px) {
+      .mobile-only { display: inline-flex; }
+      // Mobile: notes panel becomes a bottom-sheet
       .notes-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+        background: var(--sheet-bg);
+        border-radius: var(--sheet-radius);
         border-left: none;
-        border-top: 1px solid var(--border);
-        padding-left: 0;
-        padding-top: 22px;
-        margin-top: 22px;
+        padding: 0 18px var(--safe-bottom);
+        max-height: 85vh;
+        transform: translateY(100%);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--sheet-shadow);
       }
+      .notes-panel.open {
+        transform: translateY(0);
+      }
+      .notes-panel .sheet-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 32px;
+        margin: 0 -18px 6px;
+        background: transparent;
+        border: none;
+        cursor: grab;
+        min-height: auto;
+        &::before {
+          content: '';
+          width: var(--sheet-handle-w);
+          height: var(--sheet-handle-h);
+          background: var(--fg-dim);
+          border-radius: 4px;
+          opacity: 0.6;
+        }
+      }
+    }
+    @media (min-width: 881px) {
+      .notes-panel .sheet-handle { display: none; }
+      // Backdrop only relevant on mobile
+      .sheet-backdrop { display: none !important; }
+    }
+
+    .icon.has-notes {
+      color: var(--accent);
+      border-color: var(--accent);
     }
     .notes-header h3 {
       margin: 0;
@@ -410,6 +497,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   savingNote = signal(false);
   anchorPreview = signal<string | null>(null);
   selectionAnchor = signal<SelectionAnchor | null>(null);
+  notesOpen = signal<boolean>(false);
 
   private startedAt = Date.now();
   private nowMs = signal(Date.now());
@@ -466,6 +554,19 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     });
   }
 
+  toggleNotes() {
+    this.notesOpen.update((v) => !v);
+  }
+
+  closeNotes() {
+    this.notesOpen.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    if (this.notesOpen()) this.closeNotes();
+  }
+
   @HostListener('document:selectionchange')
   onSelectionChange() {
     const sel = document.getSelection();
@@ -497,9 +598,13 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.anchorPreview.set(a.text);
     this.selectionAnchor.set(null);
     document.getSelection()?.removeAllRanges();
-    // Focus note textarea
-    const ta = document.querySelector<HTMLTextAreaElement>('.note-form textarea');
-    ta?.focus();
+    // On mobile, open the notes bottom-sheet so user can type immediately
+    this.notesOpen.set(true);
+    // Focus note textarea after sheet opens (transition ~280ms)
+    setTimeout(() => {
+      const ta = document.querySelector<HTMLTextAreaElement>('.note-form textarea');
+      ta?.focus();
+    }, 320);
   }
 
   clearAnchor() {
@@ -518,6 +623,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.notes.update((arr) => [...arr, note]);
       this.noteDraft = '';
       this.anchorPreview.set(null);
+      // On mobile auto-close sheet so user sees chat. On desktop no-op.
+      if (window.innerWidth <= 880) {
+        this.closeNotes();
+      }
     } catch {
       alert('Не вдалося зберегти нотатку.');
     } finally {

@@ -15,6 +15,8 @@
 - **Edward Bordin** (1979) — *The Generalizability of the Psychoanalytic Concept of the Working Alliance*: альянс = bond + goals + tasks.
 - **Robert Carkhuff** (1969) — Empathy 5-point rating scale: рівні від «не помітив переживання» до «поглибив переживання, відкрив новий шар».
 - **Aaron T. Beck / Judith Beck** — *Cognitive Therapy: Basics and Beyond* (3rd ed., 2020): cognitive case formulation, перевірка automatic thoughts проти core beliefs.
+- **Cognitive Therapy Scale-Revised (CTS-R)** — Blackburn, James, Milne et al. (2001), University of Newcastle: 12-item стандартизована шкала оцінки якості CBT-сесії (0-6 кожен пункт). Стандарт у клінічній супервізії.
+- **Motivational Interviewing Treatment Integrity (MITI 4.2.1)** — Moyers, Manuel & Ernst (2014): 4 globals (Cultivating Change Talk, Softening Sustain Talk, Partnership, Empathy, кожна 1-5) + behavior counts (% complex reflections, reflection-to-question ratio).
 - **Irvin D. Yalom** (2002) — *The Gift of Therapy*, гл. 17: «Engage with the present moment». Helpful therapist коментує `here-and-now` сесії, не лише past content.
 - **William R. Miller & Stephen Rollnick** — *Motivational Interviewing* (4th ed., 2023): техніка **OARS** — Open questions, Affirmations, Reflections, Summaries.
 - **Nancy McWilliams** (1999) — *Psychoanalytic Case Formulation*: оцінка захистів (іронія, інтелектуалізація, заперечення, ізоляція афекту) у моменті.
@@ -22,6 +24,43 @@
 - **Daniel J. Siegel** (1999) — *The Developing Mind*: right-brain attunement, регуляція афекту через ритм сесії.
 
 Не вимагай від студентки знати ці джерела напам'ять — вимагай, щоб **поведінка** в сесії узгоджувалась з принципами, які з них випливають.
+
+---
+
+## Mapping наших 8 вимірів на канонічні шкали
+
+Це таблиця **перекладу** між нашими вимірами і стандартизованими інструментами. Дозволяє студентці бачити свою роботу одночасно у нашій рамці і у класичних шкалах CTS-R / MITI, з якими стикнеться у магістратурі/практикумі.
+
+| Наш вимір | CTS-R items (0-6 кожен) | MITI globals (1-5) |
+| --- | --- | --- |
+| **1. Терапевтичний альянс** | Item 5 *Interpersonal Effectiveness*, Item 3 *Collaboration* | *Partnership*, *Empathy* |
+| **2. Збір презентуючої проблеми** | Item 1 *Agenda Setting*, Item 4 *Pacing*, Item 7 *Eliciting Key Cognitions* | — |
+| **3. Diff-розгляд / self-diagnosis** | Item 9 *Guided Discovery*, Item 10 *Conceptual Integration* | *Softening Sustain Talk* (коли self-diagnosis = «sustain talk» про неефективні копінги) |
+| **4. Біографічний контекст** | Item 7 *Eliciting Key Cognitions*, Item 10 *Conceptual Integration* | — |
+| **5. Mental status / here-and-now** | Item 6 *Eliciting Appropriate Emotional Expression*, Item 5 *Interpersonal Effectiveness* | *Empathy* (Carkhuff 4-5 рівень) |
+| **6. Скринінг ризиків** | (поза CTS-R, окрема компетенція) | — |
+| **7. Робоча гіпотеза / формулювання** | Item 10 *Conceptual Integration*, Item 11 *Application of Change Methods* | *Cultivating Change Talk* (якщо у формулюванні є рух до зміни) |
+| **8. Закриття сесії** | Item 2 *Feedback*, Item 12 *Homework Setting* | — |
+
+### Як цим користуватись у фідбеку
+
+Коли коментуєш конкретний момент, можеш додати **CTS-R-стиль оцінку**: «Ваше запитання "..." — це **CTS-R Item 9 Guided Discovery, ~5/6 рівень**: ви провели клієнтку до її ж висновку без нав'язування свого тлумачення.» Або **MITI**: «Тут ви сформулювали **complex reflection** (MITI), а не просто питання — клієнтка пішла глибше.»
+
+Не нав'язуй CTS-R/MITI на кожне спостереження — використовуй там, де це **підкріплює конкретно**, особливо для пунктів **«Сильні моменти сесії»** і **«Зони для розвитку»**.
+
+### Carkhuff Empathy Scale (для Виміру 5)
+
+Коли оцінюєш конкретну емпатичну репліку студентки, можеш мапити на 5-бальну шкалу Carkhuff:
+
+| Level | Що це означає | Приклад |
+| --- | --- | --- |
+| 1 | Терапевтка **не помітила** або **заперечила** почуття клієнтки | Клієнтка: «...» Терапевтка: «давайте про техніки» |
+| 2 | Помітила, але **зменшила** інтенсивність | Клієнтка: «розпач». Терапевтка: «трохи сумно?» |
+| 3 (мінімум для базового практика) | **Точно відобразила** явно сказане | Клієнтка: «розпач». Терапевтка: «вам зараз дуже важко» |
+| 4 | **Розширила** до невисловленого | «вам важко, і я чую — наче ви виснажена, не лише сумна» |
+| 5 | **Поглибила** до прихованого шару | «у цьому розпачі чую і **сором** — наче ви не маєте на нього права» |
+
+Опис рівня + цитата — це **professional-grade фідбек**.
 
 ---
 

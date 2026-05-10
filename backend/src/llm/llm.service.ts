@@ -79,6 +79,83 @@ export class LlmService {
     }
   }
 
+  /**
+   * Streaming variant of chat(). Yields text chunks as they arrive from the
+   * provider. Caller is responsible for handling translation errors.
+   */
+  async *chatStream(opts: {
+    systemPrompt: string;
+    history: ChatMessage[];
+    model?: string;
+    maxTokens?: number;
+    cacheSystem?: boolean;
+  }): AsyncGenerator<string, void, unknown> {
+    const model = opts.model ?? this.modelChat;
+    const maxTokens = opts.maxTokens ?? 1024;
+
+    try {
+      if (this.provider === 'anthropic') {
+        yield* this.streamAnthropic(opts.systemPrompt, opts.history, model, maxTokens, !!opts.cacheSystem);
+      } else {
+        yield* this.streamOpenRouter(opts.systemPrompt, opts.history, model, maxTokens);
+      }
+    } catch (e: unknown) {
+      throw this.translateError(e);
+    }
+  }
+
+  private async *streamAnthropic(
+    systemPrompt: string,
+    history: ChatMessage[],
+    model: string,
+    maxTokens: number,
+    cacheSystem: boolean,
+  ): AsyncGenerator<string, void, unknown> {
+    const systemBlock = cacheSystem
+      ? [{ type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } }]
+      : [{ type: 'text' as const, text: systemPrompt }];
+
+    const stream = this.anthropic!.messages.stream({
+      model,
+      max_tokens: maxTokens,
+      system: systemBlock,
+      messages: history.map((m) => ({ role: m.role, content: m.content })),
+    });
+
+    for await (const event of stream) {
+      if (
+        event.type === 'content_block_delta' &&
+        event.delta.type === 'text_delta'
+      ) {
+        yield event.delta.text;
+      }
+    }
+  }
+
+  private async *streamOpenRouter(
+    systemPrompt: string,
+    history: ChatMessage[],
+    model: string,
+    maxTokens: number,
+  ): AsyncGenerator<string, void, unknown> {
+    const stream = await this.openai!.chat.completions.create({
+      model,
+      max_tokens: maxTokens,
+      stream: true,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...history.map((m) => ({ role: m.role, content: m.content })),
+      ],
+    });
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices?.[0]?.delta?.content;
+      if (typeof delta === 'string' && delta.length > 0) {
+        yield delta;
+      }
+    }
+  }
+
   private async chatAnthropic(
     systemPrompt: string,
     history: ChatMessage[],

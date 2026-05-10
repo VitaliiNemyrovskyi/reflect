@@ -1,0 +1,26 @@
+{
+  "name": "Reflect — Тренувальний кабінет",
+  "short_name": "Reflect",
+  "description": "AI-тренажер для майбутніх психотерапевтів — практика інтейкових сесій із синтетичними клієнтами та структурованим фідбеком супервайзера",
+  "lang": "uk-UA",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b0d",
+  "theme_color": "#0b0b0d",
+  "categories": ["education", "medical", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

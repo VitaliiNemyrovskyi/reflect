@@ -26,10 +26,21 @@ export const routes: Routes = [
       import('./pages/characters-list.component').then((m) => m.CharactersListComponent),
   },
   {
-    path: 'intro/:characterId',
+    path: 'patient/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/patient-detail.component').then((m) => m.PatientDetailComponent),
+  },
+  {
+    path: 'patient/:id/intro',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/intro.component').then((m) => m.IntroComponent),
+  },
+  // Backward-compat redirect
+  {
+    path: 'intro/:id',
+    redirectTo: 'patient/:id/intro',
   },
   {
     path: 'session/:sessionId',

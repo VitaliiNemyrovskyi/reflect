@@ -1,5 +1,12 @@
 # Профіль Анни
 
+<!--
+Діагноз: GAD з перфекціонізмом
+Поведінка: 2
+Тяжкість: 2
+Avatar: https://api.dicebear.com/9.x/notionists/svg?seed=AnnaVoytenko&backgroundColor=fde7c2
+-->
+
 > **Це фіктивний композит**, синтезований із публічних клінічних описів
 > (Beck-формулювання тривожних розладів, дослідження perfectionism і
 > contingent parental approval). Анна не є реальною пацієнткою.
