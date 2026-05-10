@@ -7,7 +7,9 @@ const SEED_OPENING =
   '[Сесія розпочалася. Терапевт сидить навпроти і чекає, поки ви заговорите.]';
 
 const FEEDBACK_USER_PROMPT =
-  'Будь ласка, дай структурований фідбек згідно інструкції вище. У КІНЦІ відповіді (ПІСЛЯ всього markdown-фідбеку) додай блок із машиночитаною оцінкою сесії у форматі:\n\n```json\n{\n  "patient": {\n    "symptomSeverity": <1-10>,\n    "insight": <1-10>,\n    "alliance": <1-10>,\n    "defensiveness": <1-10>,\n    "hopefulness": <1-10>\n  },\n  "therapist": {\n    "empathy": <0-6>,\n    "collaboration": <0-6>,\n    "guidedDiscovery": <0-6>,\n    "strategyForChange": <0-6>\n  },\n  "patientMemory": "<5-10 речень від першої особи клієнтки про те, що відбулось на сесії і як вона почувається. Це буде показано клієнтці на початку наступної сесії, тому пиши природньо її голосом, не клінічно.>"\n}\n```\n\nЦифри ставлять реалістично з опорою на транскрипт. Якщо вимір неможливо оцінити (наприклад, не було скрінінгу) — постав null.';
+  'Будь ласка, дай структурований фідбек згідно інструкції вище.\n\n' +
+  '**ПОВТОРНО**: кожне твердження про конкретний момент сесії — підкріплюй посиланням `[L<n>]` на номер рядка транскрипту. Цитати у `«…»` мають бути verbatim з зазначеного рядка. Сервер автоматично перевіряє це і виносить галюцинації у червону плашку — не псуй собі довіру вигадуванням.\n\n' +
+  'У КІНЦІ відповіді (ПІСЛЯ всього markdown-фідбеку) додай блок із машиночитаною оцінкою сесії у форматі:\n\n```json\n{\n  "patient": {\n    "symptomSeverity": <1-10>,\n    "insight": <1-10>,\n    "alliance": <1-10>,\n    "defensiveness": <1-10>,\n    "hopefulness": <1-10>\n  },\n  "therapist": {\n    "empathy": <0-6>,\n    "collaboration": <0-6>,\n    "guidedDiscovery": <0-6>,\n    "strategyForChange": <0-6>\n  },\n  "patientMemory": "<5-10 речень від першої особи клієнтки про те, що відбулось на сесії і як вона почувається. Це буде показано клієнтці на початку наступної сесії, тому пиши природньо її голосом, не клінічно.>"\n}\n```\n\nЦифри ставлять реалістично з опорою на транскрипт. Якщо вимір неможливо оцінити (наприклад, не було скрінінгу) — постав null. У JSON-блоці `[L<n>]` посилання НЕ потрібні.';
 
 @Injectable()
 export class SessionsService {
@@ -117,7 +119,7 @@ export class SessionsService {
     });
 
     const { narrative, json } = this.splitFeedback(rawFeedback);
-    const feedback = this.appendQuoteAudit(narrative, ctx.transcript);
+    const feedback = this.auditFeedback(narrative, ctx.lineMap);
 
     await this.prisma.session.update({
       where: { id: sessionId },
@@ -174,7 +176,7 @@ export class SessionsService {
     }
 
     const { narrative, json } = this.splitFeedback(raw);
-    const feedback = this.appendQuoteAudit(narrative, ctx.transcript);
+    const feedback = this.auditFeedback(narrative, ctx.lineMap);
 
     await this.prisma.session.update({
       where: { id: sessionId },
@@ -192,14 +194,22 @@ export class SessionsService {
   private async buildFeedbackContext(
     session: { character: { profileText: string; displayName: string } },
     sessionId: number,
-  ): Promise<{ systemPrompt: string; transcript: string }> {
+  ): Promise<{ systemPrompt: string; transcript: string; lineMap: Map<number, string> }> {
     const history = await this.loadHistory(sessionId);
     if (history.length === 0) throw new BadRequestException('no messages in session');
 
+    // Number every utterance — supervisor MUST cite [L<n>] for any claim
+    // about specific session moments. The lineMap is what we audit against
+    // afterwards: ref'd line exists? quote actually appears in that line?
+    const lineMap = new Map<number, string>();
     const transcript = history
-      .map((m) =>
-        `${m.role === 'user' ? 'Терапевт' : session.character.displayName}: ${m.content}`,
-      )
+      .map((m, i) => {
+        const n = i + 1;
+        const speaker = m.role === 'user' ? 'Терапевт' : session.character.displayName;
+        const line = `${speaker}: ${m.content}`;
+        lineMap.set(n, line);
+        return `[L${n}] ${line}`;
+      })
       .join('\n\n');
 
     const notes = await this.prisma.note.findMany({
@@ -223,7 +233,7 @@ export class SessionsService {
       NOTES: notesText,
     });
 
-    return { systemPrompt, transcript };
+    return { systemPrompt, transcript, lineMap };
   }
 
   private splitFeedback(raw: string): {
@@ -249,27 +259,85 @@ export class SessionsService {
     }
   }
 
-  private appendQuoteAudit(feedback: string, transcript: string): string {
-    // Extract quoted spans (Ukrainian guillemets «…», straight quotes "…")
-    const patterns = [/«([^»]{4,400})»/g, /"([^"]{4,400})"/g];
-    const quotes = new Set<string>();
-    for (const p of patterns) {
-      for (const m of feedback.matchAll(p)) quotes.add(m[1].trim());
-    }
-    if (quotes.size === 0) return feedback;
+  /**
+   * Validates supervisor feedback against the numbered transcript and flags
+   * three classes of likely hallucination:
+   *
+   *   1. invalid_ref     — `[L42]` cites a line that doesn't exist
+   *   2. quote_mismatch  — `«...»` followed by `[Ln]` whose text isn't in
+   *                        line N (LLM made up content for a real line)
+   *   3. orphan_quote    — `«...»` of meaningful length without any `[Ln]`
+   *                        AND not found verbatim anywhere in transcript
+   *
+   * If all three classes pass, the feedback is returned untouched. Otherwise
+   * an audit section listing the flagged fragments is appended at the bottom.
+   */
+  private auditFeedback(feedback: string, lineMap: Map<number, string>): string {
+    const issues: string[] = [];
     const normalize = (s: string) =>
-      s.replace(/[\s ]+/g, ' ').replace(/[«»"'']/g, '').toLowerCase().trim();
-    const tNorm = normalize(transcript);
-    const unverified: string[] = [];
-    for (const q of quotes) {
-      if (!tNorm.includes(normalize(q))) unverified.push(q);
+      s.replace(/\s+/g, ' ').replace(/[«»"'`]/g, '').toLowerCase().trim();
+
+    // 1. Find every [L<n>] reference, verify the line exists.
+    const refRe = /\[L(\d+)\]/g;
+    let m: RegExpExecArray | null;
+    const seenInvalidRefs = new Set<number>();
+    while ((m = refRe.exec(feedback)) !== null) {
+      const n = parseInt(m[1], 10);
+      if (!lineMap.has(n) && !seenInvalidRefs.has(n)) {
+        seenInvalidRefs.add(n);
+        issues.push(
+          `🔢 **Неіснуюче посилання \`[L${n}]\`** — у транскрипті лише L1-L${lineMap.size}.`,
+        );
+      }
     }
-    if (unverified.length === 0) return feedback;
-    const list = unverified.map((q) => `- «${q}»`).join('\n');
+
+    // 2. For each «quote» followed by [L<n>], verify quote ⊂ line N.
+    const quotedRefRe = /[«"]([^»"]{4,500})[»"]\s*\(?\s*\[L(\d+)\]\s*\)?/g;
+    while ((m = quotedRefRe.exec(feedback)) !== null) {
+      const quote = m[1].trim();
+      const n = parseInt(m[2], 10);
+      const line = lineMap.get(n);
+      if (!line) continue; // already flagged above
+      if (!normalize(line).includes(normalize(quote))) {
+        issues.push(
+          `📝 **Цитата не співпадає з \`[L${n}]\`** — фрагмент «${this.shortQuote(quote)}» в тому рядку відсутній. Рядок насправді: «${this.shortQuote(line)}».`,
+        );
+      }
+    }
+
+    // 3. Quotes WITHOUT any nearby [L<n>] — must appear in transcript verbatim.
+    const transcript = Array.from(lineMap.values()).join('\n');
+    const tNorm = normalize(transcript);
+    const allQuoteRe = /[«"]([^»"]{20,500})[»"]/g;
+    const reportedOrphans = new Set<string>();
+    while ((m = allQuoteRe.exec(feedback)) !== null) {
+      const quote = m[1].trim();
+      // Skip if followed (within ~30 chars) by [L<n>] — handled above.
+      const tail = feedback.slice(m.index + m[0].length, m.index + m[0].length + 30);
+      if (/^\s*\(?\s*\[L\d+\]/.test(tail)) continue;
+      if (reportedOrphans.has(quote)) continue;
+      if (!tNorm.includes(normalize(quote))) {
+        reportedOrphans.add(quote);
+        issues.push(
+          `🔍 **Цитата без посилання** — «${this.shortQuote(quote)}» у транскрипті дослівно не знайдено. Додай \`[L<n>]\` або переформулюй.`,
+        );
+      }
+    }
+
+    if (issues.length === 0) return feedback;
+
     return (
       feedback +
-      `\n\n---\n\n⚠️ **Авто-перевірка цитат**\n\nНаступні цитати у фідбеку не знайдено verbatim у транскрипті — це може бути перефразування моделлю або галюцинація. Перевір їх перед тим, як приймати на віру:\n\n${list}`
+      '\n\n---\n\n⚠️ **Автоматична перевірка цитат і посилань**\n\n' +
+      'Ці фрагменти у фідбеку не пройшли звірку з транскриптом — можлива галюцинація моделі. ' +
+      'Перевір перед тим, як приймати на віру:\n\n' +
+      issues.map((s) => `- ${s}`).join('\n')
     );
+  }
+
+  private shortQuote(s: string): string {
+    const t = s.trim();
+    return t.length > 100 ? t.slice(0, 97) + '…' : t;
   }
 
   private async loadHistory(sessionId: number): Promise<ChatMessage[]> {
