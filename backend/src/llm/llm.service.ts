@@ -28,10 +28,17 @@ export class LlmService {
   constructor() {
     this.provider = (process.env.LLM_PROVIDER as LlmProvider) || 'anthropic';
 
+    // ?? falls through only on undefined/null — but Docker compose passes
+    // unset vars through as EMPTY strings ("") via `${VAR:-}` interpolation,
+    // so we need to also reject blank values. Otherwise the SDK gets
+    // model="" and OpenRouter returns 400 "No models provided".
+    const envChat = process.env.LLM_MODEL_CHAT?.trim();
+    const envFeedback = process.env.LLM_MODEL_FEEDBACK?.trim();
+
     if (this.provider === 'anthropic') {
       this.anthropic = new Anthropic();
-      this.modelChat = process.env.LLM_MODEL_CHAT ?? 'claude-sonnet-4-6';
-      this.modelFeedback = process.env.LLM_MODEL_FEEDBACK ?? 'claude-opus-4-7';
+      this.modelChat = envChat || 'claude-sonnet-4-6';
+      this.modelFeedback = envFeedback || 'claude-opus-4-7';
     } else if (this.provider === 'openrouter') {
       const apiKey = process.env.OPENROUTER_API_KEY;
       if (!apiKey) {
@@ -43,13 +50,14 @@ export class LlmService {
         apiKey,
         baseURL: 'https://openrouter.ai/api/v1',
         defaultHeaders: {
-          'HTTP-Referer': 'http://localhost:4200',
+          // OpenRouter uses HTTP-Referer + X-Title for analytics. Match
+          // FRONTEND_URL when set so analytics group prod traffic correctly.
+          'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:4200',
           'X-Title': 'Reflect',
         },
       });
-      this.modelChat = process.env.LLM_MODEL_CHAT ?? 'openrouter/owl-alpha';
-      this.modelFeedback =
-        process.env.LLM_MODEL_FEEDBACK ?? 'openrouter/owl-alpha';
+      this.modelChat = envChat || 'openrouter/owl-alpha';
+      this.modelFeedback = envFeedback || 'openrouter/owl-alpha';
     } else {
       throw new Error(`Невідомий LLM_PROVIDER: ${this.provider}`);
     }
