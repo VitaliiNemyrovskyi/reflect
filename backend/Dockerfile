@@ -48,18 +48,23 @@ RUN apk add --no-cache tini
 # node_modules/ ends up empty (or absent), so we don't copy it. Node's
 # module resolver walks up from /app/backend → /app/node_modules and
 # finds everything there.
-COPY package.json package-lock.json ./
-COPY backend/package.json backend/
-COPY backend/prisma ./backend/prisma
-COPY --from=builder /app/node_modules ./node_modules
+#
+# `--chown=node:node` sets ownership at COPY time (no extra layer + no
+# recursive walk). A separate `RUN chown -R node:node /app` on hundreds
+# of thousands of node_modules files takes 10+ minutes on slow disks; this
+# is functionally identical and ~3 orders of magnitude faster.
+COPY --chown=node:node package.json package-lock.json ./
+COPY --chown=node:node backend/package.json backend/
+COPY --chown=node:node backend/prisma ./backend/prisma
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 
 # Compiled JS + runtime assets.
-COPY --from=builder /app/backend/dist ./backend/dist
-COPY prompts ./prompts
+COPY --chown=node:node --from=builder /app/backend/dist ./backend/dist
+COPY --chown=node:node prompts ./prompts
 
-# /data is the SQLite volume mount point. Pre-create it so the first
-# `prisma db push` doesn't trip on a missing dir.
-RUN mkdir -p /data && chown -R node:node /data /app
+# /data is the SQLite volume mount point. Single mkdir + chown — no
+# recursive walk needed.
+RUN mkdir -p /data && chown node:node /data
 
 USER node
 WORKDIR /app/backend
