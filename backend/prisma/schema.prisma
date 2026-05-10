@@ -32,8 +32,38 @@ model User {
   // Per-user UI preferences serialized as JSON. Schema is loose — clients
   // merge new keys via PATCH. Today: { hintsEnabled: boolean }.
   preferencesJson String?
+  // Admin role — bypasses session-ownership checks, sees other users'
+  // data, browses error logs. Bootstrapped via ADMIN_EMAILS env var on
+  // each login/refresh/me, so granting admin doesn't require manual SQL.
+  isAdmin         Boolean  @default(false)
   createdAt       DateTime @default(now())
   sessions        Session[]
+  errorLogs       ErrorLog[]
+}
+
+/**
+ * Captured exceptions for admin debugging. Populated by a global
+ * NestJS ExceptionFilter — only 500-class server errors (anything that's
+ * not a client mistake like 401/403/404/etc.) end up here.
+ *
+ * userId/sessionId stay nullable so the row survives if those parents
+ * are deleted (we set the FK to SetNull instead of cascade — useful
+ * when investigating an error that DROPPED a session).
+ */
+model ErrorLog {
+  id         Int       @id @default(autoincrement())
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId     Int?
+  sessionId  Int?      // NOT a FK — sessions can be discarded by users
+  endpoint   String    // request path, e.g. /api/sessions/12/end-stream
+  method     String    // HTTP method
+  status     Int       // HTTP status
+  message    String    // truncated to ~500 chars
+  stack      String?   // truncated to ~3000 chars; null if not exposed
+  createdAt  DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 model Session {

@@ -14,7 +14,18 @@ export interface AuthTokens {
 }
 
 export interface AuthResult extends AuthTokens {
-  user: { id: number; email: string; displayName: string | null };
+  user: { id: number; email: string; displayName: string | null; isAdmin: boolean };
+}
+
+/** Admin email allow-list, sourced from ADMIN_EMAILS env var. */
+function adminEmailSet(): Set<string> {
+  const raw = process.env.ADMIN_EMAILS ?? '';
+  return new Set(
+    raw
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  );
 }
 
 /**
@@ -142,7 +153,25 @@ export class AuthService {
   async getProfile(userId: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
-    return { id: user.id, email: user.email, displayName: user.displayName };
+    const isAdmin = await this.reconcileAdmin(user);
+    return { id: user.id, email: user.email, displayName: user.displayName, isAdmin };
+  }
+
+  /**
+   * Bootstraps admin status from `ADMIN_EMAILS` env var. Called on every
+   * profile fetch and login — so adding/removing emails takes effect on
+   * the next request, no DB poke needed. Persists the change to DB so
+   * AdminGuard can rely on the column directly without re-checking env.
+   */
+  private async reconcileAdmin(user: User): Promise<boolean> {
+    const allowList = adminEmailSet();
+    const shouldBeAdmin = allowList.has(user.email.toLowerCase());
+    if (shouldBeAdmin === user.isAdmin) return user.isAdmin;
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { isAdmin: shouldBeAdmin },
+    });
+    return shouldBeAdmin;
   }
 
   /**
@@ -186,9 +215,10 @@ export class AuthService {
       where: { id: user.id },
       data: { refreshTokenHash: refreshHash },
     });
+    const isAdmin = await this.reconcileAdmin(user);
     return {
       ...tokens,
-      user: { id: user.id, email: user.email, displayName: user.displayName },
+      user: { id: user.id, email: user.email, displayName: user.displayName, isAdmin },
     };
   }
 

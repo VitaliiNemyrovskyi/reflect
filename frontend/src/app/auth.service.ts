@@ -11,6 +11,8 @@ export interface AuthUser {
   id: number;
   email: string;
   displayName: string | null;
+  /** Granted via ADMIN_EMAILS env var on backend; reconciled on every login. */
+  isAdmin?: boolean;
 }
 
 interface AuthResult {

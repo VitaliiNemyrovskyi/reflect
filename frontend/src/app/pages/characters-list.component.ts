@@ -18,6 +18,12 @@ import { AuthService } from '../auth.service';
         @if (auth.user(); as u) {
           <div class="user-area">
             <span class="user-name">{{ u.displayName ?? u.email }}</span>
+            @if (u.isAdmin) {
+              <a routerLink="/admin"
+                 class="ghost icon small admin-link"
+                 title="Admin panel"
+                 aria-label="Admin panel">🛡</a>
+            }
             <a routerLink="/settings"
                class="ghost icon small"
                title="Налаштування"

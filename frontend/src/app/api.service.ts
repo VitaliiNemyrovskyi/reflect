@@ -133,6 +133,64 @@ export interface HintResult {
   suggestions: HintSuggestion[];
 }
 
+// ─── Admin types ──────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  displayName: string | null;
+  provider: string;
+  isAdmin: boolean;
+  sessionCount: number;
+  createdAt: string;
+}
+
+export interface AdminSessionListItem {
+  id: number;
+  startedAt: string;
+  endedAt: string | null;
+  user: { id: number; email: string; displayName: string | null } | null;
+  character: { id: number; displayName: string; slug: string };
+  messageCount: number;
+  noteCount: number;
+  hasFeedback: boolean;
+}
+
+export interface AdminSessionMessage {
+  id: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface AdminSessionDetail {
+  id: number;
+  startedAt: string;
+  endedAt: string | null;
+  feedback: string | null;
+  feedbackJson: string | null;
+  patientMemory: string | null;
+  user: { id: number; email: string; displayName: string | null } | null;
+  character: { id: number; displayName: string; slug: string };
+  messages: AdminSessionMessage[];
+  notes: Note[];
+  assessment: AssessmentJson | null;
+  errors: AdminErrorLog[];
+}
+
+export interface AdminErrorLog {
+  id: number;
+  userId: number | null;
+  sessionId: number | null;
+  endpoint: string;
+  method: string;
+  status: number;
+  message: string;
+  stack: string | null;
+  createdAt: string;
+  user?: { id: number; email: string; displayName: string | null } | null;
+}
+
 function parseSseFrame(frame: string): { type: string; data: unknown } | null {
   let evType = 'message';
   const dataLines: string[] = [];
@@ -299,6 +357,41 @@ export class ApiService {
   deleteNote(sessionId: number, noteId: number): Promise<void> {
     return firstValueFrom(
       this.http.delete<void>(`${this.base}/sessions/${sessionId}/notes/${noteId}`),
+    );
+  }
+
+  // ─── Admin ──────────────────────────────────────────────────────────────
+
+  adminListUsers(): Promise<AdminUser[]> {
+    return firstValueFrom(this.http.get<AdminUser[]>(`${this.base}/admin/users`));
+  }
+
+  adminListSessions(filter?: {
+    userId?: number;
+    ended?: boolean;
+  }): Promise<AdminSessionListItem[]> {
+    let params: Record<string, string> = {};
+    if (filter?.userId != null) params['userId'] = String(filter.userId);
+    if (filter?.ended != null) params['ended'] = String(filter.ended);
+    return firstValueFrom(
+      this.http.get<AdminSessionListItem[]>(`${this.base}/admin/sessions`, { params }),
+    );
+  }
+
+  adminGetSession(id: number): Promise<AdminSessionDetail> {
+    return firstValueFrom(this.http.get<AdminSessionDetail>(`${this.base}/admin/sessions/${id}`));
+  }
+
+  adminDeleteSession(id: number): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.base}/admin/sessions/${id}`));
+  }
+
+  adminListErrors(opts?: { limit?: number; userId?: number }): Promise<AdminErrorLog[]> {
+    const params: Record<string, string> = {};
+    if (opts?.limit != null) params['limit'] = String(opts.limit);
+    if (opts?.userId != null) params['userId'] = String(opts.userId);
+    return firstValueFrom(
+      this.http.get<AdminErrorLog[]>(`${this.base}/admin/errors`, { params }),
     );
   }
 }

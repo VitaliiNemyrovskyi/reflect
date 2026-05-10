@@ -9,6 +9,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { NotesModule } from './notes/notes.module';
 import { TtsModule } from './tts/tts.module';
 import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from './auth/auth.module';
     SessionsModule,
     NotesModule,
     TtsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
