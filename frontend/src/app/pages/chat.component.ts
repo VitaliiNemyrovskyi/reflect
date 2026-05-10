@@ -865,7 +865,18 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         this.hintsError.set('Модель не повернула жодного варіанту.');
       }
     } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message ?? 'Не вдалось отримати підказку.';
+      // HttpClient errors come back as HttpErrorResponse — Angular's default
+      // .message is "Http failure response for ...: 503", useless to user.
+      // The actual server-side message lives at e.error.message (NestJS
+      // exception filter shape: { statusCode, message, error }).
+      const httpErr = e as { status?: number; error?: { message?: string }; message?: string };
+      const msg =
+        httpErr.error?.message ||
+        (httpErr.status === 503
+          ? 'Модель тимчасово недоступна (rate-limit OpenRouter). Зачекай 30s і спробуй ще.'
+          : null) ||
+        httpErr.message ||
+        'Не вдалось отримати підказку.';
       this.hintsError.set(msg);
     } finally {
       this.hintsLoading.set(false);

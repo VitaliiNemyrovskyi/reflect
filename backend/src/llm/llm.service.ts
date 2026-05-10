@@ -77,13 +77,38 @@ export class LlmService {
     const model = opts.model ?? this.modelChat;
     const maxTokens = opts.maxTokens ?? 1024;
 
+    const callOnce = () =>
+      this.provider === 'anthropic'
+        ? this.chatAnthropic(opts.systemPrompt, opts.history, model, maxTokens, !!opts.cacheSystem)
+        : this.chatOpenRouter(opts.systemPrompt, opts.history, model, maxTokens);
+
     try {
-      if (this.provider === 'anthropic') {
-        return await this.chatAnthropic(opts.systemPrompt, opts.history, model, maxTokens, !!opts.cacheSystem);
-      }
-      return await this.chatOpenRouter(opts.systemPrompt, opts.history, model, maxTokens);
+      return await this.withRateLimitRetry(callOnce);
     } catch (e: unknown) {
       throw this.translateError(e);
+    }
+  }
+
+  /**
+   * Run `fn` and retry once on 429 (rate-limit) after a short wait. Free
+   * tiers (especially OpenRouter's `:free` and stealth providers) hit
+   * 429 intermittently — a single 1.5s back-off usually clears it without
+   * the user having to re-click. We deliberately keep the retry tight
+   * because the frontend is already showing a loading state and longer
+   * waits feel worse than a clean error.
+   *
+   * Streaming endpoints don't use this — they have their own first-byte
+   * latency budget and the caller chooses when to retry.
+   */
+  private async withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (e: unknown) {
+      const status = (e as { status?: number })?.status;
+      if (status !== 429) throw e;
+      this.logger.warn(`${this.provider} 429 — retrying in 1.5s`);
+      await new Promise((r) => setTimeout(r, 1500));
+      return await fn();
     }
   }
 
