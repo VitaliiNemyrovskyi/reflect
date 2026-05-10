@@ -1,7 +1,17 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { marked } from 'marked';
 import { ApiService } from '../api.service';
 import { SessionStateService } from '../session-state.service';
+
+// Configure marked once at module load. We trust the supervisor LLM output
+// because (a) it's piped through Angular's [innerHTML] sanitizer downstream,
+// (b) the prompt explicitly forbids fabricated quotes — anything weird gets
+// flagged in the audit section, and (c) we control the prompt.
+marked.setOptions({
+  gfm: true,    // tables, task-lists, autolinks
+  breaks: true, // newline → <br>, matches how the LLM writes
+});
 
 @Component({
   selector: 'app-feedback',
@@ -23,11 +33,9 @@ import { SessionStateService } from '../session-state.service';
     @if (waiting() && !feedback()) {
       <p class="hint">Готую фідбек…</p>
     } @else {
-      <article class="feedback" [class.streaming]="streaming()">{{ feedback() }}<span
-          class="caret"
-          *ngIf="streaming()"
-          aria-hidden="true"
-        ></span></article>
+      <article class="feedback prose"
+               [class.streaming]="streaming()"
+               [innerHTML]="feedbackHtml()"></article>
     }
 
     <div class="actions">
@@ -41,6 +49,8 @@ import { SessionStateService } from '../session-state.service';
     </div>
   `,
   styles: [`
+    :host { display: block; }
+
     .header {
       display: flex;
       align-items: center;
@@ -70,31 +80,156 @@ import { SessionStateService } from '../session-state.service';
       0%, 100% { opacity: 0.35; transform: scale(0.85); }
       50% { opacity: 1; transform: scale(1); }
     }
+
     .feedback {
       background: var(--assistant-bg);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 22px 24px;
-      white-space: pre-wrap;
+      padding: 22px 26px;
       font-size: 15px;
       line-height: 1.65;
       min-height: 120px;
     }
     .feedback.streaming { border-color: rgba(216, 201, 255, 0.35); }
-    .caret {
-      display: inline-block;
-      width: 8px;
-      height: 1em;
-      margin-left: 2px;
-      vertical-align: text-bottom;
-      background: var(--accent, #d8c9ff);
-      animation: blink 1s steps(2, start) infinite;
+
+    /* ─── Prose: rendered markdown ───────────────────────────────────── */
+    .prose :first-child { margin-top: 0; }
+    .prose :last-child { margin-bottom: 0; }
+
+    .prose h1, .prose h2, .prose h3, .prose h4 {
+      font-weight: 500;
+      line-height: 1.3;
+      margin: 24px 0 12px;
+      color: var(--fg);
+      letter-spacing: -0.01em;
     }
-    @keyframes blink { to { visibility: hidden; } }
+    .prose h1 { font-size: 22px; }
+    .prose h2 { font-size: 18px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .prose h3 { font-size: 16px; }
+    .prose h4 { font-size: 14px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .04em; }
+
+    .prose p { margin: 0 0 12px; }
+    .prose strong { color: var(--accent); font-weight: 500; }
+    .prose em { font-style: italic; color: var(--fg); }
+    .prose hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 22px 0;
+    }
+
+    .prose ul, .prose ol {
+      margin: 8px 0 14px;
+      padding-left: 24px;
+    }
+    .prose li {
+      margin: 6px 0;
+      line-height: 1.6;
+    }
+    .prose li > p { margin: 0 0 6px; }
+    .prose ul ul, .prose ol ol, .prose ul ol, .prose ol ul {
+      margin: 4px 0;
+    }
+
+    .prose blockquote {
+      margin: 12px 0;
+      padding: 8px 14px;
+      border-left: 3px solid var(--accent);
+      background: rgba(216, 201, 255, 0.04);
+      color: var(--fg);
+      font-style: italic;
+    }
+    .prose blockquote p:last-child { margin-bottom: 0; }
+
+    .prose code {
+      background: var(--user-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      color: var(--accent);
+    }
+    .prose pre {
+      background: var(--user-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      margin: 12px 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .prose pre code {
+      background: none;
+      padding: 0;
+      color: var(--fg);
+    }
+
+    /* Tables — supervisor uses them for protocol overview. Mobile-friendly
+       horizontal scroll so they don't break narrow layouts. */
+    .prose table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 14px 0;
+      font-size: 13px;
+      display: block;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .prose thead {
+      background: var(--user-bg);
+    }
+    .prose th, .prose td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .prose th {
+      font-weight: 500;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      font-size: 11px;
+    }
+    .prose tbody tr:last-child td { border-bottom: none; }
+    .prose tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+    /* Line-reference badges. The supervisor must end every claim with
+       a [Lnumber] reference (see supervisor_system.md). We post-process
+       the rendered HTML to wrap these in span.line-ref for a clear
+       visual anchor — the student can quickly see "this critique is
+       grounded at line N". */
+    .prose .line-ref {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 1px 6px;
+      margin: 0 1px;
+      background: rgba(216, 201, 255, 0.08);
+      border: 1px solid rgba(216, 201, 255, 0.25);
+      border-radius: 999px;
+      color: var(--accent);
+      vertical-align: 1px;
+      white-space: nowrap;
+    }
+
+    /* Status emojis used in the protocol-overview table — give them
+       breathing room when they appear inline. */
+    .prose td:first-child { white-space: nowrap; }
+
     .actions { display: flex; gap: 10px; margin-top: 24px; }
     .actions button[disabled] { opacity: 0.55; cursor: not-allowed; }
     .hint { color: var(--fg-dim); font-size: 14px; }
     .hint.danger { color: var(--danger); }
+
+    @media (max-width: 720px) {
+      .feedback { padding: 16px 18px; }
+      .prose h1 { font-size: 20px; }
+      .prose h2 { font-size: 16px; }
+      .prose h3 { font-size: 15px; }
+      .prose th, .prose td { padding: 6px 8px; }
+    }
   `],
 })
 export class FeedbackComponent implements OnInit, OnDestroy {
@@ -109,6 +244,23 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   /** A stream is in flight (chunks may still arrive). */
   streaming = signal(false);
   error = signal<string | null>(null);
+
+  /**
+   * Markdown → HTML. Re-parses on every signal change; marked is fast
+   * enough (~5ms for typical feedback) that doing it per-chunk during
+   * streaming gives a clean live preview without throttling.
+   *
+   * After parsing, we wrap `[L<n>]` line references in inline badges so
+   * the visual anchor between supervisor claim and transcript line is
+   * obvious. Done as a string post-process because marked doesn't have
+   * a clean way to extend inline rules without a custom extension.
+   */
+  feedbackHtml = computed(() => {
+    const text = this.feedback();
+    if (!text) return '';
+    const html = marked.parse(text, { async: false }) as string;
+    return html.replace(/\[L(\d+)\]/g, '<span class="line-ref">[L$1]</span>');
+  });
 
   private abort = new AbortController();
 
