@@ -903,13 +903,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (!confirm('Завершити сесію і отримати фідбек?')) return;
     this.voice.cancel();
     this.recognition.stop();
-    this.ending.set(true);
-    try {
-      await this.api.endSession(this.sessionId);
-      void this.router.navigate(['/session', this.sessionId, 'feedback']);
-    } catch (e: unknown) {
-      this.ending.set(false);
-      alert('Не вдалося отримати фідбек.');
-    }
+    // Don't await endSession() here — that's the blocking non-streaming
+    // version (~2-3 min on slow LLMs). Navigate to /feedback immediately;
+    // that page calls /api/sessions/:id/end-stream and streams tokens live.
+    // Server-side, end-stream creates the session-end record on first call,
+    // so a single round-trip both ends and streams.
+    void this.router.navigate(['/session', this.sessionId, 'feedback']);
   }
 }
