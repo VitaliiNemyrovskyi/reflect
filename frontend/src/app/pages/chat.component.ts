@@ -55,8 +55,11 @@ interface SelectionAnchor {
           (click)="voice.toggleMute()">
           {{ voice.muted() ? '🔇' : voice.speaking() ? '🔊' : '🔈' }}
         </button>
-        <button class="danger" [disabled]="ending()" (click)="end()">
-          {{ ending() ? 'Готую…' : 'Завершити' }}
+        <button class="ghost end-btn" (click)="openEndDialog()" title="Завершити сесію (з опцією видалити)">
+          Завершити
+        </button>
+        <button class="primary feedback-btn" (click)="getFeedback()" title="Зберегти сесію і отримати фідбек супервізора">
+          Отримати фідбек
         </button>
       </div>
     </header>
@@ -206,6 +209,29 @@ interface SelectionAnchor {
         + Нотатка
       </button>
     }
+
+    @if (endDialogOpen()) {
+      <div class="modal-backdrop" (click)="closeEndDialog()"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="end-dialog-title">
+        <h3 id="end-dialog-title">Завершити сесію</h3>
+        <p>Зберегти цю сесію разом із фідбеком супервізора?</p>
+        <p class="modal-warning">
+          Якщо ні — сесію буде <strong>видалено повністю</strong>:
+          транскрипт, нотатки, та пам'ять клієнтки про неї. Так, ніби сесії не було.
+        </p>
+        <div class="modal-actions">
+          <button class="ghost" (click)="closeEndDialog()" [disabled]="discarding()">
+            Скасувати
+          </button>
+          <button class="danger" (click)="discardSession()" [disabled]="discarding()">
+            {{ discarding() ? 'Видаляю…' : 'Видалити сесію' }}
+          </button>
+          <button class="primary" (click)="getFeedback()" [disabled]="discarding()">
+            Зберегти і отримати фідбек
+          </button>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     :host { display: flex; flex-direction: column; flex: 1; }
@@ -221,12 +247,26 @@ interface SelectionAnchor {
     h2 { font-size: 22px; margin: 0; font-weight: 500; }
     @media (max-width: 720px) {
       h2 { font-size: 18px; }
-      .chat-header .danger { padding: 8px 12px; font-size: 13px; }
+      .chat-header .danger,
+      .chat-header .end-btn,
+      .chat-header .feedback-btn { padding: 8px 12px; font-size: 13px; }
       .chat-header .icon { padding: 8px 10px; font-size: 16px; min-width: 44px; min-height: 44px; }
       .left { gap: 8px; flex-shrink: 1; min-width: 0; }
       .left h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .actions { flex-shrink: 0; gap: 6px; }
     }
+    /* The "Завершити" button is the *destructive-with-question* path —
+       muted ghost styling so the primary "Отримати фідбек" pulls the
+       eye. Native confirm dialog lives in the modal-* block below. */
+    .end-btn {
+      color: var(--fg-dim);
+      border: 1px solid var(--border);
+    }
+    .end-btn:hover {
+      color: var(--fg);
+      border-color: var(--fg-dim);
+    }
+    .feedback-btn { white-space: nowrap; }
     .left {
       display: flex;
       align-items: baseline;
@@ -638,6 +678,78 @@ interface SelectionAnchor {
       from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* End-session confirmation modal — 3-button choice (cancel / discard /
+       save+feedback) so the user can't accidentally lose their practice
+       run by hitting the wrong key. */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 100;
+      animation: fadeIn 0.15s ease-out;
+    }
+    .modal-card {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 101;
+      width: min(480px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 24px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      animation: modalIn 0.18s ease-out;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translate(-50%, -48%); }
+      to   { opacity: 1; transform: translate(-50%, -50%); }
+    }
+    .modal-card h3 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--fg);
+    }
+    .modal-card p {
+      margin: 0 0 10px;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--fg);
+    }
+    .modal-warning {
+      color: var(--fg-dim);
+      font-size: 13px;
+      padding: 10px 12px;
+      background: rgba(208, 116, 116, 0.06);
+      border-left: 2px solid var(--danger);
+      border-radius: 4px;
+    }
+    .modal-warning strong { color: var(--danger); font-weight: 500; }
+    .modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 18px;
+    }
+    .modal-actions button {
+      flex-shrink: 0;
+    }
+    @media (max-width: 480px) {
+      .modal-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+      .modal-actions button {
+        width: 100%;
+        min-height: 44px;
+      }
+    }
   `],
 })
 export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
@@ -654,7 +766,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   draft = '';
   sending = signal(false);
-  ending = signal(false);
+
+  // End-of-session UX:
+  // - "Отримати фідбек" button = direct path → /feedback page (streams)
+  // - "Завершити" button = open dialog → choice between feedback or discard
+  endDialogOpen = signal(false);
+  discarding = signal(false);
 
   notes = signal<Note[]>([]);
   noteDraft = '';
@@ -899,15 +1016,50 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
   }
 
-  async end() {
-    if (!confirm('Завершити сесію і отримати фідбек?')) return;
+  // ─── End / discard session ──────────────────────────────────────────────
+
+  /**
+   * "Отримати фідбек" button — direct save-and-feedback path. No prompt —
+   * the button label tells the user exactly what happens. Stops voice +
+   * mic, navigates to /feedback which then calls /end-stream and streams
+   * supervisor tokens live (single round-trip ends + streams).
+   */
+  getFeedback() {
     this.voice.cancel();
     this.recognition.stop();
-    // Don't await endSession() here — that's the blocking non-streaming
-    // version (~2-3 min on slow LLMs). Navigate to /feedback immediately;
-    // that page calls /api/sessions/:id/end-stream and streams tokens live.
-    // Server-side, end-stream creates the session-end record on first call,
-    // so a single round-trip both ends and streams.
+    this.endDialogOpen.set(false);
     void this.router.navigate(['/session', this.sessionId, 'feedback']);
+  }
+
+  /** "Завершити" button — opens confirmation modal, doesn't navigate yet. */
+  openEndDialog() {
+    this.endDialogOpen.set(true);
+  }
+
+  closeEndDialog() {
+    if (this.discarding()) return; // protect against close-during-delete
+    this.endDialogOpen.set(false);
+  }
+
+  /**
+   * Hard-delete this session (modal "Видалити сесію" button). Removes
+   * session + all its messages + notes via cascade — "як така що не
+   * розпочиналась". After success, navigate back to patient list; the
+   * sessions tab won't show this run, sessionCount won't include it,
+   * patientMemory tied to this session is gone.
+   */
+  async discardSession() {
+    if (this.discarding()) return;
+    this.discarding.set(true);
+    try {
+      await this.api.discardSession(this.sessionId);
+      this.voice.cancel();
+      this.recognition.stop();
+      this.endDialogOpen.set(false);
+      void this.router.navigate(['/']);
+    } catch {
+      this.discarding.set(false);
+      alert('Не вдалось видалити сесію. Спробуй ще раз або вийди вручну.');
+    }
   }
 }

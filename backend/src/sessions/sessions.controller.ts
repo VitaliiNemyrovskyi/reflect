@@ -1,6 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
@@ -42,6 +45,20 @@ export class SessionsController {
   @Post(':id/hint')
   hint(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.sessions.generateHints(user.id, id);
+  }
+
+  /**
+   * Hard-delete a session ("як така що не розпочиналась") — therapist
+   * decides this practice run shouldn't count. Removes session + cascades
+   * to all messages and notes. Returns 204 No Content.
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async discard(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.sessions.discard(user.id, id);
   }
 
   /**

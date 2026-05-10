@@ -56,7 +56,10 @@ model Session {
 
 model Message {
   id        Int      @id @default(autoincrement())
-  session   Session  @relation(fields: [sessionId], references: [id])
+  // Cascade — when a session is discarded ("як така що не розпочиналась"),
+  // all its messages disappear with it. Prevents orphan rows that would
+  // otherwise block Session.delete with a FK constraint error.
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId Int
   role      String
   content   String
@@ -68,8 +71,13 @@ model Message {
 
 model Note {
   id               Int      @id @default(autoincrement())
-  session          Session  @relation(fields: [sessionId], references: [id])
+  // Cascade — same reasoning as Message: a discarded session takes its
+  // notes with it.
+  session          Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId        Int
+  // anchorMessage stays nullable + default SetNull on Message delete, so
+  // notes referencing a deleted message just lose their anchor (rare path
+  // since usually messages only get deleted as part of a session cascade).
   anchorMessage    Message? @relation(fields: [anchorMessageId], references: [id])
   anchorMessageId  Int?
   anchorText       String?

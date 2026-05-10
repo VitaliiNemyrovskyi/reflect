@@ -187,6 +187,29 @@ export class SessionsService {
     return parseHintResult(raw);
   }
 
+  /**
+   * Hard-delete a session ("як така що не розпочиналась") — removes the
+   * session row and (via cascade) all its messages and notes. Cross-session
+   * patient memory captured on this session disappears with it, so the
+   * patient won't reference it on future sessions.
+   *
+   * Allowed regardless of whether the session has been ended — useful both
+   * mid-session ("I want to throw this practice away") and post-feedback
+   * ("retroactively scrub this run from my history").
+   */
+  async discard(userId: number, sessionId: number): Promise<{ deleted: true }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { id: true, userId: true },
+    });
+    if (!session || session.userId !== userId) {
+      throw new NotFoundException('session not found');
+    }
+    // Cascade delete handles messages + notes (see schema.prisma onDelete).
+    await this.prisma.session.delete({ where: { id: sessionId } });
+    return { deleted: true };
+  }
+
   async sendMessage(userId: number, sessionId: number, content: string) {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },

@@ -204,6 +204,17 @@ export class ApiService {
   }
 
   /**
+   * Hard-delete a session — backend cascades to messages + notes. After
+   * this, the session is "як така що не розпочиналась" — gone from sessions
+   * tab, doesn't count, doesn't affect patient memory or trends.
+   */
+  discardSession(sessionId: number): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${this.base}/sessions/${sessionId}`),
+    );
+  }
+
+  /**
    * Streaming variant of endSession. Yields SSE events as they arrive from the
    * backend. The HttpInterceptor doesn't run here — we use raw fetch — so we
    * attach the access token manually and bounce on 401 (no auto-refresh).
