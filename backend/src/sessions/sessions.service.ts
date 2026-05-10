@@ -57,6 +57,14 @@ function parseHintResult(raw: string): HintResult {
   }
 }
 
+function safeParseJson(json: string): unknown {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 function fallbackHint(raw: string): HintResult {
   const text = raw.trim().slice(0, 400);
   return {
@@ -208,6 +216,39 @@ export class SessionsService {
     // Cascade delete handles messages + notes (see schema.prisma onDelete).
     await this.prisma.session.delete({ where: { id: sessionId } });
     return { deleted: true };
+  }
+
+  /**
+   * Read-only fetch of a full session — for the session-view UI. Allows
+   * either the session's owner OR any admin to see it. Returns transcript,
+   * feedback, JSON assessment, and notes.
+   */
+  async getForView(viewerUserId: number, sessionId: number) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        character: { select: { id: true, displayName: true, slug: true, avatarUrl: true } },
+        messages: { orderBy: { id: 'asc' } },
+        notes: { orderBy: { id: 'asc' } },
+      },
+    });
+    if (!session) throw new NotFoundException('session not found');
+
+    if (session.userId !== viewerUserId) {
+      // Not owner — must be admin.
+      const viewer = await this.prisma.user.findUnique({
+        where: { id: viewerUserId },
+        select: { isAdmin: true },
+      });
+      if (!viewer?.isAdmin) {
+        throw new NotFoundException('session not found');
+      }
+    }
+
+    return {
+      ...session,
+      assessment: session.feedbackJson ? safeParseJson(session.feedbackJson) : null,
+    };
   }
 
   async sendMessage(userId: number, sessionId: number, content: string) {

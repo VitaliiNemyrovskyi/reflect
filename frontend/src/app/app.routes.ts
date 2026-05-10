@@ -49,6 +49,12 @@ export const routes: Routes = [
       import('./pages/chat.component').then((m) => m.ChatComponent),
   },
   {
+    path: 'session/:sessionId/view',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/session-view.component').then((m) => m.SessionViewComponent),
+  },
+  {
     path: 'session/:sessionId/feedback',
     canActivate: [authGuard],
     loadComponent: () =>

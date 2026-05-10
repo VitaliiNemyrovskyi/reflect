@@ -258,6 +258,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                     <p class="session-preview">{{ s.feedbackPreview }}</p>
                   }
                   <div class="session-actions">
+                    <a [routerLink]="['/session', s.id, 'view']" class="link-btn">Транскрипт</a>
                     @if (s.endedAt) {
                       <a [routerLink]="['/session', s.id, 'feedback']" class="link-btn">Повний фідбек</a>
                     } @else {
@@ -778,7 +779,7 @@ const SPOILER_PATTERNS: RegExp[] = [
     .session-status { font-size: 12px; padding: 2px 8px; border-radius: 999px; }
     .session-status.done { background: #143c2c; color: #6ee7b7; }
     .session-status.open { background: #3c2c14; color: #fbbf6e; }
-    .session-actions { margin-top: 8px; }
+    .session-actions { margin-top: 8px; display: flex; gap: 14px; }
 
     .notes-aggregated { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
     .note-item {

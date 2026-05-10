@@ -118,7 +118,13 @@ type Tab = 'users' | 'sessions' | 'errors';
                   }
                 </td>
                 <td class="dim">{{ s.startedAt | date: 'dd.MM HH:mm' }}</td>
-                <td>
+                <td class="row-actions">
+                  <a [routerLink]="['/session', s.id, 'view']"
+                     class="link-btn"
+                     (click)="$event.stopPropagation()"
+                     title="Відкрити транскрипт у читабельному вигляді">
+                    відкрити
+                  </a>
                   <button class="ghost small" (click)="$event.stopPropagation(); confirmDelete(s.id)">
                     видалити
                   </button>
@@ -326,6 +332,12 @@ type Tab = 'users' | 'sessions' | 'errors';
       padding: 4px 10px;
       font-size: 12px;
       min-height: auto;
+    }
+    .row-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      white-space: nowrap;
     }
     .link-btn {
       background: transparent;

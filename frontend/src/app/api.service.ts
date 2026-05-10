@@ -92,6 +92,26 @@ export interface EndSessionResponse {
   feedback: string;
 }
 
+export interface SessionViewMessage {
+  id: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface SessionView {
+  id: number;
+  startedAt: string;
+  endedAt: string | null;
+  feedback: string | null;
+  feedbackJson: string | null;
+  patientMemory: string | null;
+  character: { id: number; displayName: string; slug: string; avatarUrl: string | null };
+  messages: SessionViewMessage[];
+  notes: Note[];
+  assessment: AssessmentJson | null;
+}
+
 export type FeedbackStreamEvent =
   | { type: 'cached'; data: { feedback: string } }
   | { type: 'chunk'; data: { text: string } }
@@ -269,6 +289,16 @@ export class ApiService {
   discardSession(sessionId: number): Promise<void> {
     return firstValueFrom(
       this.http.delete<void>(`${this.base}/sessions/${sessionId}`),
+    );
+  }
+
+  /**
+   * Read-only fetch of a session for the /session/:id/view page. Backend
+   * allows either the owner or any admin/supervisor.
+   */
+  viewSession(sessionId: number): Promise<SessionView> {
+    return firstValueFrom(
+      this.http.get<SessionView>(`${this.base}/sessions/${sessionId}`),
     );
   }
 

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -21,6 +22,15 @@ export class SessionsController {
   @Post()
   create(@Body() dto: CreateSessionDto, @CurrentUser() user: AuthUser) {
     return this.sessions.create(user.id, dto.characterId);
+  }
+
+  /**
+   * Read-only fetch of a session — owner or admin. Used by /session/:id/view
+   * for past-session review (transcript + feedback + notes).
+   */
+  @Get(':id')
+  view(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.sessions.getForView(user.id, id);
   }
 
   @Post(':id/messages')
