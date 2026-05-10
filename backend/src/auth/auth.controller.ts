@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -11,7 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { AuthService } from './auth.service';
+import { AuthService, type UserPreferences } from './auth.service';
 import { LoginDto, RefreshDto, RegisterDto } from './dto';
 import { CurrentUser, type AuthUser } from './current-user.decorator';
 import { Public } from './public.decorator';
@@ -62,6 +63,24 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.auth.getProfile(user.id);
+  }
+
+  @Get('me/preferences')
+  getPreferences(@CurrentUser() user: AuthUser) {
+    return this.auth.getPreferences(user.id);
+  }
+
+  /**
+   * Patch — merges only the provided keys. Frontend sends e.g.
+   * `{ hintsEnabled: false }` and untouched keys keep their values.
+   * Unknown keys are silently dropped server-side.
+   */
+  @Patch('me/preferences')
+  updatePreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() patch: Partial<UserPreferences>,
+  ) {
+    return this.auth.updatePreferences(user.id, patch);
   }
 
   @Public()

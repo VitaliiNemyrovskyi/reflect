@@ -12,10 +12,11 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService, Note } from '../api.service';
+import { ApiService, HintSuggestion, Note } from '../api.service';
 import { SessionStateService } from '../session-state.service';
 import { VoiceService } from '../voice.service';
 import { RecognitionService } from '../recognition.service';
+import { PreferencesService } from '../preferences.service';
 
 interface SelectionAnchor {
   text: string;
@@ -78,6 +79,36 @@ interface SelectionAnchor {
           }
         </div>
 
+        @if (hintsOpen()) {
+          <div class="hints-popover" (click)="$event.stopPropagation()">
+            <header class="hints-head">
+              <span class="hints-title">💡 Що спитати?</span>
+              <button class="hints-close" type="button" (click)="hintsOpen.set(false)" aria-label="Закрити">×</button>
+            </header>
+            @if (hintsLoading()) {
+              <p class="hints-status">Готую варіанти…</p>
+            } @else if (hintsError()) {
+              <p class="hints-status danger">{{ hintsError() }}</p>
+            } @else {
+              <ul class="hints-list">
+                @for (s of hints(); track $index) {
+                  <li class="hint-card" (click)="applyHint(s)" tabindex="0"
+                      (keydown.enter)="applyHint(s)">
+                    <span class="hint-kind">{{ hintKindLabel(s.kind) }}</span>
+                    <p class="hint-text">{{ s.text }}</p>
+                    @if (s.rationale) {
+                      <p class="hint-rationale">{{ s.rationale }}</p>
+                    }
+                  </li>
+                }
+              </ul>
+              <p class="hints-foot">
+                Натисни варіант — він підставиться у поле, ти зможеш відредагувати перед надсиланням.
+              </p>
+            }
+          </div>
+        }
+
         <form class="composer" (ngSubmit)="send()">
           <textarea
             rows="2"
@@ -87,6 +118,18 @@ interface SelectionAnchor {
             [disabled]="sending()"
             (keydown.meta.enter)="send()"
             (keydown.control.enter)="send()"></textarea>
+          @if (prefs.hintsEnabled()) {
+            <button type="button"
+                    class="ghost icon hint-trigger"
+                    [class.active]="hintsOpen()"
+                    [class.loading]="hintsLoading()"
+                    [disabled]="sending()"
+                    [attr.aria-label]="hintsOpen() ? 'Закрити підказки' : 'Що спитати?'"
+                    title="Що спитати? (підказка від наставника)"
+                    (click)="toggleHints()">
+              💡
+            </button>
+          }
           @if (recognition.supported) {
             <button type="button"
                     class="ghost icon mic"
@@ -318,6 +361,126 @@ interface SelectionAnchor {
       50% { opacity: 0.65; }
     }
 
+    /* Hint coach — trigger button + dropdown popover above the composer. */
+    .hint-trigger {
+      padding: 10px 14px;
+      font-size: 18px;
+      line-height: 1;
+      align-self: stretch;
+    }
+    .hint-trigger.active {
+      background: rgba(216, 201, 255, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .hint-trigger.loading {
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @media (max-width: 720px) {
+      .composer .hint-trigger {
+        min-height: 48px;
+        min-width: 48px;
+        font-size: 20px;
+      }
+    }
+
+    .hints-popover {
+      background: var(--assistant-bg);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+    .hints-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .hints-title {
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+      letter-spacing: .02em;
+    }
+    .hints-close {
+      background: transparent;
+      border: none;
+      color: var(--fg-dim);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+      min-height: auto;
+    }
+    .hints-close:hover { color: var(--fg); }
+    .hints-status {
+      margin: 4px 0;
+      font-size: 13px;
+      color: var(--fg-dim);
+    }
+    .hints-status.danger { color: var(--danger); }
+
+    .hints-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .hint-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color .12s ease, transform .12s ease;
+    }
+    .hint-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+    .hint-card:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(216, 201, 255, 0.25);
+    }
+    .hint-kind {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--accent);
+      padding: 2px 8px;
+      background: rgba(216, 201, 255, 0.08);
+      border: 1px solid rgba(216, 201, 255, 0.25);
+      border-radius: 999px;
+      margin-bottom: 6px;
+    }
+    .hint-text {
+      margin: 4px 0 6px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--fg);
+    }
+    .hint-rationale {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--fg-dim);
+      font-style: italic;
+    }
+    .hints-foot {
+      margin: 10px 0 0;
+      font-size: 11px;
+      color: var(--fg-dim);
+      line-height: 1.4;
+    }
+
     .notes-panel {
       display: flex;
       flex-direction: column;
@@ -484,6 +647,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   protected state = inject(SessionStateService);
   protected voice = inject(VoiceService);
   protected recognition = inject(RecognitionService);
+  protected prefs = inject(PreferencesService);
 
   @ViewChild('scroll', { static: false })
   private scrollEl?: ElementRef<HTMLElement>;
@@ -498,6 +662,13 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   anchorPreview = signal<string | null>(null);
   selectionAnchor = signal<SelectionAnchor | null>(null);
   notesOpen = signal<boolean>(false);
+
+  // Hint coach: opens a popover with 3 strategic next-reply suggestions.
+  // Visibility of the trigger button is gated by `prefs.hintsEnabled()`.
+  hintsLoading = signal(false);
+  hintsOpen = signal(false);
+  hintsError = signal<string | null>(null);
+  hints = signal<HintSuggestion[]>([]);
 
   private startedAt = Date.now();
   private nowMs = signal(Date.now());
@@ -552,6 +723,66 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.recognition.toggle((text) => {
       this.draft = text;
     });
+  }
+
+  // ─── Hint coach ────────────────────────────────────────────────────────
+
+  /**
+   * Open the hint popover and request 3 next-reply suggestions. If the
+   * popover was already open, just close it (toggle behavior).
+   */
+  async toggleHints() {
+    if (this.hintsOpen()) {
+      this.hintsOpen.set(false);
+      return;
+    }
+    if (this.hintsLoading()) return;
+    this.hintsOpen.set(true);
+    this.hintsError.set(null);
+    this.hints.set([]);
+    this.hintsLoading.set(true);
+    try {
+      const res = await this.api.requestHint(this.sessionId);
+      this.hints.set(res.suggestions ?? []);
+      if ((res.suggestions ?? []).length === 0) {
+        this.hintsError.set('Модель не повернула жодного варіанту.');
+      }
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message ?? 'Не вдалось отримати підказку.';
+      this.hintsError.set(msg);
+    } finally {
+      this.hintsLoading.set(false);
+    }
+  }
+
+  /**
+   * Click on a suggestion → fill the composer textarea. Don't auto-send;
+   * student should be able to tweak the wording before committing.
+   */
+  applyHint(s: HintSuggestion) {
+    this.draft = s.text;
+    this.hintsOpen.set(false);
+    // Move focus + caret to the end so the student can edit immediately.
+    queueMicrotask(() => {
+      const ta = document.querySelector<HTMLTextAreaElement>('.composer textarea');
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    });
+  }
+
+  hintKindLabel(k: HintSuggestion['kind']): string {
+    return {
+      'open-question': 'Open question',
+      'reflection': 'Reflection',
+      'summary': 'Summary',
+      'screening': 'Скринінг',
+      'here-and-now': 'Here-and-now',
+      'psychoeducation': 'Психоосвіта',
+      'closing': 'Закриття',
+      'other': '·',
+    }[k] ?? '·';
   }
 
   toggleNotes() {

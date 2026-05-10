@@ -1,13 +1,13 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService, Character, ProgressBadge } from '../api.service';
 import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'app-characters-list',
   standalone: true,
-  imports: [CommonModule, DatePipe],
+  imports: [CommonModule, DatePipe, RouterLink],
   template: `
     <header class="header">
       <div class="title-row">
@@ -18,6 +18,10 @@ import { AuthService } from '../auth.service';
         @if (auth.user(); as u) {
           <div class="user-area">
             <span class="user-name">{{ u.displayName ?? u.email }}</span>
+            <a routerLink="/settings"
+               class="ghost icon small"
+               title="Налаштування"
+               aria-label="Налаштування">⚙</a>
             <button class="ghost small" (click)="logout()">Вийти</button>
           </div>
         }
@@ -138,10 +142,28 @@ import { AuthService } from '../auth.service';
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    button.small {
+    button.small, .small {
       padding: 6px 12px;
       font-size: 13px;
       min-height: auto;
+    }
+    a.ghost.icon.small {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      width: 30px;
+      padding: 0;
+      font-size: 16px;
+      color: var(--fg-dim);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      height: 30px;
+      transition: color .15s ease, border-color .15s ease;
+    }
+    a.ghost.icon.small:hover {
+      color: var(--accent);
+      border-color: var(--accent);
     }
 
     .filters {

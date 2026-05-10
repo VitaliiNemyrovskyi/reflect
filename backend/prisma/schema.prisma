@@ -29,6 +29,9 @@ model User {
   provider        String   @default("local") // "local" | "google" | "facebook"
   providerUserId  String?  // OAuth subject id
   refreshTokenHash String?
+  // Per-user UI preferences serialized as JSON. Schema is loose — clients
+  // merge new keys via PATCH. Today: { hintsEnabled: boolean }.
+  preferencesJson String?
   createdAt       DateTime @default(now())
   sessions        Session[]
 }

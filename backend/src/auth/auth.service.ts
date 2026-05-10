@@ -17,6 +17,44 @@ export interface AuthResult extends AuthTokens {
   user: { id: number; email: string; displayName: string | null };
 }
 
+/**
+ * User-scoped UI preferences. Persisted as JSON in `User.preferencesJson`.
+ * Add new keys with sensible defaults below — the merge logic protects
+ * existing users from seeing `undefined` when a new preference ships.
+ */
+export interface UserPreferences {
+  /** Show "💡 Що спитати?" hint button during chat sessions. */
+  hintsEnabled: boolean;
+}
+
+const PREFERENCES_DEFAULTS: UserPreferences = {
+  hintsEnabled: true,
+};
+
+function parseJson(raw: string | null): Partial<UserPreferences> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Partial<UserPreferences>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function mergeDefaults(p: Partial<UserPreferences>): UserPreferences {
+  return { ...PREFERENCES_DEFAULTS, ...p };
+}
+
+/**
+ * Strip unknown keys + coerce types. Keeps the persisted JSON clean and
+ * defends against clients sending random shapes.
+ */
+function sanitize(patch: Partial<UserPreferences>): Partial<UserPreferences> {
+  const out: Partial<UserPreferences> = {};
+  if (typeof patch.hintsEnabled === 'boolean') out.hintsEnabled = patch.hintsEnabled;
+  return out;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -105,6 +143,40 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
     return { id: user.id, email: user.email, displayName: user.displayName };
+  }
+
+  /**
+   * User-scoped preferences. Defaults are returned for any keys a user
+   * has never set, so the frontend gets a stable shape from day one.
+   */
+  async getPreferences(userId: number): Promise<UserPreferences> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferencesJson: true },
+    });
+    if (!user) throw new UnauthorizedException();
+    return mergeDefaults(parseJson(user.preferencesJson));
+  }
+
+  /**
+   * Patch-update preferences — caller passes only the keys it wants to
+   * change, server merges over the existing record. Unknown keys are
+   * silently dropped to keep the JSON clean.
+   */
+  async updatePreferences(
+    userId: number,
+    patch: Partial<UserPreferences>,
+  ): Promise<UserPreferences> {
+    const current = await this.getPreferences(userId);
+    const next = mergeDefaults({
+      ...current,
+      ...sanitize(patch),
+    });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferencesJson: JSON.stringify(next) },
+    });
+    return next;
   }
 
   private async issueAndReturn(user: User): Promise<AuthResult> {

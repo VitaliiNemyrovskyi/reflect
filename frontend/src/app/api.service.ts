@@ -113,6 +113,26 @@ export interface CreateNoteInput {
   anchorText?: string;
 }
 
+export type HintKind =
+  | 'open-question'
+  | 'reflection'
+  | 'summary'
+  | 'screening'
+  | 'here-and-now'
+  | 'psychoeducation'
+  | 'closing'
+  | 'other';
+
+export interface HintSuggestion {
+  text: string;
+  rationale: string;
+  kind: HintKind;
+}
+
+export interface HintResult {
+  suggestions: HintSuggestion[];
+}
+
 function parseSseFrame(frame: string): { type: string; data: unknown } | null {
   let evType = 'message';
   const dataLines: string[] = [];
@@ -164,6 +184,16 @@ export class ApiService {
         `${this.base}/sessions/${sessionId}/messages`,
         { content },
       ),
+    );
+  }
+
+  /**
+   * Coach-mode hint — student asks "what should I say next". Returns 3
+   * strategic suggestions; empty array if backend returned nothing.
+   */
+  requestHint(sessionId: number): Promise<HintResult> {
+    return firstValueFrom(
+      this.http.post<HintResult>(`${this.base}/sessions/${sessionId}/hint`, {}),
     );
   }
 

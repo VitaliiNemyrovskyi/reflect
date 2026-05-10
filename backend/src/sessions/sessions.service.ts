@@ -3,6 +3,73 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PromptsService } from '../prompts/prompts.service';
 import { LlmService, ChatMessage } from '../llm/llm.service';
 
+export type HintKind =
+  | 'open-question'
+  | 'reflection'
+  | 'summary'
+  | 'screening'
+  | 'here-and-now'
+  | 'psychoeducation'
+  | 'closing'
+  | 'other';
+
+export interface HintSuggestion {
+  text: string;
+  rationale: string;
+  kind: HintKind;
+}
+
+export interface HintResult {
+  suggestions: HintSuggestion[];
+}
+
+/**
+ * Pull the JSON payload out of the LLM response (raw or fenced) and
+ * normalize into HintResult. Tolerant — if the model adds prose around the
+ * JSON, we extract the first balanced { ... } block. If parsing fails
+ * entirely, returns a single suggestion holding the raw text so the
+ * frontend has something to show instead of an error.
+ */
+function parseHintResult(raw: string): HintResult {
+  const fence = raw.match(/```(?:json)?\s*\n([\s\S]*?)\n```/i);
+  const candidate = fence ? fence[1] : raw;
+  // Find first { ... } block — handles preamble before/after JSON.
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) {
+    return fallbackHint(raw);
+  }
+  try {
+    const parsed = JSON.parse(candidate.slice(start, end + 1)) as {
+      suggestions?: { text?: unknown; rationale?: unknown; kind?: unknown }[];
+    };
+    const out: HintSuggestion[] = [];
+    for (const s of parsed.suggestions ?? []) {
+      const text = typeof s.text === 'string' ? s.text.trim() : '';
+      const rationale = typeof s.rationale === 'string' ? s.rationale.trim() : '';
+      const kind = (typeof s.kind === 'string' ? s.kind : 'other') as HintKind;
+      if (text) out.push({ text, rationale, kind });
+    }
+    if (out.length === 0) return fallbackHint(raw);
+    return { suggestions: out.slice(0, 3) };
+  } catch {
+    return fallbackHint(raw);
+  }
+}
+
+function fallbackHint(raw: string): HintResult {
+  const text = raw.trim().slice(0, 400);
+  return {
+    suggestions: [
+      {
+        text: text || 'Не вдалось розпарсити підказку. Спробуй ще раз.',
+        rationale: 'Модель не повернула очікуваний JSON; це сирий текст.',
+        kind: 'other',
+      },
+    ],
+  };
+}
+
 const SEED_OPENING =
   '[Сесія розпочалася. Терапевт сидить навпроти і чекає, поки ви заговорите.]';
 
@@ -71,6 +138,53 @@ export class SessionsService {
       .map((s) => s.patientMemory)
       .filter((m): m is string => !!m && m.trim().length > 0)
       .slice(-5); // last 5 prior sessions max
+  }
+
+  /**
+   * Coach mode — student in the middle of a session asks "what should I say
+   * next?" Returns 3 strategic suggestions (open question / reflection /
+   * here-and-now / screening / etc.) anchored on the transcript so far.
+   *
+   * Output is the parsed JSON the LLM emits per hint_system.md. If parsing
+   * fails (e.g. model wrapped JSON in extra prose), we fall back to a single
+   * synthetic suggestion containing the raw text — better than throwing.
+   */
+  async generateHints(userId: number, sessionId: number): Promise<HintResult> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { character: true },
+    });
+    if (!session || session.userId !== userId) throw new NotFoundException('session not found');
+    if (session.endedAt) throw new BadRequestException('session ended');
+
+    const history = await this.loadHistory(sessionId);
+    const transcript = history
+      .map((m, i) => {
+        const speaker = m.role === 'user' ? 'Терапевт' : session.character.displayName;
+        return `[L${i + 1}] ${speaker}: ${m.content}`;
+      })
+      .join('\n\n');
+
+    const systemPrompt = this.prompts.fill(this.prompts.hintSystem, {
+      PROFILE: session.character.profileText,
+      TRANSCRIPT: transcript,
+    });
+
+    const raw = await this.llm.chat({
+      systemPrompt,
+      history: [
+        {
+          role: 'user',
+          content: 'Дай 3 варіанти моєї наступної репліки. Тільки JSON у форматі з system prompt-у.',
+        },
+      ],
+      // Hints come from the same provider but we use the chat model — feedback
+      // model is heavier and slower. Speed matters here, the student is mid-session.
+      model: this.llm.modelChat,
+      maxTokens: 800,
+    });
+
+    return parseHintResult(raw);
   }
 
   async sendMessage(userId: number, sessionId: number, content: string) {

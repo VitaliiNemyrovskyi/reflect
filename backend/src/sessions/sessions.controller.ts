@@ -35,6 +35,16 @@ export class SessionsController {
   }
 
   /**
+   * Coach-mode hint — student stuck mid-session, asks "what to say next".
+   * Returns 3 strategic suggestions per hint_system.md. Frontend respects
+   * `User.preferences.hintsEnabled` and hides the entry button when off.
+   */
+  @Post(':id/hint')
+  hint(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.sessions.generateHints(user.id, id);
+  }
+
+  /**
    * Streaming variant of /end. Writes raw SSE frames so we can carry typed
    * events (chunk / cached / done / error) instead of plain text. Auth comes
    * from the global JWT guard; the frontend cannot use EventSource (no custom

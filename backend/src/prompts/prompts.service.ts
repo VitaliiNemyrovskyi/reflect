@@ -21,6 +21,7 @@ export class PromptsService implements OnModuleInit {
   readonly annaSystem: string;
   readonly supervisorSystem: string;
   readonly supervisorProtocol: string;
+  readonly hintSystem: string;
   private readonly profilesDir: string;
 
   constructor(private readonly prisma: PrismaService) {
@@ -29,6 +30,7 @@ export class PromptsService implements OnModuleInit {
     this.annaSystem = this.read(promptsDir, 'anna_system.md');
     this.supervisorSystem = this.read(promptsDir, 'supervisor_system.md');
     this.supervisorProtocol = this.read(promptsDir, 'supervisor_protocol.md');
+    this.hintSystem = this.read(promptsDir, 'hint_system.md');
     this.profilesDir = resolve(promptsDir, 'profiles');
   }
 
