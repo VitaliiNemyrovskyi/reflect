@@ -8,16 +8,17 @@ datasource db {
 }
 
 model Character {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  displayName String
-  profileText String
-  diagnosis   String?   // Short clinical hint: "GAD з perfectionism", "Complicated grief"
-  difficulty  Int?      // 1-5; behavioral difficulty (how hard to engage). Modulates LLM behavior.
-  complexity  Int?      // 1-5; clinical severity (how serious the case is). Informational, doesn't change LLM.
-  avatarUrl   String?   // Link to portrait
-  createdAt   DateTime  @default(now())
-  sessions    Session[]
+  id             Int       @id @default(autoincrement())
+  slug           String    @unique
+  displayName    String
+  profileText    String
+  diagnosis      String?   // Ukrainian-language clinical label shown on UI (truncated to fit cards)
+  diagnosisCode  String?   // English DSM-5/ICD code shown as tooltip — for students who want to look up literature
+  difficulty     Int?      // 1-5; behavioral difficulty (how hard to engage). Modulates LLM behavior.
+  complexity     Int?      // 1-5; clinical severity (how serious the case is). Informational, doesn't change LLM.
+  avatarUrl      String?   // Link to portrait
+  createdAt      DateTime  @default(now())
+  sessions       Session[]
 }
 
 model User {

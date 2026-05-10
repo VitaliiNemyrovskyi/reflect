@@ -72,7 +72,10 @@ import { AuthService } from '../auth.service';
             <div class="card-body">
               <h3 class="name">{{ c.displayName }}</h3>
               @if (c.diagnosis) {
-                <p class="diagnosis">{{ c.diagnosis }}</p>
+                <p class="diagnosis"
+                   [title]="diagnosisTooltip(c)">
+                  {{ c.diagnosis }}
+                </p>
               }
               <div class="metrics">
                 @if (c.difficulty != null) {
@@ -260,11 +263,17 @@ import { AuthService } from '../auth.service';
     .diagnosis {
       color: var(--accent);
       font-size: 12px;
+      line-height: 1.35;
       margin: 3px 0 6px;
       opacity: 0.85;
-      white-space: nowrap;
+      /* Ukrainian translations are 30-50 chars (vs 4-6 for "GAD"/"MDD"),
+         so allow up to 2 lines instead of single-line ellipsis. Tooltip
+         on hover carries the full label + DSM-5 code. */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
+      cursor: help;
     }
 
     .metrics {
@@ -378,5 +387,17 @@ export class CharactersListComponent implements OnInit {
 
   dots(n: number): string {
     return '●'.repeat(n) + '○'.repeat(5 - n);
+  }
+
+  /**
+   * Tooltip text for the (often truncated) diagnosis label on the patient
+   * card. Always includes the full Ukrainian label; appends the DSM-5/ICD
+   * code on a second line if present so students who want to look up
+   * literature have the original term handy.
+   */
+  diagnosisTooltip(c: Character): string {
+    const ua = c.diagnosis ?? '';
+    const code = c.diagnosisCode;
+    return code ? `${ua}\n— ${code}` : ua;
   }
 }

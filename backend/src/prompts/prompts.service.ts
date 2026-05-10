@@ -7,9 +7,10 @@ interface ProfileFile {
   slug: string;
   displayName: string;
   profileText: string;
-  diagnosis: string | null;
-  difficulty: number | null; // behavioral (Поведінка:) — modulates LLM
-  complexity: number | null; // clinical (Тяжкість:) — informational
+  diagnosis: string | null;     // Ukrainian label, e.g. "Затяжна реакція горя"
+  diagnosisCode: string | null; // English/DSM-5 code, shown as tooltip
+  difficulty: number | null;    // behavioral (Поведінка:) — modulates LLM
+  complexity: number | null;    // clinical (Тяжкість:) — informational
   avatarUrl: string | null;
 }
 
@@ -164,6 +165,9 @@ export class PromptsService implements OnModuleInit {
       const metaBlock = profileText.match(/<!--([\s\S]*?)-->/);
       const meta = metaBlock?.[1] ?? '';
       const diagnosisMatch = meta.match(/^\s*Діагноз:\s*(.+)$/m);
+      // English DSM-5 / ICD code — shown as tooltip on UI for students who
+      // want to look up the original literature.
+      const diagnosisCodeMatch = meta.match(/^\s*Шифр:\s*(.+)$/m);
       // Accept "Поведінка:" (preferred) or legacy "Складність:"
       const difficultyMatch =
         meta.match(/^\s*Поведінка:\s*(\d)\b/m) ??
@@ -176,6 +180,7 @@ export class PromptsService implements OnModuleInit {
         displayName,
         profileText,
         diagnosis: diagnosisMatch?.[1]?.trim() ?? null,
+        diagnosisCode: diagnosisCodeMatch?.[1]?.trim() ?? null,
         difficulty: difficultyMatch ? parseInt(difficultyMatch[1], 10) : null,
         complexity: complexityMatch ? parseInt(complexityMatch[1], 10) : null,
         avatarUrl: avatarMatch?.[1]?.trim() ?? null,
@@ -209,6 +214,7 @@ export class PromptsService implements OnModuleInit {
         displayName: p.displayName,
         profileText: p.profileText,
         diagnosis: p.diagnosis,
+        diagnosisCode: p.diagnosisCode,
         difficulty: p.difficulty,
         complexity: p.complexity,
         avatarUrl: p.avatarUrl,

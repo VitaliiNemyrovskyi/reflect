@@ -1,7 +1,8 @@
 # Профіль Максима
 
 <!--
-Діагноз: Адаптаційний розлад + AUD (alcohol use disorder), післявоєнне горе
+Діагноз: Розлад адаптації + алкогольна залежність, післявоєнне горе
+Шифр: Adjustment disorder + AUD (DSM-5), bereavement
 Поведінка: 3
 Тяжкість: 4
 Avatar: https://api.dicebear.com/9.x/notionists/svg?seed=MaximGnatyuk&backgroundColor=c0aede

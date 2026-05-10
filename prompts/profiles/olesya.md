@@ -1,7 +1,8 @@
 # Профіль Олесі
 
 <!--
-Діагноз: MDD помірної тяжкості, пасивна суїцидальна ідеація
+Діагноз: Великий депресивний розлад (помірний) з пасивною суїцидальною ідеацією
+Шифр: MDD moderate (DSM-5 296.22) with passive SI
 Поведінка: 4
 Тяжкість: 5
 Avatar: https://api.dicebear.com/9.x/notionists/svg?seed=OlesiaKarpenko&backgroundColor=ffd5dc

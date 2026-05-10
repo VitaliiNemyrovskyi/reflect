@@ -1,7 +1,8 @@
 # Профіль Наталі
 
 <!--
-Діагноз: Persistent Complex Bereavement (DSM-5), bereavement-related auditory perceptions
+Діагноз: Затяжна реакція горя зі слуховими переживаннями втрати
+Шифр: Persistent Complex Bereavement (DSM-5), bereavement-related auditory perceptions
 Поведінка: 3
 Тяжкість: 4
 Avatar: https://api.dicebear.com/9.x/notionists/svg?seed=NataliaLysak&backgroundColor=d1d4f9

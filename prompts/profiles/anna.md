@@ -1,7 +1,8 @@
 # Профіль Анни
 
 <!--
-Діагноз: GAD з перфекціонізмом
+Діагноз: Генералізований тривожний розлад + перфекціонізм
+Шифр: GAD (DSM-5 300.02) + perfectionism
 Поведінка: 2
 Тяжкість: 2
 Avatar: https://api.dicebear.com/9.x/notionists/svg?seed=AnnaVoytenko&backgroundColor=fde7c2

@@ -9,9 +9,10 @@ export interface Character {
   id: number;
   slug: string;
   displayName: string;
-  diagnosis?: string | null;
-  difficulty?: number | null; // behavioral (Поведінка) — modulates LLM
-  complexity?: number | null; // clinical (Тяжкість) — informational
+  diagnosis?: string | null;     // Ukrainian-language label, shown directly on UI
+  diagnosisCode?: string | null; // English DSM-5 / ICD code, shown as tooltip
+  difficulty?: number | null;    // behavioral (Поведінка) — modulates LLM
+  complexity?: number | null;    // clinical (Тяжкість) — informational
   avatarUrl?: string | null;
   summary?: string;
   sessionCount?: number;
@@ -62,6 +63,11 @@ export interface PatientCard {
   id: number;
   slug: string;
   displayName: string;
+  diagnosis: string | null;
+  diagnosisCode: string | null;
+  difficulty: number | null;
+  complexity: number | null;
+  avatarUrl: string | null;
   profileText: string;
   progressBadge: ProgressBadge;
   sessionCount: number;

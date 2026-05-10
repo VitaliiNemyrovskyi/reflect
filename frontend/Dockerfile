@@ -17,9 +17,10 @@ RUN npm ci --workspace=@reflect/frontend --include-workspace-root --no-audit --n
 COPY frontend ./frontend
 RUN cd frontend && npm run build
 
-# Angular 19 (`application` builder) drops static output at
-# dist/<projectName>/browser. Our project is named `reflect` (see
-# angular.json), so the path is dist/reflect/browser.
+# Angular 19's `application` builder drops static output at the
+# configured outputPath/browser. angular.json sets outputPath="dist", so
+# the actual path is dist/browser (NOT dist/<projectName>/browser —
+# project name only appears in the path when outputPath is unset).
 
 # ---------- Runner ----------
 FROM nginx:1.27-alpine AS runner
@@ -27,7 +28,7 @@ FROM nginx:1.27-alpine AS runner
 # nginx config tuned for SPA routing + long-cache for hashed assets.
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
-COPY --from=builder /app/frontend/dist/reflect/browser /usr/share/nginx/html
+COPY --from=builder /app/frontend/dist/browser /usr/share/nginx/html
 
 EXPOSE 80
 
