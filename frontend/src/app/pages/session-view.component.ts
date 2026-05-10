@@ -17,7 +17,8 @@ marked.setOptions({ gfm: true, breaks: true });
     } @else if (error()) {
       <p class="hint danger">{{ error() }}</p>
       <a routerLink="/" class="link-btn">← На головну</a>
-    } @else if (session(); as s) {
+    } @else if (session()) {
+      @let s = session()!;
       <header class="view-header">
         <a [routerLink]="['/patient', s.character.id]" class="back">← {{ s.character.displayName }}</a>
         <div class="header-row">
