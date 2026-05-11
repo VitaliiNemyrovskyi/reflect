@@ -17,6 +17,7 @@ import {
   CharactersService,
   type CharacterDraftBrief,
   type CreateCharacterDto,
+  type DraftFieldName,
 } from './characters.service';
 
 interface AssessmentJson {
@@ -56,6 +57,19 @@ export class CharactersController {
   @Post('draft')
   draft(@Body() brief: CharacterDraftBrief) {
     return this.characters.draftProfile(brief);
+  }
+
+  /**
+   * Single-field LLM assist. Powers the ✨ buttons next to each input
+   * on the patient-form. Body: { field, brief } where `brief` is the
+   * current (partial) state of the form so the suggestion is coherent
+   * with what's already filled.
+   */
+  @Post('draft-field')
+  draftField(
+    @Body() body: { field: DraftFieldName; brief: Partial<CharacterDraftBrief> },
+  ) {
+    return this.characters.draftField(body.field, body.brief ?? {});
   }
 
   @Post()

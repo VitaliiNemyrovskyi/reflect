@@ -40,6 +40,34 @@ export interface CharacterDraftBrief {
   themes?: string[];
 }
 
+/**
+ * Fields with per-field AI assist (✨ buttons). Excludes `gender` (binary
+ * radio choice — no AI button) and `profileText` (handled separately by
+ * the full-profile draft endpoint).
+ */
+export type DraftFieldName =
+  | 'displayName'
+  | 'age'
+  | 'city'
+  | 'profession'
+  | 'diagnosis'
+  | 'diagnosisCode'
+  | 'difficulty'
+  | 'complexity'
+  | 'brief'
+  | 'hiddenLayerHint'
+  | 'voiceNotes'
+  | 'themes';
+
+/**
+ * Response shape for per-field AI assist. `value` is typed loosely; the
+ * caller dispatches by field name and coerces (number for age, string[]
+ * for themes, string for everything else).
+ */
+export interface DraftFieldResult {
+  value: string | number | string[];
+}
+
 export interface CreateCharacterDto {
   displayName: string;
   profileText: string;
@@ -299,6 +327,24 @@ export class ApiService {
   draftCharacter(brief: CharacterDraftBrief): Promise<{ markdown: string }> {
     return firstValueFrom(
       this.http.post<{ markdown: string }>(`${this.base}/characters/draft`, brief),
+    );
+  }
+
+  /**
+   * Per-field LLM assist. Powers the ✨ buttons next to each input on
+   * the patient-form. Returns one value coerced server-side to the
+   * right shape for the field (number for age/difficulty/complexity,
+   * string[] for themes, plain string for the rest).
+   */
+  draftField(
+    field: DraftFieldName,
+    brief: Partial<CharacterDraftBrief>,
+  ): Promise<DraftFieldResult> {
+    return firstValueFrom(
+      this.http.post<DraftFieldResult>(`${this.base}/characters/draft-field`, {
+        field,
+        brief,
+      }),
     );
   }
 

@@ -6,6 +6,7 @@ import {
   ApiService,
   CharacterDraftBrief,
   CreateCharacterDto,
+  DraftFieldName,
 } from '../api.service';
 
 type Mode = 'create' | 'edit';
@@ -39,7 +40,9 @@ const THEME_OPTIONS = [
       <p class="hint">
         Опиши клінічний випадок коротко, потім модель розгорне у повний
         8-секційний профіль. Можеш відредагувати markdown вручну перед
-        збереженням.
+        збереженням. <strong>Біля кожного поля є <code>✨</code></strong>
+        — тицни, і ШІ запропонує значення, узгоджене з тим, що ти вже
+        заповнила. Тисни ще раз — отримаєш іншу варіацію.
       </p>
     </header>
 
@@ -52,12 +55,28 @@ const THEME_OPTIONS = [
 
       <div class="row">
         <div class="field">
-          <label for="displayName">Ім'я *</label>
+          <div class="label-row">
+            <label for="displayName">Ім'я *</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('displayName')"
+                    (click)="fillField('displayName')"
+                    title="Згенерувати ім'я через ШІ">
+              @if (aiBusy('displayName')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input id="displayName" type="text" required maxlength="80"
                  [(ngModel)]="form.displayName" name="displayName" />
         </div>
         <div class="field narrow">
-          <label for="age">Вік</label>
+          <div class="label-row">
+            <label for="age">Вік</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('age')"
+                    (click)="fillField('age')"
+                    title="Згенерувати вік через ШІ">
+              @if (aiBusy('age')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input id="age" type="number" min="14" max="90"
                  [(ngModel)]="form.age" name="age" />
         </div>
@@ -78,13 +97,29 @@ const THEME_OPTIONS = [
 
       <div class="row">
         <div class="field">
-          <label for="city">Місто/район</label>
+          <div class="label-row">
+            <label for="city">Місто/район</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('city')"
+                    (click)="fillField('city')"
+                    title="Згенерувати місто через ШІ">
+              @if (aiBusy('city')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input id="city" type="text" maxlength="120"
                  [(ngModel)]="form.city" name="city"
                  placeholder="Київ, Поділ" />
         </div>
         <div class="field">
-          <label for="profession">Професія/контекст</label>
+          <div class="label-row">
+            <label for="profession">Професія/контекст</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('profession')"
+                    (click)="fillField('profession')"
+                    title="Згенерувати професію через ШІ">
+              @if (aiBusy('profession')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input id="profession" type="text" maxlength="120"
                  [(ngModel)]="form.profession" name="profession"
                  placeholder="вчителька, IT-аналітик, студентка..." />
@@ -97,28 +132,60 @@ const THEME_OPTIONS = [
 
       <div class="row">
         <div class="field">
-          <label for="diagnosis">Діагноз українською</label>
+          <div class="label-row">
+            <label for="diagnosis">Діагноз українською</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('diagnosis')"
+                    (click)="fillField('diagnosis')"
+                    title="Згенерувати діагноз через ШІ">
+              @if (aiBusy('diagnosis')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input id="diagnosis" type="text" maxlength="200"
                  [(ngModel)]="form.diagnosis" name="diagnosis"
                  placeholder="Соціальна тривога з уникненням" />
         </div>
         <div class="field">
-          <label for="diagnosisCode">Шифр (англ. для бібліотеки)</label>
+          <div class="label-row">
+            <label for="diagnosisCode">Шифр (МКХ-10 / DSM-5)</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('diagnosisCode')"
+                    (click)="fillField('diagnosisCode')"
+                    title="Згенерувати шифр через ШІ">
+              @if (aiBusy('diagnosisCode')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input id="diagnosisCode" type="text" maxlength="200"
                  [(ngModel)]="form.diagnosisCode" name="diagnosisCode"
-                 placeholder="Social Anxiety Disorder (DSM-5 300.23)" />
+                 placeholder="F40.1 (МКХ-10) / 300.23 (DSM-5)" />
         </div>
       </div>
 
       <div class="row">
         <div class="field narrow">
-          <label>Поведінкова складність: {{ form.difficulty }}</label>
+          <div class="label-row">
+            <label>Поведінкова складність: {{ form.difficulty }}</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('difficulty')"
+                    (click)="fillField('difficulty')"
+                    title="Підібрати складність через ШІ">
+              @if (aiBusy('difficulty')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input type="range" min="1" max="5" step="1"
                  [(ngModel)]="form.difficulty" name="difficulty" />
           <span class="hint">1 = відкрита, 5 = глухий опір</span>
         </div>
         <div class="field narrow">
-          <label>Клінічна тяжкість: {{ form.complexity }}</label>
+          <div class="label-row">
+            <label>Клінічна тяжкість: {{ form.complexity }}</label>
+            <button type="button" class="ai-mini"
+                    [disabled]="aiBusy('complexity')"
+                    (click)="fillField('complexity')"
+                    title="Підібрати тяжкість через ШІ">
+              @if (aiBusy('complexity')) { ⏳ } @else { ✨ }
+            </button>
+          </div>
           <input type="range" min="1" max="5" step="1"
                  [(ngModel)]="form.complexity" name="complexity" />
           <span class="hint">1 = легка, 5 = гостра небезпека</span>
@@ -130,28 +197,60 @@ const THEME_OPTIONS = [
       <h2>3. Випадок</h2>
 
       <div class="field">
-        <label for="brief">Що з нею відбувається (2-3 речення)</label>
+        <div class="label-row">
+          <label for="brief">Що з нею відбувається (2-3 речення)</label>
+          <button type="button" class="ai-mini"
+                  [disabled]="aiBusy('brief')"
+                  (click)="fillField('brief')"
+                  title="Згенерувати опис випадку через ШІ">
+            @if (aiBusy('brief')) { ⏳ } @else { ✨ }
+          </button>
+        </div>
         <textarea id="brief" rows="3" maxlength="600"
                   [(ngModel)]="form.brief" name="brief"
                   placeholder="Останні 4 місяці — панічні атаки уночі. Працює, але виснажена. Партнер не знає масштабу."></textarea>
       </div>
 
       <div class="field">
-        <label for="hiddenLayerHint">Прихований шар (1-2 речення, що насправді відбувається)</label>
+        <div class="label-row">
+          <label for="hiddenLayerHint">Прихований шар (1-2 речення, що насправді відбувається)</label>
+          <button type="button" class="ai-mini"
+                  [disabled]="aiBusy('hiddenLayerHint')"
+                  (click)="fillField('hiddenLayerHint')"
+                  title="Згенерувати прихований шар через ШІ">
+            @if (aiBusy('hiddenLayerHint')) { ⏳ } @else { ✨ }
+          </button>
+        </div>
         <textarea id="hiddenLayerHint" rows="2" maxlength="500"
                   [(ngModel)]="form.hiddenLayerHint" name="hiddenLayerHint"
                   placeholder="Контракт умовної любові з мамою + криза кар'єрного стелі = панічна атака як легітимний спосіб зупинитись."></textarea>
       </div>
 
       <div class="field">
-        <label for="voiceNotes">Особливості мовлення</label>
+        <div class="label-row">
+          <label for="voiceNotes">Особливості мовлення</label>
+          <button type="button" class="ai-mini"
+                  [disabled]="aiBusy('voiceNotes')"
+                  (click)="fillField('voiceNotes')"
+                  title="Згенерувати опис мовлення через ШІ">
+            @if (aiBusy('voiceNotes')) { ⏳ } @else { ✨ }
+          </button>
+        </div>
         <textarea id="voiceNotes" rows="2" maxlength="400"
                   [(ngModel)]="form.voiceNotes" name="voiceNotes"
                   placeholder="Артикульована, перфекціоністка, іронія як захист. Російську не вживає крім цитування мами."></textarea>
       </div>
 
       <div class="field">
-        <label>Спеціальні теми (необов'язково)</label>
+        <div class="label-row">
+          <label>Спеціальні теми (необов'язково)</label>
+          <button type="button" class="ai-mini"
+                  [disabled]="aiBusy('themes')"
+                  (click)="fillField('themes')"
+                  title="Підібрати теми через ШІ">
+            @if (aiBusy('themes')) { ⏳ } @else { ✨ }
+          </button>
+        </div>
         <div class="theme-chips">
           @for (t of themeOptions; track t) {
             <label class="chip" [class.active]="hasTheme(t)">
@@ -271,6 +370,42 @@ const THEME_OPTIONS = [
       text-transform: uppercase;
       letter-spacing: .04em;
       font-weight: 500;
+    }
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      min-height: 22px;
+    }
+    .label-row label {
+      flex: 1;
+      min-width: 0;
+    }
+    .ai-mini {
+      flex-shrink: 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg-dim);
+      padding: 2px 8px;
+      font-size: 11px;
+      line-height: 1.4;
+      border-radius: 4px;
+      cursor: pointer;
+      min-height: auto;
+      transition: all .15s ease;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 400;
+    }
+    .ai-mini:hover:not(:disabled) {
+      background: rgba(216, 201, 255, 0.1);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .ai-mini:disabled {
+      opacity: 0.6;
+      cursor: wait;
     }
     .field input[type="text"],
     .field input[type="number"],
@@ -407,6 +542,18 @@ export class PatientFormComponent implements OnInit {
   saving = signal(false);
   saveError = signal<string | null>(null);
 
+  /**
+   * Tracks per-field "fetching from AI" state so each ✨ button can show
+   * its own spinner without blocking other fields. Multiple AI calls can
+   * run in parallel — if user clicks ✨ on name + diagnosis + brief at
+   * the same time, all three load independently.
+   */
+  private aiBusyMap = signal<Record<string, boolean>>({});
+
+  aiBusy(field: DraftFieldName): boolean {
+    return !!this.aiBusyMap()[field];
+  }
+
   canGenerate = computed(() => {
     return (
       this.form.displayName.trim().length > 0 &&
@@ -473,6 +620,97 @@ export class PatientFormComponent implements OnInit {
       );
     } finally {
       this.generating.set(false);
+    }
+  }
+
+  /**
+   * Single-field AI assist. Captures the current form state as context,
+   * asks the backend for a value, then applies it to the form. Always
+   * overwrites — re-clicking ✨ gives a fresh variation.
+   */
+  async fillField(field: DraftFieldName) {
+    if (this.aiBusy(field)) return;
+    this.aiBusyMap.update((curr) => ({ ...curr, [field]: true }));
+    try {
+      const res = await this.api.draftField(field, this.briefPayload());
+      this.applyAiValue(field, res.value);
+    } catch (e: unknown) {
+      const httpErr = e as { error?: { message?: string }; status?: number };
+      // Reuse the global generateError surface — per-field error UI would
+      // bloat the template. User sees the message under section 4.
+      this.generateError.set(
+        httpErr.error?.message ||
+          (httpErr.status === 503
+            ? 'Модель тимчасово недоступна (rate-limit). Спробуй за хвилину.'
+            : `Не вдалось згенерувати поле «${field}».`),
+      );
+    } finally {
+      this.aiBusyMap.update((curr) => ({ ...curr, [field]: false }));
+    }
+  }
+
+  /**
+   * Apply a value returned by the backend's draft-field endpoint into
+   * the form, with field-specific coercion. The backend already coerces
+   * server-side (number for age/difficulty/complexity, string[] for
+   * themes), but we belt-and-suspenders here so a weird response can't
+   * break the form.
+   */
+  private applyAiValue(field: DraftFieldName, raw: unknown): void {
+    switch (field) {
+      case 'age': {
+        const n = Number(raw);
+        this.form.age = Number.isFinite(n) ? Math.max(14, Math.min(90, Math.round(n))) : undefined;
+        return;
+      }
+      case 'difficulty': {
+        const n = Number(raw);
+        this.form.difficulty = Number.isFinite(n) ? Math.max(1, Math.min(5, Math.round(n))) : 3;
+        return;
+      }
+      case 'complexity': {
+        const n = Number(raw);
+        this.form.complexity = Number.isFinite(n) ? Math.max(1, Math.min(5, Math.round(n))) : 3;
+        return;
+      }
+      case 'themes': {
+        const list = Array.isArray(raw)
+          ? raw
+          : typeof raw === 'string'
+            ? raw.split(',').map((t) => t.trim())
+            : [];
+        // Filter to known options + de-dupe
+        const valid = Array.from(
+          new Set(list.map((t) => t.toLowerCase()).filter((t) => THEME_OPTIONS.includes(t))),
+        );
+        this.form.themes = valid;
+        return;
+      }
+      case 'displayName': {
+        this.form.displayName = String(raw ?? '').trim();
+        return;
+      }
+      case 'city':
+        this.form.city = String(raw ?? '');
+        return;
+      case 'profession':
+        this.form.profession = String(raw ?? '');
+        return;
+      case 'diagnosis':
+        this.form.diagnosis = String(raw ?? '');
+        return;
+      case 'diagnosisCode':
+        this.form.diagnosisCode = String(raw ?? '');
+        return;
+      case 'brief':
+        this.form.brief = String(raw ?? '');
+        return;
+      case 'hiddenLayerHint':
+        this.form.hiddenLayerHint = String(raw ?? '');
+        return;
+      case 'voiceNotes':
+        this.form.voiceNotes = String(raw ?? '');
+        return;
     }
   }
 
