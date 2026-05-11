@@ -140,10 +140,20 @@ const SPOILER_PATTERNS: RegExp[] = [
       <section class="tab-content">
         @if (tab() === 'overview') {
           <div class="overview-grid">
-            @if (basicsSection()) {
+            @if (quickFacts().length) {
               <article class="card">
-                <h3>👤 Базові відомості</h3>
-                <div class="card-body" [innerHTML]="basicsSection()!.bodyHtml"></div>
+                <h3>👤 Коротко</h3>
+                <dl class="facts">
+                  @for (f of quickFacts(); track f.label) {
+                    <div class="facts-row">
+                      <dt>{{ f.label }}</dt>
+                      <dd>{{ f.value }}</dd>
+                    </div>
+                  }
+                </dl>
+                <p class="facts-link">
+                  Повний контекст у вкладці <a (click)="tab.set('profile')" class="link-btn">Профіль →</a>
+                </p>
               </article>
             }
 
@@ -152,15 +162,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                 <h3>🎯 Запит на терапію</h3>
                 <p class="presenting-line">«{{ presentingComplaint() }}»</p>
                 <p class="presenting-meta">
-                  Як пацієнтка б озвучила його сама на першій сесії.
+                  Так пацієнт{{ feminine() ? 'ка' : '' }} озвучи{{ feminine() ? 'ла' : 'в' }} б цей запит сам{{ feminine() ? 'а' : '' }} на першій сесії.
                 </p>
-              </article>
-            }
-
-            @if (voiceSection()) {
-              <article class="card">
-                <h3>💬 Як вона говорить</h3>
-                <div class="card-body" [innerHTML]="voiceSection()!.bodyHtml"></div>
               </article>
             }
 
@@ -718,6 +721,46 @@ const SPOILER_PATTERNS: RegExp[] = [
       margin: 0;
       line-height: 1.6;
     }
+
+    /* Compact key-value list used in the Overview "Коротко" card. */
+    .facts {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .facts-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .facts-row dt {
+      color: var(--fg-dim);
+      font-weight: 500;
+      margin: 0;
+    }
+    .facts-row dd {
+      margin: 0;
+      color: var(--fg);
+    }
+    .facts-link {
+      margin: 12px 0 0;
+      font-size: 12px;
+      color: var(--fg-dim);
+    }
+    .facts-link .link-btn {
+      margin: 0;
+      cursor: pointer;
+    }
+    @media (max-width: 480px) {
+      .facts-row {
+        grid-template-columns: 95px 1fr;
+        font-size: 12.5px;
+      }
+    }
     .link-btn {
       display: inline-block;
       margin-top: 10px;
@@ -1131,11 +1174,56 @@ export class PatientDetailComponent implements OnInit {
     return parseSections(text);
   });
 
-  /** Section "1. Базові відомості" — for Overview tab. */
+  /** Section "1. Базові відомості" — kept for compute access (powers
+   *  quickFacts below). NOT rendered as a card in Overview anymore —
+   *  the full markdown lives in the Profile tab; here we extract a few
+   *  fields as a compact summary so the two tabs don't show the same
+   *  thing twice. */
   basicsSection = computed(() => this.profileSections().find((s) => /базов/i.test(s.title)));
 
-  /** Section "5. Як вона говорить" — affect/voice/body description. */
+  /** Section "5. Як вона говорить" — affect/voice/body description.
+   *  Used elsewhere; the Overview tab does NOT render this anymore (was
+   *  a duplicate of the Profile-tab section). */
   voiceSection = computed(() => this.profileSections().find((s) => /говорит|голос|афект/i.test(s.title)));
+
+  /**
+   * Compact key-value pairs extracted from the basics section bullets
+   * so the Overview tab gives a scannable summary instead of mirroring
+   * the Profile-tab block verbatim. Keys are matched case-insensitively
+   * against common Ukrainian labels; missing rows just don't appear.
+   */
+  quickFacts = computed<{ label: string; value: string }[]>(() => {
+    const body = this.basicsSection()?.bodyText;
+    if (!body) return [];
+    const wanted: { key: RegExp; label: string }[] = [
+      { key: /^вік$/i, label: 'Вік' },
+      { key: /^місто.*район|^місто$/i, label: 'Місто' },
+      { key: /^сімейний стан$/i, label: 'Сімейний стан' },
+      { key: /^освіта$/i, label: 'Освіта' },
+      { key: /^робота($|\s|\b)/i, label: 'Робота' },
+    ];
+    const facts: { label: string; value: string }[] = [];
+    for (const raw of body.split('\n')) {
+      const m = raw.match(/^[-*]\s+([^:]+):\s*(.+)$/);
+      if (!m) continue;
+      const [, key, value] = m;
+      const cleanKey = key.trim();
+      const w = wanted.find((x) => x.key.test(cleanKey));
+      if (!w) continue;
+      // Don't repeat if we already grabbed this label (some profiles
+      // have "Робота до 2022" + "Робота зараз" — keep first match).
+      if (facts.some((f) => f.label === w.label)) continue;
+      facts.push({ label: w.label, value: value.trim() });
+    }
+    return facts;
+  });
+
+  /** True if avatar style is `lorelei` — used as a gender proxy so the
+   *  presenting-complaint sub-caption agrees with the patient's gender. */
+  feminine = computed(() => {
+    const url = this.patient()?.avatarUrl ?? '';
+    return url.includes('/lorelei/');
+  });
 
   /** Presenting complaint — extracted from "Що її привело на сесію" section.
    *  Tries to grab the FIRST quoted block (what she'd say on session 1) so
