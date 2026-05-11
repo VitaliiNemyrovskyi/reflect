@@ -32,17 +32,17 @@ const THEME_OPTIONS = [
       <a routerLink="/" class="back">← На головну</a>
       <h1>
         @if (mode() === 'create') {
-          Створити пацієнтку
+          {{ form.gender === 'female' ? 'Створити пацієнтку' : 'Створити пацієнта' }}
         } @else {
           Редагувати: {{ form.displayName }}
         }
       </h1>
       <p class="hint">
         Опиши клінічний випадок коротко, потім модель розгорне у повний
-        8-секційний профіль. Можеш відредагувати markdown вручну перед
+        8-секційний профіль. Можна відредагувати markdown вручну перед
         збереженням. <strong>Біля кожного поля є <code>✨</code></strong>
-        — тицни, і ШІ запропонує значення, узгоджене з тим, що ти вже
-        заповнила. Тисни ще раз — отримаєш іншу варіацію.
+        — тицни, і ШІ запропонує значення, узгоджене з тим, що вже
+        заповнено. Тисни ще раз — отримаєш іншу варіацію.
       </p>
     </header>
 
@@ -122,7 +122,7 @@ const THEME_OPTIONS = [
           </div>
           <input id="profession" type="text" maxlength="120"
                  [(ngModel)]="form.profession" name="profession"
-                 placeholder="вчителька, IT-аналітик, студентка..." />
+                 [placeholder]="professionPlaceholder" />
         </div>
       </div>
     </section>
@@ -208,7 +208,7 @@ const THEME_OPTIONS = [
         </div>
         <textarea id="brief" rows="3" maxlength="600"
                   [(ngModel)]="form.brief" name="brief"
-                  placeholder="Останні 4 місяці — панічні атаки уночі. Працює, але виснажена. Партнер не знає масштабу."></textarea>
+                  [placeholder]="briefPlaceholder"></textarea>
       </div>
 
       <div class="field">
@@ -238,7 +238,7 @@ const THEME_OPTIONS = [
         </div>
         <textarea id="voiceNotes" rows="2" maxlength="400"
                   [(ngModel)]="form.voiceNotes" name="voiceNotes"
-                  placeholder="Артикульована, перфекціоністка, іронія як захист. Російську не вживає крім цитування мами."></textarea>
+                  [placeholder]="voicePlaceholder"></textarea>
       </div>
 
       <div class="field">
@@ -285,8 +285,8 @@ const THEME_OPTIONS = [
 
       @if (!canGenerate() && !form.profileText) {
         <p class="hint">
-          Заповни принаймні Ім'я і Стать (плюс хоч короткий опис випадку),
-          щоб модель мала контекст.
+          Заповни принаймні <strong>Ім'я</strong> і <strong>Що з нею/ним
+          відбувається</strong> — модель потребує цей мінімум контексту.
         </p>
       }
 
@@ -309,7 +309,7 @@ const THEME_OPTIONS = [
           @if (saving()) {
             Зберігаю…
           } @else if (mode() === 'create') {
-            Зберегти нову пацієнтку
+            {{ form.gender === 'female' ? 'Зберегти нову пацієнтку' : 'Зберегти нового пацієнта' }}
           } @else {
             Зберегти зміни
           }
@@ -588,6 +588,29 @@ export class PatientFormComponent implements OnInit {
     this.form.themes = list.includes(t)
       ? list.filter((x) => x !== t)
       : [...list, t];
+  }
+
+  /**
+   * Placeholder examples — gender-aware so the suggested wording matches
+   * the radio selection above. Without this the form felt subtly broken:
+   * user picks "Чоловіча" but every textarea still shows feminine forms
+   * ("виснажена", "перфекціоністка"). Bound via [placeholder]= in template
+   * so they reactively swap when gender changes.
+   */
+  get professionPlaceholder(): string {
+    return this.form.gender === 'female'
+      ? 'вчителька, IT-аналітикиня, студентка…'
+      : 'вчитель, IT-аналітик, студент…';
+  }
+  get briefPlaceholder(): string {
+    return this.form.gender === 'female'
+      ? 'Останні 4 місяці — панічні атаки уночі. Працює, але виснажена. Партнер не знає масштабу.'
+      : 'Останні 4 місяці — панічні атаки уночі. Працює, але виснажений. Дружина не знає масштабу.';
+  }
+  get voicePlaceholder(): string {
+    return this.form.gender === 'female'
+      ? 'Артикульована, перфекціоністка, іронія як захист. Російську не вживає крім цитування мами.'
+      : 'Артикульований, перфекціоніст, іронія як захист. Російську не вживає крім цитування батька.';
   }
 
   async ngOnInit() {

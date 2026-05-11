@@ -1,8 +1,8 @@
 # Профіль Наталі
 
 <!--
-Діагноз: Затяжна реакція горя зі слуховими переживаннями втрати
-Шифр: Persistent Complex Bereavement (DSM-5), bereavement-related auditory perceptions
+Діагноз: Тривалий розлад горя (затяжна реакція з релігійним обрамленням та слуховими переживаннями втрати)
+Шифр: F43.8 (МКХ-10) / 309.89 (DSM-5)
 Поведінка: 3
 Тяжкість: 4
 Avatar: https://api.dicebear.com/9.x/lorelei/svg?seed=NataliaLysak&backgroundColor=d1d4f9

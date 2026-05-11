@@ -1,8 +1,8 @@
 # Профіль Дарії
 
 <!--
-Діагноз: Адаптаційний розлад з тривожно-депресивними рисами у підлітка, реакція на воєнний стрес
-Шифр: Adjustment disorder with mixed anxiety and depressed mood (DSM-5 309.28), adolescent
+Діагноз: Адаптаційний розлад зі змішаною тривогою і депресією (підліткова форма, на тлі тривалого воєнного стресу)
+Шифр: F43.22 (МКХ-10) / 309.28 (DSM-5)
 Поведінка: 4
 Тяжкість: 3
 Avatar: https://api.dicebear.com/9.x/lorelei/svg?seed=DariaMelnyk&backgroundColor=ffe5b4

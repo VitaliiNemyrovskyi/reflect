@@ -1,8 +1,8 @@
 # Профіль Карини
 
 <!--
-Діагноз: Нервова булімія з епізодами очищення, помірної тяжкості
-Шифр: Bulimia Nervosa, purging type (DSM-5 307.51), moderate severity
+Діагноз: Нервова булімія, помірна форма (з епізодами очищення)
+Шифр: F50.2 (МКХ-10) / 307.51 (DSM-5)
 Поведінка: 3
 Тяжкість: 4
 Avatar: https://api.dicebear.com/9.x/lorelei/svg?seed=KarinaSolovey&backgroundColor=b6e3f4
