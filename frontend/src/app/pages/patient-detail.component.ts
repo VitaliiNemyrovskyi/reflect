@@ -106,14 +106,14 @@ const SPOILER_PATTERNS: RegExp[] = [
             @if (patient()!.isMine) {
               <a [routerLink]="['/patient', patient()!.id, 'edit']"
                  class="ghost icon small"
-                 title="Редагувати пацієнтку"
+                 title="Редагувати профіль"
                  aria-label="Редагувати">✎</a>
               <button class="ghost icon small"
                       title="Поділитися доступом"
                       aria-label="Доступ"
                       (click)="openShareModal()">👥</button>
               <button class="ghost icon small danger-icon"
-                      title="Видалити пацієнтку"
+                      title="Видалити профіль"
                       [disabled]="deleting()"
                       (click)="confirmDelete()">🗑</button>
             }
@@ -162,7 +162,11 @@ const SPOILER_PATTERNS: RegExp[] = [
                 <h3>🎯 Запит на терапію</h3>
                 <p class="presenting-line">«{{ presentingComplaint() }}»</p>
                 <p class="presenting-meta">
-                  Так пацієнт{{ feminine() ? 'ка' : '' }} озвучи{{ feminine() ? 'ла' : 'в' }} б цей запит сам{{ feminine() ? 'а' : '' }} на першій сесії.
+                  @if (feminine()) {
+                    Як пацієнтка озвучила б це сама на першій сесії.
+                  } @else {
+                    Як пацієнт озвучив би це сам на першій сесії.
+                  }
                 </p>
               </article>
             }
@@ -237,9 +241,11 @@ const SPOILER_PATTERNS: RegExp[] = [
                     <div class="section-body" [innerHTML]="s.bodyHtml"></div>
                   } @else if (s.isSpoiler) {
                     <p class="spoiler-warn">
-                      Цей розділ — клінічна підказка (як насправді влаштована пацієнтка
-                      і як вона поведеться). Він спойлерить кейс. Розгорни лише якщо
-                      хочеш звірити свою гіпотезу або ти вже провела сесію.
+                      Цей розділ — клінічна підказка (як насправді
+                      влаштован{{ feminine() ? 'а' : 'ий' }} пацієнт{{ feminine() ? 'ка' : '' }}
+                      і як {{ feminine() ? 'вона поведеться' : 'він поведеться' }}).
+                      Він спойлерить кейс. Розгорни лише якщо хочеш звірити свою
+                      гіпотезу або ти вже провів{{ feminine() ? 'ла' : '' }} сесію.
                     </p>
                   }
                 </article>
@@ -250,7 +256,10 @@ const SPOILER_PATTERNS: RegExp[] = [
 
         @if (tab() === 'sessions') {
           @if (patient()!.sessions.length === 0) {
-            <p class="hint">Сесій з цією пацієнткою ще не було. <button class="link-btn" (click)="newSession()">Почати першу</button></p>
+            <p class="hint">
+              Сесій з {{ feminine() ? 'цією пацієнткою' : 'цим пацієнтом' }} ще не було.
+              <button class="link-btn" (click)="newSession()">Почати першу</button>
+            </p>
           } @else {
             <ul class="sessions-list">
               @for (s of patient()!.sessions; track s.id) {
@@ -316,7 +325,7 @@ const SPOILER_PATTERNS: RegExp[] = [
             <p class="hint">Прогрес-графіки з'являться після першої завершеної сесії з фідбеком.</p>
           } @else {
             <div class="charts-section">
-              <h3>Стан клієнтки (1-10)</h3>
+              <h3>{{ feminine() ? 'Стан клієнтки' : 'Стан клієнта' }} (1-10)</h3>
               <div class="charts-grid">
                 @for (t of patientTrends(); track t.metric) {
                   <article class="chart-card">
@@ -369,14 +378,14 @@ const SPOILER_PATTERNS: RegExp[] = [
         <div class="modal-backdrop" (click)="closeShareModal()"></div>
         <div class="modal-card" role="dialog" aria-labelledby="share-title">
           <header class="modal-head">
-            <h2 id="share-title">Доступ до пацієнтки</h2>
+            <h2 id="share-title">Доступ до профілю</h2>
             <button class="modal-close" (click)="closeShareModal()" aria-label="Закрити">×</button>
           </header>
           <div class="modal-body">
             <p class="modal-intro">
-              Профіль приватний: бачиш лише ти + ті, кому ти дала доступ.
+              Профіль приватний: бачиш лише ти + ті, кому надано доступ.
               Колеги зможуть запускати сесії й читати свої транскрипти, але
-              не зможуть редагувати чи видалити пацієнтку.
+              не зможуть редагувати чи видалити профіль.
             </p>
 
             <form class="share-form" (ngSubmit)="addShare()">
@@ -1367,8 +1376,9 @@ export class PatientDetailComponent implements OnInit {
   async confirmDelete() {
     const p = this.patient();
     if (!p?.isMine) return;
+    const fem = this.feminine();
     const ok = confirm(
-      `Видалити пацієнтку ${p.displayName}?\n\nЗникнуть ВСІ сесії з нею, нотатки, фідбеки, пам'ять. Це незворотно.`,
+      `Видалити ${fem ? 'пацієнтку' : 'пацієнта'} ${p.displayName}?\n\nЗникнуть ВСІ сесії з ${fem ? 'нею' : 'ним'}, нотатки, фідбеки, пам'ять. Це незворотно.`,
     );
     if (!ok) return;
     this.deleting.set(true);
