@@ -19,14 +19,38 @@ model Character {
   avatarUrl      String?   // Link to portrait
   // Creator of a user-defined patient. null for system patients (loaded
   // from prompts/profiles/*.md on startup) — these are visible to all
-  // users. Non-null = visible only to that user + admins. PromptsService
-  // never touches characters with non-null createdById on startup-sync.
+  // users. Non-null = visible only to that user + admins + users in
+  // `shares`. PromptsService never touches characters with non-null
+  // createdById on startup-sync.
   createdBy      User?     @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdById    Int?
   createdAt      DateTime  @default(now())
   sessions       Session[]
+  // Per-user access grants — owner can share read-access to specific
+  // colleagues. Shared users see the patient in their catalog, can run
+  // sessions, but cannot edit or delete (those affordances are gated by
+  // `createdById === viewer.id` on the frontend).
+  shares         CharacterShare[]
 
   @@index([createdById])
+}
+
+/**
+ * Read-access grant from a character's owner to another user. When the
+ * owner is deleted (cascades to character) — share goes with it. When
+ * the shared-with user is deleted — only the share row is removed, the
+ * character stays with its owner.
+ */
+model CharacterShare {
+  id          Int       @id @default(autoincrement())
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  characterId Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  createdAt   DateTime  @default(now())
+
+  @@unique([characterId, userId])
+  @@index([userId])
 }
 
 model User {
@@ -49,6 +73,7 @@ model User {
   sessions        Session[]
   errorLogs       ErrorLog[]
   characters      Character[] // user-created patients
+  characterShares CharacterShare[] // patients others have shared with this user
 }
 
 /**

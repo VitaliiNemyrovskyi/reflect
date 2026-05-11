@@ -142,13 +142,96 @@ export class CharactersService {
 
   /**
    * Visibility filter for the listing endpoint: a user sees system
-   * patients (createdById === null) PLUS their own. Admins see all.
+   * patients (createdById === null) PLUS their own PLUS patients
+   * shared with them via CharacterShare. Admins see all.
    */
   visibilityFilter(userId: number, isAdmin: boolean) {
     if (isAdmin) return {};
     return {
-      OR: [{ createdById: null }, { createdById: userId }],
+      OR: [
+        { createdById: null },
+        { createdById: userId },
+        { shares: { some: { userId } } },
+      ],
     };
+  }
+
+  /**
+   * List share-grants for a character. Owner-or-admin only.
+   * Returns: who has access (email, displayName) + when granted.
+   */
+  async listShares(ownerId: number, characterId: number) {
+    const character = await this.prisma.character.findUnique({ where: { id: characterId } });
+    if (!character) throw new NotFoundException('character not found');
+    await this.assertCanEdit(ownerId, character);
+
+    const shares = await this.prisma.characterShare.findMany({
+      where: { characterId },
+      include: { user: { select: { id: true, email: true, displayName: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return shares.map((s) => ({
+      id: s.id,
+      userId: s.user.id,
+      email: s.user.email,
+      displayName: s.user.displayName,
+      createdAt: s.createdAt,
+    }));
+  }
+
+  /**
+   * Grant a colleague (by email) read-access to this character. Owner-or-admin
+   * only. Throws if the email isn't registered yet (we don't auto-invite).
+   * Idempotent on the (characterId, userId) pair — duplicates collapse.
+   */
+  async addShare(ownerId: number, characterId: number, email: string) {
+    const character = await this.prisma.character.findUnique({ where: { id: characterId } });
+    if (!character) throw new NotFoundException('character not found');
+    await this.assertCanEdit(ownerId, character);
+
+    const normalisedEmail = email?.trim().toLowerCase();
+    if (!normalisedEmail) {
+      throw new BadRequestException('email is required');
+    }
+    const target = await this.prisma.user.findUnique({ where: { email: normalisedEmail } });
+    if (!target) {
+      throw new NotFoundException('користувач із таким email не зареєстрований');
+    }
+    if (target.id === character.createdById) {
+      throw new BadRequestException('власник уже має повний доступ');
+    }
+
+    const share = await this.prisma.characterShare.upsert({
+      where: {
+        characterId_userId: { characterId, userId: target.id },
+      },
+      update: {},
+      create: { characterId, userId: target.id },
+      include: { user: { select: { id: true, email: true, displayName: true } } },
+    });
+    return {
+      id: share.id,
+      userId: share.user.id,
+      email: share.user.email,
+      displayName: share.user.displayName,
+      createdAt: share.createdAt,
+    };
+  }
+
+  /**
+   * Revoke a specific share-grant. Owner-or-admin only. The shared user's
+   * existing sessions stay intact — they just lose access to start new ones.
+   */
+  async removeShare(ownerId: number, characterId: number, shareId: number): Promise<{ deleted: true }> {
+    const share = await this.prisma.characterShare.findUnique({ where: { id: shareId } });
+    if (!share || share.characterId !== characterId) {
+      throw new NotFoundException('share not found');
+    }
+    const character = await this.prisma.character.findUnique({ where: { id: characterId } });
+    if (!character) throw new NotFoundException('character not found');
+    await this.assertCanEdit(ownerId, character);
+    await this.prisma.characterShare.delete({ where: { id: shareId } });
+    return { deleted: true };
   }
 
   private async assertCanEdit(

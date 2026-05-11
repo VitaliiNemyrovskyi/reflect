@@ -50,6 +50,15 @@ export interface CreateCharacterDto {
   avatarUrl?: string;
 }
 
+/** Read-access grant entry returned by the shares endpoints. */
+export interface CharacterShare {
+  id: number;
+  userId: number;
+  email: string;
+  displayName: string | null;
+  createdAt: string;
+}
+
 export interface AssessmentJson {
   patient?: {
     symptomSeverity?: number | null;
@@ -310,6 +319,30 @@ export class ApiService {
 
   deleteCharacter(id: number): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${this.base}/characters/${id}`));
+  }
+
+  /**
+   * Sharing — owner-only. Used on patient-detail "👥 Доступ" modal:
+   *  listShares → render current colleagues
+   *  addShare(email) → grant read-access to a registered user
+   *  removeShare(id) → revoke a specific grant
+   */
+  listShares(characterId: number): Promise<CharacterShare[]> {
+    return firstValueFrom(
+      this.http.get<CharacterShare[]>(`${this.base}/characters/${characterId}/shares`),
+    );
+  }
+
+  addShare(characterId: number, email: string): Promise<CharacterShare> {
+    return firstValueFrom(
+      this.http.post<CharacterShare>(`${this.base}/characters/${characterId}/shares`, { email }),
+    );
+  }
+
+  removeShare(characterId: number, shareId: number): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${this.base}/characters/${characterId}/shares/${shareId}`),
+    );
   }
 
   startSession(characterId: number): Promise<StartSessionResponse> {

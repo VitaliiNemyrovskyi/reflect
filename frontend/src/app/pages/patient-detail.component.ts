@@ -1,7 +1,8 @@
 import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService, PatientCard, ProgressBadge } from '../api.service';
+import { ApiService, CharacterShare, PatientCard, ProgressBadge } from '../api.service';
 
 /**
  * One section of the patient profile, extracted from `## N. Title` headings.
@@ -45,7 +46,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 @Component({
   selector: 'app-patient-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe],
+  imports: [CommonModule, RouterLink, DatePipe, FormsModule],
   template: `
     @if (loading()) {
       <p class="hint">Завантаження…</p>
@@ -107,6 +108,10 @@ const SPOILER_PATTERNS: RegExp[] = [
                  class="ghost icon small"
                  title="Редагувати пацієнтку"
                  aria-label="Редагувати">✎</a>
+              <button class="ghost icon small"
+                      title="Поділитися доступом"
+                      aria-label="Доступ"
+                      (click)="openShareModal()">👥</button>
               <button class="ghost icon small danger-icon"
                       title="Видалити пацієнтку"
                       [disabled]="deleting()"
@@ -356,6 +361,66 @@ const SPOILER_PATTERNS: RegExp[] = [
           }
         }
       </section>
+
+      @if (showShareModal()) {
+        <div class="modal-backdrop" (click)="closeShareModal()"></div>
+        <div class="modal-card" role="dialog" aria-labelledby="share-title">
+          <header class="modal-head">
+            <h2 id="share-title">Доступ до пацієнтки</h2>
+            <button class="modal-close" (click)="closeShareModal()" aria-label="Закрити">×</button>
+          </header>
+          <div class="modal-body">
+            <p class="modal-intro">
+              Профіль приватний: бачиш лише ти + ті, кому ти дала доступ.
+              Колеги зможуть запускати сесії й читати свої транскрипти, але
+              не зможуть редагувати чи видалити пацієнтку.
+            </p>
+
+            <form class="share-form" (ngSubmit)="addShare()">
+              <input type="email"
+                     name="shareEmail"
+                     placeholder="email колеги"
+                     [ngModel]="shareEmail()"
+                     (ngModelChange)="shareEmail.set($event)"
+                     [disabled]="sharing()"
+                     required />
+              <button type="submit"
+                      class="primary"
+                      [disabled]="sharing() || !shareEmail().trim()">
+                {{ sharing() ? 'Додаю…' : 'Додати' }}
+              </button>
+            </form>
+            @if (shareError()) {
+              <p class="share-error">{{ shareError() }}</p>
+            }
+
+            <div class="share-list">
+              @if (sharesLoading()) {
+                <p class="hint">Завантаження…</p>
+              } @else if (shares().length === 0) {
+                <p class="hint">Поки що нікому не надано доступ.</p>
+              } @else {
+                <h3 class="share-list-head">З ким поділено ({{ shares().length }})</h3>
+                <ul>
+                  @for (s of shares(); track s.id) {
+                    <li class="share-row">
+                      <div class="share-identity">
+                        <strong>{{ s.displayName || s.email.split('@')[0] }}</strong>
+                        <span class="share-email">{{ s.email }}</span>
+                      </div>
+                      <button class="ghost icon small danger-icon"
+                              [disabled]="removingShareId() === s.id"
+                              (click)="removeShare(s)"
+                              title="Забрати доступ"
+                              aria-label="Забрати доступ">×</button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        </div>
+      }
     }
   `,
   styles: [`
@@ -874,6 +939,135 @@ const SPOILER_PATTERNS: RegExp[] = [
       margin-top: 4px;
       font-variant-numeric: tabular-nums;
     }
+
+    /* Share modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 50;
+      animation: fadeIn .12s ease;
+    }
+    .modal-card {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(440px, calc(100vw - 32px));
+      max-height: calc(100vh - 64px);
+      overflow-y: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+      z-index: 51;
+      animation: popIn .14s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes popIn {
+      from { opacity: 0; transform: translate(-50%, -48%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-head h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--fg-dim);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+      min-height: auto;
+    }
+    .modal-close:hover { color: var(--fg); }
+    .modal-body { padding: 16px 20px 20px; }
+    .modal-intro {
+      margin: 0 0 16px;
+      font-size: 13px;
+      color: var(--fg-dim);
+      line-height: 1.55;
+    }
+
+    .share-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .share-form input {
+      flex: 1;
+      padding: 9px 12px;
+      background: var(--user-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--fg);
+      font-size: 14px;
+    }
+    .share-form input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .share-form button { flex-shrink: 0; }
+    .share-error {
+      margin: 6px 0 12px;
+      color: var(--danger);
+      font-size: 12px;
+    }
+
+    .share-list { margin-top: 16px; }
+    .share-list-head {
+      margin: 0 0 8px;
+      font-size: 11px;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 500;
+    }
+    .share-list ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .share-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      background: var(--user-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .share-identity {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .share-identity strong {
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .share-email {
+      font-size: 11px;
+      color: var(--fg-dim);
+    }
+    @media (max-width: 480px) {
+      .share-form { flex-direction: column; }
+      .share-form button { width: 100%; }
+    }
   `],
 })
 export class PatientDetailComponent implements OnInit {
@@ -1099,6 +1293,81 @@ export class PatientDetailComponent implements OnInit {
         (e as { error?: { message?: string } })?.error?.message ??
           'Не вдалось видалити.',
       );
+    }
+  }
+
+  // ─── Share modal ─────────────────────────────────────────────────────────
+
+  showShareModal = signal(false);
+  shares = signal<CharacterShare[]>([]);
+  sharesLoading = signal(false);
+  sharing = signal(false);
+  shareError = signal<string | null>(null);
+  shareEmail = signal('');
+  removingShareId = signal<number | null>(null);
+
+  async openShareModal() {
+    const p = this.patient();
+    if (!p?.isMine) return;
+    this.showShareModal.set(true);
+    this.shareError.set(null);
+    this.shareEmail.set('');
+    this.sharesLoading.set(true);
+    try {
+      const list = await this.api.listShares(p.id);
+      this.shares.set(list);
+    } catch {
+      this.shareError.set('Не вдалось завантажити список доступу.');
+    } finally {
+      this.sharesLoading.set(false);
+    }
+  }
+
+  closeShareModal() {
+    this.showShareModal.set(false);
+    this.shareError.set(null);
+  }
+
+  async addShare() {
+    const p = this.patient();
+    const email = this.shareEmail().trim();
+    if (!p || !email || this.sharing()) return;
+    this.sharing.set(true);
+    this.shareError.set(null);
+    try {
+      const share = await this.api.addShare(p.id, email);
+      // Upsert into list — backend collapses duplicates by (charId, userId),
+      // so we de-dupe locally too in case it was already there.
+      this.shares.update((curr) => {
+        const filtered = curr.filter((s) => s.id !== share.id);
+        return [share, ...filtered];
+      });
+      this.shareEmail.set('');
+    } catch (e: unknown) {
+      this.shareError.set(
+        (e as { error?: { message?: string } })?.error?.message ??
+          'Не вдалось додати доступ.',
+      );
+    } finally {
+      this.sharing.set(false);
+    }
+  }
+
+  async removeShare(share: CharacterShare) {
+    const p = this.patient();
+    if (!p) return;
+    if (!confirm(`Забрати доступ у ${share.email}?`)) return;
+    this.removingShareId.set(share.id);
+    try {
+      await this.api.removeShare(p.id, share.id);
+      this.shares.update((curr) => curr.filter((s) => s.id !== share.id));
+    } catch (e: unknown) {
+      alert(
+        (e as { error?: { message?: string } })?.error?.message ??
+          'Не вдалось забрати доступ.',
+      );
+    } finally {
+      this.removingShareId.set(null);
     }
   }
 }

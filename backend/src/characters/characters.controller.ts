@@ -84,6 +84,38 @@ export class CharactersController {
     await this.characters.delete(user.id, id);
   }
 
+  /**
+   * Sharing endpoints. Only the owner (or an admin) can manage shares —
+   * the guard sits inside the service via assertCanEdit. Recipients see
+   * the patient appear in their catalog automatically.
+   */
+  @Get(':id/shares')
+  listShares(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.characters.listShares(user.id, id);
+  }
+
+  @Post(':id/shares')
+  addShare(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+    @Body() body: { email: string },
+  ) {
+    return this.characters.addShare(user.id, id, body.email);
+  }
+
+  @Delete(':id/shares/:shareId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeShare(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('shareId', ParseIntPipe) shareId: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.characters.removeShare(user.id, id, shareId);
+  }
+
   @Get()
   async list(@CurrentUser() user: AuthUser) {
     const userId = user.id;
