@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -554,12 +554,18 @@ export class PatientFormComponent implements OnInit {
     return !!this.aiBusyMap()[field];
   }
 
-  canGenerate = computed(() => {
+  /**
+   * Whether the "Згенерувати профіль" button should be active. Plain
+   * method (not computed signal) — `this.form` is a plain object and a
+   * computed wouldn't see updates to its properties; a method re-runs
+   * on every change-detection cycle which is what we want here.
+   */
+  canGenerate(): boolean {
     return (
       this.form.displayName.trim().length > 0 &&
       (this.form.brief?.trim() ?? '').length > 0
     );
-  });
+  }
 
   hasTheme(t: string): boolean {
     return (this.form.themes ?? []).includes(t);
