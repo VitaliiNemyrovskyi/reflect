@@ -5,7 +5,7 @@
 Шифр: Bulimia Nervosa, purging type (DSM-5 307.51), moderate severity
 Поведінка: 3
 Тяжкість: 4
-Avatar: https://api.dicebear.com/9.x/notionists/svg?seed=KarinaSolovey&backgroundColor=b6e3f4
+Avatar: https://api.dicebear.com/9.x/lorelei/svg?seed=KarinaSolovey&backgroundColor=b6e3f4
 -->
 
 > **Це фіктивний композит**, синтезований із публічних клінічних описів

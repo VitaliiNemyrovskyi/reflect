@@ -5,7 +5,7 @@
 Шифр: Adjustment disorder with mixed anxiety and depressed mood (DSM-5 309.28), adolescent
 Поведінка: 4
 Тяжкість: 3
-Avatar: https://api.dicebear.com/9.x/notionists/svg?seed=DariaMelnyk&backgroundColor=ffe5b4
+Avatar: https://api.dicebear.com/9.x/lorelei/svg?seed=DariaMelnyk&backgroundColor=ffe5b4
 -->
 
 > **Це фіктивний композит**, синтезований із публічних клінічних описів
