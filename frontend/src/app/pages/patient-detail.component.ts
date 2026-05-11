@@ -101,7 +101,19 @@ const SPOILER_PATTERNS: RegExp[] = [
               </div>
             </div>
           </div>
-          <button class="primary new-session-btn" (click)="newSession()">Нова сесія</button>
+          <div class="header-cta">
+            @if (patient()!.isMine) {
+              <a [routerLink]="['/patient', patient()!.id, 'edit']"
+                 class="ghost icon small"
+                 title="Редагувати пацієнтку"
+                 aria-label="Редагувати">✎</a>
+              <button class="ghost icon small danger-icon"
+                      title="Видалити пацієнтку"
+                      [disabled]="deleting()"
+                      (click)="confirmDelete()">🗑</button>
+            }
+            <button class="primary new-session-btn" (click)="newSession()">Нова сесія</button>
+          </div>
         </div>
       </header>
 
@@ -455,6 +467,34 @@ const SPOILER_PATTERNS: RegExp[] = [
     .chip-rating .dots { color: var(--danger); letter-spacing: 1px; }
 
     .new-session-btn { flex-shrink: 0; }
+    .header-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .header-cta .icon.small {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      text-decoration: none;
+      color: var(--fg-dim);
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 6px;
+    }
+    .header-cta .icon.small:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .header-cta .icon.danger-icon:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
 
     .badge {
       padding: 4px 10px;
@@ -1034,6 +1074,32 @@ export class PatientDetailComponent implements OnInit {
   newSession() {
     const id = this.patient()?.id;
     if (id) void this.router.navigate(['/patient', id, 'intro']);
+  }
+
+  deleting = signal(false);
+
+  /**
+   * Delete a user-created patient. Cascades through schema to sessions
+   * + messages + notes — pop a confirm because this is irreversible.
+   */
+  async confirmDelete() {
+    const p = this.patient();
+    if (!p?.isMine) return;
+    const ok = confirm(
+      `Видалити пацієнтку ${p.displayName}?\n\nЗникнуть ВСІ сесії з нею, нотатки, фідбеки, пам'ять. Це незворотно.`,
+    );
+    if (!ok) return;
+    this.deleting.set(true);
+    try {
+      await this.api.deleteCharacter(p.id);
+      void this.router.navigate(['/']);
+    } catch (e: unknown) {
+      this.deleting.set(false);
+      alert(
+        (e as { error?: { message?: string } })?.error?.message ??
+          'Не вдалось видалити.',
+      );
+    }
   }
 }
 

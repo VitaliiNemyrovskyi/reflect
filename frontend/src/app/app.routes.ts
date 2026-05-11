@@ -26,6 +26,18 @@ export const routes: Routes = [
       import('./pages/characters-list.component').then((m) => m.CharactersListComponent),
   },
   {
+    path: 'patient/new',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/patient-form.component').then((m) => m.PatientFormComponent),
+  },
+  {
+    path: 'patient/:id/edit',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/patient-form.component').then((m) => m.PatientFormComponent),
+  },
+  {
     path: 'patient/:id',
     canActivate: [authGuard],
     loadComponent: () =>

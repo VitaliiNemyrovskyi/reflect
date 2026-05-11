@@ -22,6 +22,7 @@ export class PromptsService implements OnModuleInit {
   readonly supervisorSystem: string;
   readonly supervisorProtocol: string;
   readonly hintSystem: string;
+  readonly patientGenerationSystem: string;
   private readonly profilesDir: string;
 
   constructor(private readonly prisma: PrismaService) {
@@ -31,6 +32,7 @@ export class PromptsService implements OnModuleInit {
     this.supervisorSystem = this.read(promptsDir, 'supervisor_system.md');
     this.supervisorProtocol = this.read(promptsDir, 'supervisor_protocol.md');
     this.hintSystem = this.read(promptsDir, 'hint_system.md');
+    this.patientGenerationSystem = this.read(promptsDir, 'patient_generation_system.md');
     this.profilesDir = resolve(promptsDir, 'profiles');
   }
 
@@ -199,12 +201,16 @@ export class PromptsService implements OnModuleInit {
       return;
     }
 
-    // Track current slugs so we can clean up DB rows for deleted profile files
+    // Track current slugs so we can clean up DB rows for deleted profile
+    // files. CRITICAL: only touch system patients (createdById === null).
+    // User-created patients live alongside in the same table but their
+    // lifecycle is managed via the API, not the filesystem.
     const currentSlugs = new Set(profiles.map((p) => p.slug));
-    const dbCharacters = await this.prisma.character.findMany();
+    const dbCharacters = await this.prisma.character.findMany({
+      where: { createdById: null },
+    });
     for (const c of dbCharacters) {
       if (!currentSlugs.has(c.slug)) {
-        // Profile file was deleted — drop the character (sessions retain through FK cascade)
         await this.prisma.character.delete({ where: { id: c.id } }).catch(() => {
           // If sessions reference it, leave it; admin can reassign
         });

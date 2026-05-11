@@ -17,8 +17,16 @@ model Character {
   difficulty     Int?      // 1-5; behavioral difficulty (how hard to engage). Modulates LLM behavior.
   complexity     Int?      // 1-5; clinical severity (how serious the case is). Informational, doesn't change LLM.
   avatarUrl      String?   // Link to portrait
+  // Creator of a user-defined patient. null for system patients (loaded
+  // from prompts/profiles/*.md on startup) — these are visible to all
+  // users. Non-null = visible only to that user + admins. PromptsService
+  // never touches characters with non-null createdById on startup-sync.
+  createdBy      User?     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById    Int?
   createdAt      DateTime  @default(now())
   sessions       Session[]
+
+  @@index([createdById])
 }
 
 model User {
@@ -40,6 +48,7 @@ model User {
   createdAt       DateTime @default(now())
   sessions        Session[]
   errorLogs       ErrorLog[]
+  characters      Character[] // user-created patients
 }
 
 /**

@@ -52,6 +52,9 @@ import { AuthService } from '../auth.service';
               </button>
             }
           }
+          <a routerLink="/patient/new" class="chip new-patient-chip">
+            + Створити пацієнтку
+          </a>
         </div>
       }
     </header>
@@ -204,6 +207,19 @@ import { AuthService } from '../auth.service';
       color: #15151b;
       border-color: var(--accent);
       font-weight: 500;
+    }
+    a.chip {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .new-patient-chip {
+      margin-left: auto;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .new-patient-chip:hover {
+      background: rgba(216, 201, 255, 0.1);
     }
 
     .patient-grid {

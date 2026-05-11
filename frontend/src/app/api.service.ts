@@ -19,6 +19,35 @@ export interface Character {
   completedCount?: number;
   lastSessionAt?: string | null;
   progressBadge?: ProgressBadge;
+  createdById?: number | null;   // null = system patient (read-only for non-admins)
+  isMine?: boolean;              // true if current user created this patient
+}
+
+/** Structured brief used by the patient creation form. */
+export interface CharacterDraftBrief {
+  displayName: string;
+  gender: 'female' | 'male';
+  age?: number;
+  city?: string;
+  profession?: string;
+  diagnosis?: string;
+  diagnosisCode?: string;
+  difficulty?: number;
+  complexity?: number;
+  brief?: string;
+  hiddenLayerHint?: string;
+  voiceNotes?: string;
+  themes?: string[];
+}
+
+export interface CreateCharacterDto {
+  displayName: string;
+  profileText: string;
+  diagnosis?: string;
+  diagnosisCode?: string;
+  difficulty?: number;
+  complexity?: number;
+  avatarUrl?: string;
 }
 
 export interface AssessmentJson {
@@ -69,6 +98,8 @@ export interface PatientCard {
   complexity: number | null;
   avatarUrl: string | null;
   profileText: string;
+  createdById: number | null;
+  isMine: boolean;
   progressBadge: ProgressBadge;
   sessionCount: number;
   completedCount: number;
@@ -248,6 +279,37 @@ export class ApiService {
     return firstValueFrom(
       this.http.get<PatientCard>(`${this.base}/characters/${characterId}/full`),
     );
+  }
+
+  /**
+   * Patient creation pipeline:
+   *  1. Form collects brief → draftCharacter() returns generated markdown
+   *  2. User edits/reviews → createCharacter() persists
+   *  3. (later) updateCharacter() / deleteCharacter() for edits
+   */
+  draftCharacter(brief: CharacterDraftBrief): Promise<{ markdown: string }> {
+    return firstValueFrom(
+      this.http.post<{ markdown: string }>(`${this.base}/characters/draft`, brief),
+    );
+  }
+
+  createCharacter(dto: CreateCharacterDto): Promise<Character> {
+    return firstValueFrom(
+      this.http.post<Character>(`${this.base}/characters`, dto),
+    );
+  }
+
+  updateCharacter(
+    id: number,
+    dto: Partial<CreateCharacterDto>,
+  ): Promise<Character> {
+    return firstValueFrom(
+      this.http.patch<Character>(`${this.base}/characters/${id}`, dto),
+    );
+  }
+
+  deleteCharacter(id: number): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.base}/characters/${id}`));
   }
 
   startSession(characterId: number): Promise<StartSessionResponse> {

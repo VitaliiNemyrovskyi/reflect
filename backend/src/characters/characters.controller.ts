@@ -1,6 +1,23 @@
-import { Controller, Get, NotFoundException, Param, ParseIntPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser, CurrentUser } from '../auth/current-user.decorator';
+import {
+  CharactersService,
+  type CharacterDraftBrief,
+  type CreateCharacterDto,
+} from './characters.service';
 
 interface AssessmentJson {
   patient?: Record<string, number | null>;
@@ -25,12 +42,57 @@ interface ProgressTrend {
 
 @Controller('characters')
 export class CharactersController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly characters: CharactersService,
+  ) {}
+
+  /**
+   * Draft a full 8-section profile from a structured brief. Doesn't
+   * save anything — frontend shows the markdown for review/edit, then
+   * calls POST to persist. Separating draft from save lets the user
+   * regenerate as many times as they want.
+   */
+  @Post('draft')
+  draft(@Body() brief: CharacterDraftBrief) {
+    return this.characters.draftProfile(brief);
+  }
+
+  @Post()
+  create(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateCharacterDto,
+  ) {
+    return this.characters.create(user.id, dto);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: Partial<CreateCharacterDto>,
+  ) {
+    return this.characters.update(user.id, id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteCharacter(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.characters.delete(user.id, id);
+  }
 
   @Get()
   async list(@CurrentUser() user: AuthUser) {
     const userId = user.id;
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true },
+    });
     const characters = await this.prisma.character.findMany({
+      where: this.characters.visibilityFilter(userId, !!me?.isAdmin),
       orderBy: { id: 'asc' },
     });
 
@@ -58,6 +120,10 @@ export class CharactersController {
           completedCount: completed.length,
           lastSessionAt: sessions[0]?.startedAt ?? null,
           progressBadge: trend,
+          // Surfaced for frontend so it can show "this is yours" + render
+          // edit/delete affordances. null = system patient (read-only).
+          createdById: c.createdById,
+          isMine: c.createdById === userId,
         };
       }),
     );
@@ -116,6 +182,8 @@ export class CharactersController {
       complexity: character.complexity,
       avatarUrl: character.avatarUrl,
       profileText: character.profileText,
+      createdById: character.createdById,
+      isMine: character.createdById === userId,
       progressBadge,
       sessionCount: sessions.length,
       completedCount: sessions.filter((s) => s.endedAt).length,
