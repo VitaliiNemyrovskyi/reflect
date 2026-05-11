@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -198,7 +199,26 @@ export class CharactersService {
     });
 
     const cleaned = stripCodeFence(raw.trim());
-    return { value: parseFieldValue(field, cleaned) };
+    // Free models occasionally return empty completions (no content, no
+    // error). Surface as 502 so the frontend can preserve whatever the
+    // user had typed before — overwriting with "" would destroy their work.
+    if (!cleaned) {
+      throw new BadGatewayException(
+        'LLM повернув порожню відповідь. Це буває з безкоштовними моделями — спробуй ще раз.',
+      );
+    }
+    const value = parseFieldValue(field, cleaned);
+    // Array (themes) — empty array is technically valid (no whitelist
+    // match); for scalar fields, empty after parsing means the LLM gave
+    // us something we couldn't extract → don't overwrite the user's
+    // input. Numeric fields can't be empty (parseFieldValue returns a
+    // default), so this only filters scalars.
+    if (typeof value === 'string' && !value) {
+      throw new BadGatewayException(
+        'LLM повернув значення, яке не вдалось розпарсити. Спробуй ще раз.',
+      );
+    }
+    return { value };
   }
 
   /**

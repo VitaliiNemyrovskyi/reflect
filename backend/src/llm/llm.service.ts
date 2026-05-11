@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  GatewayTimeoutException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -7,6 +8,15 @@ import {
 } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+
+/**
+ * Hard wall-clock cap for a non-streaming LLM call. Free OpenRouter tiers
+ * occasionally hang for >2 minutes (especially on prompts with thick
+ * Ukrainian context). The frontend already shows a per-field "⏳" while
+ * waiting; surfacing a clean 504 after this many ms is way better UX
+ * than letting the request hang until Caddy's 300s outer timeout.
+ */
+const CHAT_TIMEOUT_MS = 45_000;
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -77,15 +87,41 @@ export class LlmService {
     const model = opts.model ?? this.modelChat;
     const maxTokens = opts.maxTokens ?? 1024;
 
-    const callOnce = () =>
+    const callOnce = (signal: AbortSignal) =>
       this.provider === 'anthropic'
-        ? this.chatAnthropic(opts.systemPrompt, opts.history, model, maxTokens, !!opts.cacheSystem)
-        : this.chatOpenRouter(opts.systemPrompt, opts.history, model, maxTokens);
+        ? this.chatAnthropic(opts.systemPrompt, opts.history, model, maxTokens, !!opts.cacheSystem, signal)
+        : this.chatOpenRouter(opts.systemPrompt, opts.history, model, maxTokens, signal);
 
     try {
-      return await this.withRateLimitRetry(callOnce);
+      return await this.withRateLimitRetry(() => this.withTimeout(callOnce, CHAT_TIMEOUT_MS));
     } catch (e: unknown) {
       throw this.translateError(e);
+    }
+  }
+
+  /**
+   * Wrap a call that takes an AbortSignal in a hard wall-clock timeout.
+   * On timeout, aborts the signal (so SDKs can clean up their HTTP
+   * connection) and throws GatewayTimeoutException — translateError
+   * passes through 504 untouched.
+   */
+  private async withTimeout<T>(
+    fn: (signal: AbortSignal) => Promise<T>,
+    ms: number,
+  ): Promise<T> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+      return await fn(controller.signal);
+    } catch (e: unknown) {
+      if (controller.signal.aborted) {
+        throw new GatewayTimeoutException(
+          `LLM не відповідає більше ${Math.round(ms / 1000)}с — модель перевантажена або зависла. Спробуй ще раз або зменши контекст.`,
+        );
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -195,17 +231,21 @@ export class LlmService {
     model: string,
     maxTokens: number,
     cacheSystem: boolean,
+    signal?: AbortSignal,
   ): Promise<string> {
     const systemBlock = cacheSystem
       ? [{ type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } }]
       : [{ type: 'text' as const, text: systemPrompt }];
 
-    const msg = await this.anthropic!.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: systemBlock,
-      messages: history.map((m) => ({ role: m.role, content: m.content })),
-    });
+    const msg = await this.anthropic!.messages.create(
+      {
+        model,
+        max_tokens: maxTokens,
+        system: systemBlock,
+        messages: history.map((m) => ({ role: m.role, content: m.content })),
+      },
+      { signal },
+    );
 
     return (msg.content || [])
       .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
@@ -219,20 +259,28 @@ export class LlmService {
     history: ChatMessage[],
     model: string,
     maxTokens: number,
+    signal?: AbortSignal,
   ): Promise<string> {
-    const completion = await this.openai!.chat.completions.create({
-      model,
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...history.map((m) => ({ role: m.role, content: m.content })),
-      ],
-    });
+    const completion = await this.openai!.chat.completions.create(
+      {
+        model,
+        max_tokens: maxTokens,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...history.map((m) => ({ role: m.role, content: m.content })),
+        ],
+      },
+      { signal },
+    );
     const reply = completion.choices?.[0]?.message?.content ?? '';
     return reply.trim();
   }
 
   private translateError(e: unknown): Error {
+    // Pass GatewayTimeoutException through unchanged — the message is
+    // already user-facing and we don't want translateError to strip the
+    // 504 status by re-wrapping it as 502.
+    if (e instanceof GatewayTimeoutException) return e;
     const status = (e as { status?: number })?.status;
     const anthropicMsg = (e as { error?: { error?: { message?: string } } })?.error
       ?.error?.message;
