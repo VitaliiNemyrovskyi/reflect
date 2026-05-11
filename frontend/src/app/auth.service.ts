@@ -43,9 +43,36 @@ export class AuthService {
   readonly isAuthenticated = computed(() => !!this.user());
 
   private refreshing: Promise<string | null> | null = null;
+  /**
+   * Timer that fires shortly before the current access token expires,
+   * triggering a refresh proactively so requests never see a 401.
+   * Re-armed on every applyAuth() and after each successful refresh.
+   * Cancelled on clearAuth(). Re-evaluated on tab-visibility resume so
+   * background-throttled timers don't leave us stuck with a dead token.
+   */
+  private refreshTimerId: ReturnType<typeof setTimeout> | null = null;
+  /** Refresh this many seconds BEFORE the access token's `exp` claim. */
+  private static readonly REFRESH_LEAD_SECONDS = 60;
 
   constructor() {
     void this.fetchProviders();
+    // Bootstrap: if we have a stored access token, schedule the next
+    // refresh based on its actual `exp` claim. If the token is already
+    // expired, scheduleNextRefresh fires the refresh immediately (~0ms).
+    const stored = this.accessToken();
+    if (stored) this.scheduleNextRefresh(stored);
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        // Hidden tabs throttle setTimeout — when we come back we may
+        // have missed the firing window. Reschedule against the
+        // current token's actual exp so we either refresh now (if
+        // overdue) or set a fresh accurate timer.
+        const token = this.accessToken();
+        if (token) this.scheduleNextRefresh(token);
+      });
+    }
   }
 
   getRefreshToken(): string | null {
@@ -133,6 +160,7 @@ export class AuthService {
       const user = await firstValueFrom(this.http.get<AuthUser>('/api/auth/me'));
       this.user.set(user);
       this.storeUser(user);
+      this.scheduleNextRefresh(access);
     } catch {
       this.clearAuth();
     }
@@ -164,6 +192,53 @@ export class AuthService {
     this.storeTokens(result.accessToken, result.refreshToken);
     this.user.set(result.user);
     this.storeUser(result.user);
+    this.scheduleNextRefresh(result.accessToken);
+  }
+
+  /**
+   * Decode the `exp` claim from a JWT (seconds since epoch). Tolerates
+   * malformed input by returning null — caller treats that as "no
+   * preemptive refresh, fall back to interceptor-driven 401 retry".
+   */
+  private decodeJwtExp(token: string): number | null {
+    try {
+      const part = token.split('.')[1];
+      if (!part) return null;
+      // JWT uses base64url; convert to base64 before atob.
+      const padded = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(
+        Math.ceil(part.length / 4) * 4,
+        '=',
+      );
+      const payload = JSON.parse(atob(padded)) as { exp?: number };
+      return typeof payload.exp === 'number' ? payload.exp : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Arm (or re-arm) the proactive refresh timer for the given token.
+   * Fires REFRESH_LEAD_SECONDS before the token's `exp`; if the token
+   * is already expired or very close to it, fires almost immediately.
+   * Safe to call multiple times — replaces any pending timer.
+   */
+  private scheduleNextRefresh(accessToken: string | null) {
+    if (this.refreshTimerId !== null) {
+      clearTimeout(this.refreshTimerId);
+      this.refreshTimerId = null;
+    }
+    if (!accessToken) return;
+    const exp = this.decodeJwtExp(accessToken);
+    if (!exp) return;
+    const now = Math.floor(Date.now() / 1000);
+    const secsUntilExp = exp - now;
+    // Refresh REFRESH_LEAD_SECONDS before expiry. If we're already
+    // past that window, run on the next tick (don't block sync flow).
+    const refreshIn = Math.max(secsUntilExp - AuthService.REFRESH_LEAD_SECONDS, 0);
+    this.refreshTimerId = setTimeout(() => {
+      this.refreshTimerId = null;
+      void this.refreshAccess();
+    }, refreshIn * 1000);
   }
 
   private storeTokens(access: string, refresh: string) {
@@ -181,6 +256,10 @@ export class AuthService {
   }
 
   private clearAuth() {
+    if (this.refreshTimerId !== null) {
+      clearTimeout(this.refreshTimerId);
+      this.refreshTimerId = null;
+    }
     this.user.set(null);
     this.accessToken.set(null);
     try {
