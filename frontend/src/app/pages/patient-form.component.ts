@@ -58,7 +58,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label for="displayName">Ім'я *</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('displayName')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('displayName')"
                     title="Згенерувати ім'я через ШІ">
               @if (aiBusy('displayName')) { ⏳ } @else { ✨ }
@@ -71,7 +71,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label for="age">Вік</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('age')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('age')"
                     title="Згенерувати вік через ШІ">
               @if (aiBusy('age')) { ⏳ } @else { ✨ }
@@ -100,7 +100,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label for="city">Місто/район</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('city')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('city')"
                     title="Згенерувати місто через ШІ">
               @if (aiBusy('city')) { ⏳ } @else { ✨ }
@@ -114,7 +114,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label for="profession">Професія/контекст</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('profession')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('profession')"
                     title="Згенерувати професію через ШІ">
               @if (aiBusy('profession')) { ⏳ } @else { ✨ }
@@ -135,7 +135,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label for="diagnosis">Діагноз українською</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('diagnosis')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('diagnosis')"
                     title="Згенерувати діагноз через ШІ">
               @if (aiBusy('diagnosis')) { ⏳ } @else { ✨ }
@@ -149,7 +149,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label for="diagnosisCode">Шифр (МКХ-10 / DSM-5)</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('diagnosisCode')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('diagnosisCode')"
                     title="Згенерувати шифр через ШІ">
               @if (aiBusy('diagnosisCode')) { ⏳ } @else { ✨ }
@@ -166,7 +166,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label>Поведінкова складність: {{ form.difficulty }}</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('difficulty')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('difficulty')"
                     title="Підібрати складність через ШІ">
               @if (aiBusy('difficulty')) { ⏳ } @else { ✨ }
@@ -180,7 +180,7 @@ const THEME_OPTIONS = [
           <div class="label-row">
             <label>Клінічна тяжкість: {{ form.complexity }}</label>
             <button type="button" class="ai-mini"
-                    [disabled]="aiBusy('complexity')"
+                    [disabled]="aiBlocked()"
                     (click)="fillField('complexity')"
                     title="Підібрати тяжкість через ШІ">
               @if (aiBusy('complexity')) { ⏳ } @else { ✨ }
@@ -200,7 +200,7 @@ const THEME_OPTIONS = [
         <div class="label-row">
           <label for="brief">Що з нею відбувається (2-3 речення)</label>
           <button type="button" class="ai-mini"
-                  [disabled]="aiBusy('brief')"
+                  [disabled]="aiBlocked()"
                   (click)="fillField('brief')"
                   title="Згенерувати опис випадку через ШІ">
             @if (aiBusy('brief')) { ⏳ } @else { ✨ }
@@ -215,7 +215,7 @@ const THEME_OPTIONS = [
         <div class="label-row">
           <label for="hiddenLayerHint">Прихований шар (1-2 речення, що насправді відбувається)</label>
           <button type="button" class="ai-mini"
-                  [disabled]="aiBusy('hiddenLayerHint')"
+                  [disabled]="aiBlocked()"
                   (click)="fillField('hiddenLayerHint')"
                   title="Згенерувати прихований шар через ШІ">
             @if (aiBusy('hiddenLayerHint')) { ⏳ } @else { ✨ }
@@ -230,7 +230,7 @@ const THEME_OPTIONS = [
         <div class="label-row">
           <label for="voiceNotes">Особливості мовлення</label>
           <button type="button" class="ai-mini"
-                  [disabled]="aiBusy('voiceNotes')"
+                  [disabled]="aiBlocked()"
                   (click)="fillField('voiceNotes')"
                   title="Згенерувати опис мовлення через ШІ">
             @if (aiBusy('voiceNotes')) { ⏳ } @else { ✨ }
@@ -245,7 +245,7 @@ const THEME_OPTIONS = [
         <div class="label-row">
           <label>Спеціальні теми (необов'язково)</label>
           <button type="button" class="ai-mini"
-                  [disabled]="aiBusy('themes')"
+                  [disabled]="aiBlocked()"
                   (click)="fillField('themes')"
                   title="Підібрати теми через ШІ">
             @if (aiBusy('themes')) { ⏳ } @else { ✨ }
@@ -267,9 +267,11 @@ const THEME_OPTIONS = [
 
       <div class="actions">
         <button type="button" class="primary" (click)="generateProfile()"
-                [disabled]="generating() || !canGenerate()">
+                [disabled]="aiBlocked() || !canGenerate()">
           @if (generating()) {
             🪄 Генерую…
+          } @else if (aiBlocked()) {
+            ⏳ Чекаю поки інша AI-операція завершиться…
           } @else if (form.profileText) {
             🔄 Перегенерувати
           } @else {
@@ -543,15 +545,26 @@ export class PatientFormComponent implements OnInit {
   saveError = signal<string | null>(null);
 
   /**
-   * Tracks per-field "fetching from AI" state so each ✨ button can show
-   * its own spinner without blocking other fields. Multiple AI calls can
-   * run in parallel — if user clicks ✨ on name + diagnosis + brief at
-   * the same time, all three load independently.
+   * Tracks per-field "fetching from AI" state. Only the field currently
+   * generating shows ⏳; all others stay ✨. But `aiBlocked()` returns
+   * true while ANY AI call is in flight, which we wire into every
+   * ✨ + the big "Згенерувати профіль" button as the disabled binding.
+   *
+   * Rationale: free OpenRouter tier hits rate-limits hard on parallel
+   * calls — serializing AI requests gives much more reliable behavior.
    */
   private aiBusyMap = signal<Record<string, boolean>>({});
 
   aiBusy(field: DraftFieldName): boolean {
     return !!this.aiBusyMap()[field];
+  }
+
+  /** True if ANY AI call (per-field ✨ or full-profile generate) is in flight. */
+  aiBlocked(): boolean {
+    if (this.generating()) return true;
+    const map = this.aiBusyMap();
+    for (const k in map) if (map[k]) return true;
+    return false;
   }
 
   /**
