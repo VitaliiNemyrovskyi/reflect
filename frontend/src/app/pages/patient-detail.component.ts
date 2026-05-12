@@ -107,8 +107,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
               <path class="arc-fill"
                     d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
-              <text class="arc-curved-label">
-                <textPath href="#arc-top-text" startOffset="50%" text-anchor="middle">
+              <text class="arc-curved-label" text-anchor="middle">
+                <textPath href="#arc-top-text" startOffset="50%">
                   СЕСІЇ · {{ patient()!.sessionCount }}
                 </textPath>
               </text>
@@ -124,8 +124,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
               <path class="arc-fill"
                     d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
-              <text class="arc-curved-label">
-                <textPath href="#arc-right-text" startOffset="50%" text-anchor="middle">
+              <text class="arc-curved-label" text-anchor="middle">
+                <textPath href="#arc-right-text" startOffset="50%">
                   СТАН · {{ stateGlyph(patient()!.progressBadge) }}
                 </textPath>
               </text>
@@ -141,8 +141,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
                 <path class="arc-fill"
                       d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
-                <text class="arc-curved-label">
-                  <textPath href="#arc-bottom-text" startOffset="50%" text-anchor="middle">
+                <text class="arc-curved-label" text-anchor="middle">
+                  <textPath href="#arc-bottom-text" startOffset="50%">
                     ПОВЕДІНКА · {{ patient()!.difficulty }}/5
                   </textPath>
                 </text>
@@ -159,8 +159,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
                 <path class="arc-fill"
                       d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
-                <text class="arc-curved-label">
-                  <textPath href="#arc-left-text" startOffset="50%" text-anchor="middle">
+                <text class="arc-curved-label" text-anchor="middle">
+                  <textPath href="#arc-left-text" startOffset="50%">
                     ТЯЖКІСТЬ · {{ patient()!.complexity }}/5
                   </textPath>
                 </text>
@@ -656,7 +656,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       fill: none;
       stroke: var(--border);
       stroke-width: 18;
-      stroke-linecap: round;
+      stroke-linecap: butt;
       opacity: 0.55;
       transition: opacity .2s ease, stroke .2s ease;
     }
@@ -664,7 +664,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       fill: none;
       stroke: var(--accent);
       stroke-width: 18;
-      stroke-linecap: round;
+      stroke-linecap: butt;
       stroke-dasharray: 0 1000;
       filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 55%, transparent));
       transition: stroke-dasharray .35s cubic-bezier(.65, 0, .35, 1),
@@ -902,7 +902,7 @@ const SPOILER_PATTERNS: RegExp[] = [
     .state-ring .ring-arc {
       fill: none;
       stroke-width: 2.5;
-      stroke-linecap: round;
+      stroke-linecap: butt;
       filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 50%, transparent));
       transition: stroke-dasharray .8s cubic-bezier(.65, 0, .35, 1);
     }
