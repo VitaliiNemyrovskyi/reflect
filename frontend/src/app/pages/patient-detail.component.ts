@@ -55,89 +55,133 @@ const SPOILER_PATTERNS: RegExp[] = [
     } @else {
       <a routerLink="/" class="back">← Усі пацієнти</a>
 
-      <!-- ╔═══ SYNAPSE-STYLE HERO ═══╗
-           Big editorial layout: avatar with orbital state-ring on the
-           left, display name + diagnosis caption + CTA in the middle,
-           three vital tiles on the right. Dot-grid background pattern. -->
+      <!-- ╔═══ SYNAPSE HERO ═══╗
+           Radial composition: avatar centered, 4 vital sectors arranged
+           at corners around it. Hovering a sector reveals an expanded
+           detail row at the bottom. On mobile, layout collapses to
+           avatar on top + 4 stacked tiles + always-open detail. -->
       <section class="hero dot-grid-bg fx-fade-up">
-        <div class="hero-avatar-frame">
-          <svg class="state-ring" viewBox="0 0 220 220" aria-hidden="true">
-            <circle class="ring-trace" cx="110" cy="110" r="102" />
-            <circle class="ring-arc" cx="110" cy="110" r="102"
-                    [attr.stroke-dasharray]="ringDasharray()"
-                    [attr.stroke]="ringColor()" />
-            <circle class="ring-dot" cx="110" cy="8" r="5"
-                    [attr.fill]="ringColor()" />
-          </svg>
-          @if (patient()!.avatarUrl) {
-            <img class="hero-avatar" [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
-          } @else {
-            <div class="hero-avatar fallback">{{ patient()!.displayName.charAt(0) }}</div>
-          }
-        </div>
+        <div class="hero-grid" (mouseleave)="activeSector.set(null)">
 
-        <div class="hero-body">
-          <div class="hero-eyebrow">
-            <span class="eyebrow-dot" [style.background]="ringColor()"></span>
-            REFLECT · {{ patient()!.slug.toUpperCase() }}
-          </div>
-          <h1 class="hero-title">{{ patient()!.displayName }}</h1>
-          @if (patient()!.diagnosis) {
-            <p class="hero-caption" [title]="diagnosisTooltip()">
-              {{ patient()!.diagnosis }}
-              @if (patient()!.diagnosisCode) {
-                <span class="hero-caption-code"> · {{ patient()!.diagnosisCode }}</span>
+          <button type="button"
+                  class="sector sector-tl"
+                  [class.active]="activeSector() === 'sessions'"
+                  (mouseenter)="activeSector.set('sessions')"
+                  (click)="toggleSector('sessions')">
+            <span class="sector-label">SESSIONS</span>
+            <span class="sector-value">{{ patient()!.sessionCount }}</span>
+            <span class="sector-meta">{{ patient()!.completedCount }} завершено</span>
+          </button>
+
+          <button type="button"
+                  class="sector sector-tr"
+                  [class.active]="activeSector() === 'state'"
+                  [class.sector-warn]="patient()!.progressBadge === 'worsening'"
+                  (mouseenter)="activeSector.set('state')"
+                  (click)="toggleSector('state')">
+            <span class="sector-label">STATE</span>
+            <span class="sector-value">{{ stateGlyph(patient()!.progressBadge) }}</span>
+            <span class="sector-meta">{{ badgeText(patient()!.progressBadge) }}</span>
+          </button>
+
+          <div class="hero-center">
+            <div class="hero-avatar-frame">
+              <svg class="state-ring" viewBox="0 0 220 220" aria-hidden="true">
+                <circle class="ring-trace" cx="110" cy="110" r="102" />
+                <circle class="ring-arc" cx="110" cy="110" r="102"
+                        [attr.stroke-dasharray]="ringDasharray()"
+                        [attr.stroke]="ringColor()" />
+                <circle class="ring-dot" cx="110" cy="8" r="5"
+                        [attr.fill]="ringColor()" />
+              </svg>
+              @if (patient()!.avatarUrl) {
+                <img class="hero-avatar" [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
+              } @else {
+                <div class="hero-avatar fallback">{{ patient()!.displayName.charAt(0) }}</div>
               }
-            </p>
-          }
-          <div class="hero-actions">
-            @if (patient()!.isMine) {
-              <a [routerLink]="['/patient', patient()!.id, 'edit']"
-                 class="ghost icon small"
-                 title="Редагувати профіль"
-                 aria-label="Редагувати">✎</a>
-              <button class="ghost icon small"
-                      title="Поділитися доступом"
-                      aria-label="Доступ"
-                      (click)="openShareModal()">👥</button>
-              <button class="ghost icon small danger-icon"
-                      title="Видалити профіль"
-                      [disabled]="deleting()"
-                      (click)="confirmDelete()">🗑</button>
+            </div>
+            <div class="hero-eyebrow">
+              <span class="eyebrow-dot" [style.background]="ringColor()"></span>
+              REFLECT · {{ patient()!.slug.toUpperCase() }}
+            </div>
+            <h1 class="hero-title">{{ patient()!.displayName }}</h1>
+            @if (patient()!.diagnosis) {
+              <p class="hero-caption" [title]="diagnosisTooltip()">
+                {{ patient()!.diagnosis }}
+                @if (patient()!.diagnosisCode) {
+                  <span class="hero-caption-code"> · {{ patient()!.diagnosisCode }}</span>
+                }
+              </p>
             }
-            <button class="primary new-session-btn fx-glow" (click)="newSession()">
-              Нова сесія
-            </button>
+            <div class="hero-actions">
+              @if (patient()!.isMine) {
+                <a [routerLink]="['/patient', patient()!.id, 'edit']"
+                   class="ghost icon small"
+                   title="Редагувати профіль"
+                   aria-label="Редагувати">✎</a>
+                <button class="ghost icon small"
+                        title="Поділитися доступом"
+                        aria-label="Доступ"
+                        (click)="openShareModal()">👥</button>
+                <button class="ghost icon small danger-icon"
+                        title="Видалити профіль"
+                        [disabled]="deleting()"
+                        (click)="confirmDelete()">🗑</button>
+              }
+              <button class="primary new-session-btn fx-glow" (click)="newSession()">
+                Нова сесія
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- 3 vital tiles, Synapse-style stat boxes. -->
-        <aside class="hero-vitals fx-stagger">
-          <div class="vital-tile">
-            <div class="vital-label">SESSIONS</div>
-            <div class="vital-value">{{ patient()!.sessionCount }}</div>
-            <div class="vital-meta">{{ patient()!.completedCount }} завершено</div>
-          </div>
-          <div class="vital-tile" [class.tile-warn]="patient()!.progressBadge === 'worsening'">
-            <div class="vital-label">STATE</div>
-            <div class="vital-value">{{ stateGlyph(patient()!.progressBadge) }}</div>
-            <div class="vital-meta">{{ badgeText(patient()!.progressBadge) }}</div>
-          </div>
           @if (patient()!.difficulty != null) {
-            <div class="vital-tile">
-              <div class="vital-label">BEHAVIOR</div>
-              <div class="vital-value">{{ patient()!.difficulty }}<small>/5</small></div>
-              <div class="vital-meta">{{ stars(patient()!.difficulty!) }}</div>
-            </div>
+            <button type="button"
+                    class="sector sector-bl"
+                    [class.active]="activeSector() === 'behavior'"
+                    (mouseenter)="activeSector.set('behavior')"
+                    (click)="toggleSector('behavior')">
+              <span class="sector-label">BEHAVIOR</span>
+              <span class="sector-value">{{ patient()!.difficulty }}<small>/5</small></span>
+              <span class="sector-meta">{{ stars(patient()!.difficulty!) }}</span>
+            </button>
           }
+
           @if (patient()!.complexity != null) {
-            <div class="vital-tile">
-              <div class="vital-label">SEVERITY</div>
-              <div class="vital-value">{{ patient()!.complexity }}<small>/5</small></div>
-              <div class="vital-meta">{{ dots(patient()!.complexity!) }}</div>
+            <button type="button"
+                    class="sector sector-br"
+                    [class.active]="activeSector() === 'severity'"
+                    (mouseenter)="activeSector.set('severity')"
+                    (click)="toggleSector('severity')">
+              <span class="sector-label">SEVERITY</span>
+              <span class="sector-value">{{ patient()!.complexity }}<small>/5</small></span>
+              <span class="sector-meta">{{ dots(patient()!.complexity!) }}</span>
+            </button>
+          }
+
+          <!-- Detail row: stays empty unless a sector is hovered/tapped.
+               Min-height keeps the layout stable so other sectors don't
+               jump when content appears. -->
+          @if (sectorDetail(); as d) {
+            <article class="sector-detail">
+              <header class="sector-detail-head">
+                <span class="sector-detail-title">{{ d.title }}</span>
+                <span class="sector-detail-meta">{{ d.meta }}</span>
+              </header>
+              <div class="sector-detail-body">
+                @for (row of d.rows; track row.label) {
+                  <div class="sector-detail-row">
+                    <span class="sector-detail-row-label">{{ row.label }}</span>
+                    <span class="sector-detail-row-value">{{ row.value }}</span>
+                  </div>
+                }
+              </div>
+            </article>
+          } @else {
+            <div class="sector-detail empty">
+              <span>Наведи курсор на сектор — побачиш деталі. На мобайлі — тапни сектор.</span>
             </div>
           }
-        </aside>
+        </div>
       </section>
 
       <nav class="tabs" role="tablist">
@@ -515,17 +559,157 @@ const SPOILER_PATTERNS: RegExp[] = [
 
     .hero {
       position: relative;
-      display: grid;
-      grid-template-columns: auto 1fr;
-      grid-template-rows: auto auto;
-      gap: 32px 36px;
-      align-items: center;
-      padding: 32px 32px 24px;
+      padding: 36px 32px 28px;
       margin: 16px -20px 28px;
       border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
     }
+    /* Radial 4-sector grid: avatar centered, sectors at four corners,
+       detail strip across the bottom. */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) minmax(280px, 360px) minmax(160px, 1fr);
+      grid-template-rows: auto auto auto;
+      gap: 24px 32px;
+      align-items: center;
+    }
+    .hero-center {
+      grid-column: 2;
+      grid-row: 1 / 3;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .sector-tl { grid-column: 1; grid-row: 1; align-self: end; text-align: right; }
+    .sector-tr { grid-column: 3; grid-row: 1; align-self: end; text-align: left; }
+    .sector-bl { grid-column: 1; grid-row: 2; align-self: start; text-align: right; }
+    .sector-br { grid-column: 3; grid-row: 2; align-self: start; text-align: left; }
+    .sector-detail, .sector-detail.empty { grid-column: 1 / -1; grid-row: 3; }
+
+    /* Sectors are buttons (a11y + native focus) but visually look like
+       radiating vital readouts. Animate scale + accent shadow on hover. */
+    .sector {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      color: var(--fg);
+      min-height: auto;
+      border-radius: 10px;
+      transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
+      font: inherit;
+      text-align: inherit;
+    }
+    .sector .sector-label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 500;
+      color: var(--fg-dim);
+    }
+    .sector .sector-value {
+      font-size: 32px;
+      font-weight: 300;
+      line-height: 1;
+      letter-spacing: -0.025em;
+      font-variant-numeric: tabular-nums;
+      color: var(--fg);
+    }
+    .sector .sector-value small {
+      font-size: 14px;
+      color: var(--fg-dim);
+      margin-left: 2px;
+    }
+    .sector .sector-meta {
+      font-size: 11px;
+      color: var(--fg-dim);
+      letter-spacing: 0.02em;
+    }
+    .sector:hover, .sector.active {
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      transform: scale(1.04);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+                  0 6px 22px -8px color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+    .sector.active .sector-value { color: var(--accent); }
+    .sector.sector-warn .sector-value { color: var(--danger); }
+    .sector.sector-warn:hover, .sector.sector-warn.active {
+      background: color-mix(in srgb, var(--danger) 8%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent),
+                  0 6px 22px -8px color-mix(in srgb, var(--danger) 45%, transparent);
+    }
+    /* Right-column sectors should still flush-left their content. The
+       align-self / text-align trick handles container; this flips the
+       inline alignment of the value+label cluster. */
+    .sector-tl, .sector-bl { align-items: flex-end; }
+    .sector-tr, .sector-br { align-items: flex-start; }
+
+    /* Sector detail row — fixed min-height so the layout doesn't jump
+       between idle and hovered states. */
+    .sector-detail {
+      margin-top: 8px;
+      padding: 16px 20px;
+      background: color-mix(in srgb, var(--accent) 5%, var(--assistant-bg));
+      border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+      border-radius: 10px;
+      min-height: 96px;
+      animation: fx-fade-up .25s cubic-bezier(.16, 1, .3, 1);
+    }
+    .sector-detail.empty {
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--fg-dim);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: none;
+    }
+    .sector-detail-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .sector-detail-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    .sector-detail-meta {
+      font-size: 11px;
+      color: var(--fg-dim);
+      letter-spacing: 0.04em;
+    }
+    .sector-detail-body {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sector-detail-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 14px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .sector-detail-row-label {
+      color: var(--fg-dim);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding-top: 2px;
+    }
+    .sector-detail-row-value { color: var(--fg); }
 
     /* Avatar with orbital state-ring */
     .hero-avatar-frame {
@@ -693,27 +877,43 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
 
     @media (max-width: 900px) {
-      .hero { gap: 22px 28px; padding: 24px 20px; }
-      .hero-vitals { grid-template-columns: repeat(2, 1fr); }
+      .hero { padding: 28px 20px 22px; }
+      .hero-grid { gap: 18px 22px; grid-template-columns: 1fr 240px 1fr; }
+      .sector .sector-value { font-size: 28px; }
     }
-    @media (max-width: 540px) {
+    /* Mobile: avatar on top, sectors in a 2x2 grid below, detail bar
+       at the bottom is always shown (sticky to whichever sector was
+       last tapped; on first paint nothing is active so the placeholder
+       hint reads naturally). */
+    @media (max-width: 720px) {
       .hero {
-        grid-template-columns: 1fr;
-        gap: 18px;
-        padding: 20px 16px;
+        padding: 22px 16px 18px;
         margin: 12px -16px 20px;
+      }
+      .hero-grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto auto;
+        gap: 14px;
+      }
+      .hero-center {
+        grid-column: 1 / -1;
+        grid-row: 1;
         text-align: center;
       }
+      .sector-tl { grid-column: 1; grid-row: 2; text-align: left; align-items: flex-start; }
+      .sector-tr { grid-column: 2; grid-row: 2; text-align: left; align-items: flex-start; }
+      .sector-bl { grid-column: 1; grid-row: 3; text-align: left; align-items: flex-start; }
+      .sector-br { grid-column: 3; grid-row: 3; text-align: left; align-items: flex-start; }
+      .sector-tr, .sector-br { grid-column: 2; }
+      .sector-detail, .sector-detail.empty { grid-row: 4; }
       .hero-avatar-frame {
-        margin: 0 auto;
-        width: 132px; height: 132px;
+        width: 132px;
+        height: 132px;
       }
       .hero-actions { justify-content: center; }
-      .hero-vitals {
-        grid-template-columns: 1fr 1fr;
-        padding-top: 18px;
-        margin-top: 0;
-      }
+      /* Hover doesn't fire on touch; rely on click toggle to set
+         activeSector, no special tap state needed. */
+      .sector:hover { transform: none; }
     }
 
     /* ═══════════════════ PANELS ═══════════════════ */
@@ -1712,6 +1912,139 @@ export class PatientDetailComponent implements OnInit {
     const url = this.patient()?.avatarUrl ?? '';
     return url.includes('/lorelei/');
   });
+
+  // ─── Hero sectors (radial vital readouts) ───────────────────────────
+
+  /**
+   * Which radial vital sector around the avatar is currently focused.
+   * Bound to mouseenter for hover-reveal on desktop; click toggles for
+   * touch devices where hover doesn't fire. `null` = nothing focused.
+   */
+  activeSector = signal<string | null>(null);
+
+  toggleSector(key: string) {
+    this.activeSector.set(this.activeSector() === key ? null : key);
+  }
+
+  /**
+   * Detail content for the panel below the hero. Switches based on
+   * which sector is hovered/tapped. Returns null when nothing's
+   * active, so the panel can show its idle placeholder.
+   */
+  sectorDetail = computed(() => {
+    const key = this.activeSector();
+    const p = this.patient();
+    if (!key || !p) return null;
+    switch (key) {
+      case 'sessions': {
+        const last = p.sessions[0];
+        const open = p.sessions.filter((s) => !s.endedAt).length;
+        return {
+          title: 'Сесії',
+          meta: last ? this.formatDate(last.startedAt) : 'ще не починалися',
+          rows: [
+            { label: 'Усього', value: String(p.sessionCount) },
+            { label: 'Завершено', value: `${p.completedCount} з ${p.sessionCount}` },
+            { label: 'Відкритих', value: open ? `${open} (не завершено)` : '0' },
+            {
+              label: 'Остання',
+              value: last ? this.formatDate(last.startedAt) : '—',
+            },
+          ],
+        };
+      }
+      case 'state': {
+        return {
+          title: 'Стан клієнт' + (this.feminine() ? 'ки' : 'а'),
+          meta: this.badgeText(p.progressBadge),
+          rows: [
+            {
+              label: 'Тренд',
+              value:
+                {
+                  improving: '↑ Покращення — метрики поліпшуються між останніми сесіями',
+                  stable: '→ Стабільно — без значимих змін, тримається поточний рівень',
+                  worsening: '↓ Погіршення — метрики падають, варто переглянути план',
+                  unknown: 'Недостатньо даних — потрібна щонайменше 2 завершені сесії',
+                }[p.progressBadge],
+            },
+            {
+              label: 'Останні оцінки',
+              value: this.latestAssessmentSummary(),
+            },
+          ],
+        };
+      }
+      case 'behavior': {
+        const d = p.difficulty ?? 0;
+        return {
+          title: 'Поведінкова складність',
+          meta: `${d} / 5`,
+          rows: [
+            { label: 'Рівень', value: `${this.stars(d)} ${d}/5` },
+            {
+              label: 'Що це означає',
+              value: this.difficultyDescription(d),
+            },
+          ],
+        };
+      }
+      case 'severity': {
+        const c = p.complexity ?? 0;
+        return {
+          title: 'Клінічна тяжкість',
+          meta: `${c} / 5`,
+          rows: [
+            { label: 'Рівень', value: `${this.dots(c)} ${c}/5` },
+            {
+              label: 'Що це означає',
+              value: this.severityDescription(c),
+            },
+          ],
+        };
+      }
+      default:
+        return null;
+    }
+  });
+
+  private formatDate(d: string): string {
+    return new Date(d).toLocaleDateString('uk-UA', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  }
+
+  private latestAssessmentSummary(): string {
+    const a = this.latestAssessment();
+    if (!a?.patient) return 'нема даних';
+    const bits: string[] = [];
+    if (a.patient.symptomSeverity != null) bits.push(`симпт. ${a.patient.symptomSeverity}/10`);
+    if (a.patient.insight != null) bits.push(`інсайт ${a.patient.insight}/10`);
+    if (a.patient.alliance != null) bits.push(`альянс ${a.patient.alliance}/10`);
+    return bits.length ? bits.join(' · ') : 'нема даних';
+  }
+
+  private difficultyDescription(d: number): string {
+    return [
+      'Дуже відкрита, готова до контакту, чесно відповідає на питання',
+      'Загалом відкрита, інколи захищається на болючих темах',
+      'Помірний рівень опору — є зона комфорту, потребує м\'якого підходу',
+      'Високий опір — закривається, інтелектуалізує, тестує терапевта',
+      'Глухий опір — мінімум контакту, маніпуляції, потребує особливої уваги',
+    ][Math.max(0, Math.min(4, d - 1))] ?? '—';
+  }
+
+  private severityDescription(c: number): string {
+    return [
+      'Легка форма — без значних наслідків для функціонування',
+      'Помірна — впливає на роботу/стосунки, але без гострого ризику',
+      'Виражена — функціонування суттєво порушене, моніторинг важливий',
+      'Тяжка — є ознаки декомпенсації, можливі коморбідні стани',
+      'Гостра — ризики (суїцид/психоз/насильство), потрібна координація',
+    ][Math.max(0, Math.min(4, c - 1))] ?? '—';
+  }
 
   /** Presenting complaint — extracted from "Що її привело на сесію" section.
    *  Tries to grab the FIRST quoted block (what she'd say on session 1) so
