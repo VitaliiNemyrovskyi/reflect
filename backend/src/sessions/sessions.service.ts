@@ -290,7 +290,7 @@ export class SessionsService {
 
     const ctx = await this.buildFeedbackContext(session, sessionId);
     const rawFeedback = await this.llm.chat({
-      systemPrompt: ctx.systemPrompt,
+      systemBlocks: ctx.systemBlocks,
       history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
       model: this.llm.modelFeedback,
       maxTokens: 3072,
@@ -344,7 +344,7 @@ export class SessionsService {
 
     let raw = '';
     for await (const chunk of this.llm.chatStream({
-      systemPrompt: ctx.systemPrompt,
+      systemBlocks: ctx.systemBlocks,
       history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
       model: this.llm.modelFeedback,
       maxTokens: 3072,
@@ -372,7 +372,11 @@ export class SessionsService {
   private async buildFeedbackContext(
     session: { character: { profileText: string; displayName: string } },
     sessionId: number,
-  ): Promise<{ systemPrompt: string; transcript: string; lineMap: Map<number, string> }> {
+  ): Promise<{
+    systemBlocks: { text: string; cache?: boolean }[];
+    transcript: string;
+    lineMap: Map<number, string>;
+  }> {
     const history = await this.loadHistory(sessionId);
     if (history.length === 0) throw new BadRequestException('no messages in session');
 
@@ -404,14 +408,55 @@ export class SessionsService {
           .join('\n')
       : '_(нотаток терапевта на цій сесії немає)_';
 
-    const systemPrompt = this.prompts.fill(this.prompts.supervisorSystem, {
-      PROTOCOL: this.prompts.supervisorProtocol,
-      PROFILE: session.character.profileText,
-      TRANSCRIPT: transcript,
-      NOTES: notesText,
-    });
+    // Split the supervisor template at the placeholder boundaries so we
+    // can layer prompt-cache breakpoints for maximum reuse:
+    //
+    //   [A] start … {{PROTOCOL}} … (text before {{PROFILE}})
+    //       — stable across ALL sessions of ALL users → cache=true.
+    //   [B] {{PROFILE}} … (text before {{TRANSCRIPT}})
+    //       — stable PER CHARACTER, varies across patients → cache=true.
+    //   [C] {{TRANSCRIPT}} … {{NOTES}} … (rest)
+    //       — unique per session, never reusable → cache=false.
+    //
+    // Anthropic matches the longest cached prefix on each request. So
+    // two consecutive feedbacks for the same character within the 5-min
+    // ephemeral TTL get both [A] and [B] from cache; for different
+    // characters, only [A] is shared.
+    const tpl = this.prompts.supervisorSystem;
+    const profileIdx = tpl.indexOf('{{PROFILE}}');
+    const transcriptIdx = tpl.indexOf('{{TRANSCRIPT}}');
+    if (profileIdx < 0 || transcriptIdx < 0 || profileIdx >= transcriptIdx) {
+      // Template structure changed — fall back to a single uncached block
+      // rather than mis-cutting the prompt.
+      const flat = this.prompts.fill(tpl, {
+        PROTOCOL: this.prompts.supervisorProtocol,
+        PROFILE: session.character.profileText,
+        TRANSCRIPT: transcript,
+        NOTES: notesText,
+      });
+      return { systemBlocks: [{ text: flat }], transcript, lineMap };
+    }
 
-    return { systemPrompt, transcript, lineMap };
+    const supervisorAndProtocol = tpl
+      .substring(0, profileIdx)
+      .replaceAll('{{PROTOCOL}}', this.prompts.supervisorProtocol);
+    const profileSection = tpl
+      .substring(profileIdx, transcriptIdx)
+      .replaceAll('{{PROFILE}}', session.character.profileText);
+    const sessionSpecific = tpl
+      .substring(transcriptIdx)
+      .replaceAll('{{TRANSCRIPT}}', transcript)
+      .replaceAll('{{NOTES}}', notesText);
+
+    return {
+      systemBlocks: [
+        { text: supervisorAndProtocol, cache: true },
+        { text: profileSection, cache: true },
+        { text: sessionSpecific, cache: false },
+      ],
+      transcript,
+      lineMap,
+    };
   }
 
   private splitFeedback(raw: string): {

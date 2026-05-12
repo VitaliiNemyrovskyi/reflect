@@ -23,6 +23,25 @@ export interface ChatMessage {
   content: string;
 }
 
+/**
+ * One segment of the system prompt. When `cache: true`, a cache_control
+ * marker is placed at the END of the block, so any future request whose
+ * system prompt shares this PREFIX (up to and including this block) can
+ * be served from cache.
+ *
+ * Stack multiple blocks to layer cacheability — e.g. for feedback:
+ *   [supervisor + protocol]  ← cache=true (stable across ALL sessions ever)
+ *   [PROFILE]                ← cache=true (stable per character)
+ *   [TRANSCRIPT + NOTES]     ← cache=false (unique per session)
+ *
+ * On cache hit, only the cached prefix is charged at 10% of input price.
+ * On miss, the block is written to cache at 1.25× input price (5 min TTL).
+ */
+export interface SystemBlock {
+  text: string;
+  cache?: boolean;
+}
+
 export type LlmProvider = 'anthropic' | 'openrouter';
 
 @Injectable()
@@ -78,7 +97,8 @@ export class LlmService {
   }
 
   async chat(opts: {
-    systemPrompt: string;
+    systemPrompt?: string;
+    systemBlocks?: SystemBlock[];
     history: ChatMessage[];
     model?: string;
     maxTokens?: number;
@@ -86,11 +106,12 @@ export class LlmService {
   }): Promise<string> {
     const model = opts.model ?? this.modelChat;
     const maxTokens = opts.maxTokens ?? 1024;
+    const blocks = toSystemBlocks(opts);
 
     const callOnce = (signal: AbortSignal) =>
       this.provider === 'anthropic'
-        ? this.chatAnthropic(opts.systemPrompt, opts.history, model, maxTokens, !!opts.cacheSystem, signal)
-        : this.chatOpenRouter(opts.systemPrompt, opts.history, model, maxTokens, signal);
+        ? this.chatAnthropic(blocks, opts.history, model, maxTokens, signal)
+        : this.chatOpenRouter(joinBlocks(blocks), opts.history, model, maxTokens, signal);
 
     try {
       return await this.withRateLimitRetry(() => this.withTimeout(callOnce, CHAT_TIMEOUT_MS));
@@ -153,7 +174,8 @@ export class LlmService {
    * provider. Caller is responsible for handling translation errors.
    */
   async *chatStream(opts: {
-    systemPrompt: string;
+    systemPrompt?: string;
+    systemBlocks?: SystemBlock[];
     history: ChatMessage[];
     model?: string;
     maxTokens?: number;
@@ -161,12 +183,13 @@ export class LlmService {
   }): AsyncGenerator<string, void, unknown> {
     const model = opts.model ?? this.modelChat;
     const maxTokens = opts.maxTokens ?? 1024;
+    const blocks = toSystemBlocks(opts);
 
     try {
       if (this.provider === 'anthropic') {
-        yield* this.streamAnthropic(opts.systemPrompt, opts.history, model, maxTokens, !!opts.cacheSystem);
+        yield* this.streamAnthropic(blocks, opts.history, model, maxTokens);
       } else {
-        yield* this.streamOpenRouter(opts.systemPrompt, opts.history, model, maxTokens);
+        yield* this.streamOpenRouter(joinBlocks(blocks), opts.history, model, maxTokens);
       }
     } catch (e: unknown) {
       throw this.translateError(e);
@@ -174,20 +197,15 @@ export class LlmService {
   }
 
   private async *streamAnthropic(
-    systemPrompt: string,
+    systemBlocks: SystemBlock[],
     history: ChatMessage[],
     model: string,
     maxTokens: number,
-    cacheSystem: boolean,
   ): AsyncGenerator<string, void, unknown> {
-    const systemBlock = cacheSystem
-      ? [{ type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } }]
-      : [{ type: 'text' as const, text: systemPrompt }];
-
     const stream = this.anthropic!.messages.stream({
       model,
       max_tokens: maxTokens,
-      system: systemBlock,
+      system: toAnthropicSystem(systemBlocks),
       messages: history.map((m) => ({ role: m.role, content: m.content })),
     });
 
@@ -226,22 +244,17 @@ export class LlmService {
   }
 
   private async chatAnthropic(
-    systemPrompt: string,
+    systemBlocks: SystemBlock[],
     history: ChatMessage[],
     model: string,
     maxTokens: number,
-    cacheSystem: boolean,
     signal?: AbortSignal,
   ): Promise<string> {
-    const systemBlock = cacheSystem
-      ? [{ type: 'text' as const, text: systemPrompt, cache_control: { type: 'ephemeral' as const } }]
-      : [{ type: 'text' as const, text: systemPrompt }];
-
     const msg = await this.anthropic!.messages.create(
       {
         model,
         max_tokens: maxTokens,
-        system: systemBlock,
+        system: toAnthropicSystem(systemBlocks),
         messages: history.map((m) => ({ role: m.role, content: m.content })),
       },
       { signal },
@@ -317,4 +330,47 @@ export class LlmService {
     this.logger.error(e);
     return new BadGatewayException(`LLM-виклик упав: ${msg}`);
   }
+}
+
+/**
+ * Normalize either the legacy {systemPrompt, cacheSystem} pair or the new
+ * {systemBlocks} array into a single SystemBlock[] for the provider
+ * adapters. Empty/undefined systemPrompt collapses to a [] so a caller
+ * can omit the system param entirely (rare — most prompts need one).
+ */
+function toSystemBlocks(opts: {
+  systemPrompt?: string;
+  systemBlocks?: SystemBlock[];
+  cacheSystem?: boolean;
+}): SystemBlock[] {
+  if (opts.systemBlocks?.length) return opts.systemBlocks;
+  if (opts.systemPrompt && opts.systemPrompt.length > 0) {
+    return [{ text: opts.systemPrompt, cache: !!opts.cacheSystem }];
+  }
+  return [];
+}
+
+/**
+ * Translate SystemBlock[] into Anthropic's `system` parameter format.
+ * Each block becomes a text content block; if `cache:true`, attach the
+ * cache_control marker so prefix matching ends at this block.
+ */
+function toAnthropicSystem(
+  blocks: SystemBlock[],
+): Array<Anthropic.Messages.TextBlockParam> {
+  return blocks.map((b) =>
+    b.cache
+      ? { type: 'text' as const, text: b.text, cache_control: { type: 'ephemeral' as const } }
+      : { type: 'text' as const, text: b.text },
+  );
+}
+
+/**
+ * OpenRouter / OpenAI-compatible providers don't support per-block cache
+ * markers, so flatten the structured blocks back into a single string for
+ * those adapters. Cache flags are dropped silently — they're an Anthropic
+ * optimisation, not a portability concern.
+ */
+function joinBlocks(blocks: SystemBlock[]): string {
+  return blocks.map((b) => b.text).join('');
 }
