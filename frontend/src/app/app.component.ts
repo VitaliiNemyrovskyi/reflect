@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ThemeService } from './theme.service';
 
 @Component({
   selector: 'app-root',
@@ -21,4 +22,9 @@ import { RouterOutlet } from '@angular/router';
     }
   `],
 })
-export class AppComponent {}
+export class AppComponent {
+  // Touching ThemeService here eagerly instantiates it before the first
+  // route renders, so the [data-theme] attribute is on <html> in time to
+  // avoid a flash of the wrong palette.
+  private theme = inject(ThemeService);
+}

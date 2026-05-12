@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { PreferencesService } from '../preferences.service';
 import { AuthService } from '../auth.service';
+import { ThemeService } from '../theme.service';
 
 @Component({
   selector: 'app-settings',
@@ -42,6 +43,32 @@ import { AuthService } from '../auth.service';
           [disabled]="saving()"
           (change)="setHints($any($event.target).checked)" />
       </label>
+    </section>
+
+    <section class="settings-group">
+      <h2>Зовнішній вигляд</h2>
+      <p class="group-hint">
+        Тема впливає на акцентний колір (кнопки, посилання, активні
+        стани) і трохи на фон. Зберігається у браузері — на іншому
+        пристрої треба буде вибрати знов.
+      </p>
+      <div class="theme-grid">
+        @for (opt of theme.options; track opt.key) {
+          <button type="button"
+                  class="theme-card"
+                  [class.active]="theme.current() === opt.key"
+                  (click)="theme.set(opt.key)">
+            <span class="theme-swatch" [style.background]="opt.swatch"></span>
+            <span class="theme-card-body">
+              <span class="theme-label">{{ opt.label }}</span>
+              <span class="theme-desc">{{ opt.description }}</span>
+            </span>
+            @if (theme.current() === opt.key) {
+              <span class="theme-check" aria-hidden="true">✓</span>
+            }
+          </button>
+        }
+      </div>
     </section>
 
     @if (error()) {
@@ -146,17 +173,87 @@ import { AuthService } from '../auth.service';
     }
     .toggle:checked::after {
       transform: translateX(18px);
-      background: #15151b;
+      background: var(--accent-ink);
     }
     .toggle:disabled { cursor: not-allowed; }
 
     .hint { color: var(--fg-dim); font-size: 13px; margin-top: 8px; }
     .hint.danger { color: var(--danger); }
+
+    /* Theme picker — card grid, accent swatch + meta. */
+    .group-hint {
+      margin: 0 0 14px;
+      font-size: 13px;
+      color: var(--fg-dim);
+      line-height: 1.55;
+    }
+    .theme-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 640px) {
+      .theme-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    .theme-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      color: var(--fg);
+      transition: border-color .15s ease, background .15s ease, transform .12s ease;
+      position: relative;
+      min-height: auto;
+    }
+    .theme-card:hover { border-color: var(--accent); }
+    .theme-card:active { transform: scale(0.99); }
+    .theme-card.active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, var(--assistant-bg));
+    }
+    .theme-swatch {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--border);
+      margin-top: 2px;
+    }
+    .theme-card-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .theme-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--fg);
+    }
+    .theme-desc {
+      font-size: 12px;
+      color: var(--fg-dim);
+      line-height: 1.5;
+    }
+    .theme-check {
+      flex-shrink: 0;
+      color: var(--accent);
+      font-size: 16px;
+      font-weight: 600;
+      align-self: center;
+    }
   `],
 })
 export class SettingsComponent {
   protected prefs = inject(PreferencesService);
   protected auth = inject(AuthService);
+  protected theme = inject(ThemeService);
 
   saving = signal(false);
   error = signal<string | null>(null);
