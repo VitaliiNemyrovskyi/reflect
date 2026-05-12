@@ -74,24 +74,30 @@ const SPOILER_PATTERNS: RegExp[] = [
                  <textPath>. Each pair of "top" / "bottom" variants picks
                  the right path direction so the label glyphs end up
                  right-side-up no matter which arc they're on. -->
+            <!-- Text-paths now live INSIDE the orbit between the avatar
+                 (r=50) and the visible arc inner edge (r=66). All sit
+                 at r=60, with sweep direction chosen per-arc so glyphs
+                 land toward the avatar (in the gap) AND read in their
+                 natural direction:
+                   - TOP path goes left→right, glyphs naturally above
+                     path = inside the arc stroke. Reads L→R.
+                   - RIGHT path goes top→bottom, glyphs to the right of
+                     path = toward arc outer. Reads top→bottom (vertical).
+                   - BOTTOM path REVERSED to go left→right through the
+                     bottom (sweep=0 → CCW through 6 o'clock). Reads L→R
+                     naturally, glyphs sit above the path = toward avatar.
+                   - LEFT path REVERSED to go top→bottom (sweep=0 → CCW
+                     through 9 o'clock). Reads top→bottom, glyphs to the
+                     right of path = toward avatar. -->
             <defs>
               <path id="arc-top-text"
-                    d="M 82.2 64.6 A 95 95 0 0 1 197.8 64.6" />
+                    d="M 103.5 92.4 A 60 60 0 0 1 176.5 92.4" />
               <path id="arc-right-text"
-                    d="M 215.4 82.2 A 95 95 0 0 1 215.4 197.8" />
-              <!-- Bottom text path: shallower arc (radius 130, slight
-                   bulge of 10px through the bottom) placed below the
-                   visible bottom arc. Walker goes left-to-right; the
-                   default "left side of walker" puts glyphs ABOVE the
-                   path, which lands them between path Y≈245 and the
-                   visible arc bottom Y≈215. Reads naturally without
-                   needing side="right" (which Chrome renders by
-                   180°-flipping glyphs and reversing the string —
-                   not what we want here). -->
+                    d="M 187.6 103.5 A 60 60 0 0 1 187.6 176.5" />
               <path id="arc-bottom-text"
-                    d="M 88 232 A 130 130 0 0 1 192 232" />
+                    d="M 103.5 187.6 A 60 60 0 0 0 176.5 187.6" />
               <path id="arc-left-text"
-                    d="M 64.6 197.8 A 95 95 0 0 1 64.6 82.2" />
+                    d="M 92.4 103.5 A 60 60 0 0 0 92.4 176.5" />
             </defs>
 
             <!-- Background trace ring — soft dotted circle behind the
@@ -107,12 +113,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
               <path class="arc-fill"
                     d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
-              <text class="arc-text" x="140" y="120" text-anchor="middle">
-                {{ patient()!.sessionCount }}
-              </text>
               <text class="arc-curved-label">
                 <textPath href="#arc-top-text" startOffset="50%" text-anchor="middle">
-                  · SESSIONS ·
+                  SESSIONS · {{ patient()!.sessionCount }}
                 </textPath>
               </text>
             </g>
@@ -127,13 +130,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
               <path class="arc-fill"
                     d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
-              <text class="arc-text arc-text-glyph" x="170" y="155"
-                    text-anchor="middle">
-                {{ stateGlyph(patient()!.progressBadge) }}
-              </text>
               <text class="arc-curved-label">
                 <textPath href="#arc-right-text" startOffset="50%" text-anchor="middle">
-                  · STATE ·
+                  STATE · {{ stateGlyph(patient()!.progressBadge) }}
                 </textPath>
               </text>
             </g>
@@ -148,12 +147,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
                 <path class="arc-fill"
                       d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
-                <text class="arc-text" x="140" y="170" text-anchor="middle">
-                  {{ patient()!.difficulty }}<tspan class="arc-text-sub">/5</tspan>
-                </text>
                 <text class="arc-curved-label">
                   <textPath href="#arc-bottom-text" startOffset="50%" text-anchor="middle">
-                    · BEHAVIOR ·
+                    BEHAVIOR · {{ patient()!.difficulty }}/5
                   </textPath>
                 </text>
               </g>
@@ -169,12 +165,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
                 <path class="arc-fill"
                       d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
-                <text class="arc-text" x="110" y="155" text-anchor="middle">
-                  {{ patient()!.complexity }}<tspan class="arc-text-sub">/5</tspan>
-                </text>
                 <text class="arc-curved-label">
                   <textPath href="#arc-left-text" startOffset="50%" text-anchor="middle">
-                    · SEVERITY ·
+                    SEVERITY · {{ patient()!.complexity }}/5
                   </textPath>
                 </text>
               </g>
@@ -192,8 +185,10 @@ const SPOILER_PATTERNS: RegExp[] = [
           }
         </div>
 
-        <!-- Title + caption + actions below the orbit, centered. -->
-        <div class="hero-content">
+        <!-- Identity block: top-right of the hero on desktop, right-
+             aligned text, actions sit below the diagnosis. Falls back
+             to centered-below-orbit on mobile. -->
+        <div class="hero-info">
           <div class="hero-eyebrow">
             <span class="eyebrow-dot" [style.background]="ringColor()"></span>
             REFLECT · {{ patient()!.slug.toUpperCase() }}
@@ -631,10 +626,11 @@ const SPOILER_PATTERNS: RegExp[] = [
       border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 24px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-rows: auto auto;
+      gap: 24px 36px;
+      align-items: start;
     }
 
     /* ─── Vital orbit (4 SVG arcs around the avatar) ─── */
@@ -701,15 +697,14 @@ const SPOILER_PATTERNS: RegExp[] = [
       fill: var(--fg-dim);
     }
     .arc-text-glyph { font-size: 22px; }
-    /* Curved label following the arc — uses textPath. Stretched
-       letter-spacing makes the curve readable; tracking is also bigger
-       than the straight labels because along a curve glyphs collide
-       at default kerning. */
+    /* Curved label following the arc. Now sits at r=60 (between avatar
+       and arc inner edge), so we want tighter tracking and bolder
+       weight to read clearly inside that 16px gap. */
     .arc-curved-label {
-      fill: var(--fg-dim);
-      font-size: 9px;
+      fill: var(--fg);
+      font-size: 10px;
       font-weight: 600;
-      letter-spacing: 0.32em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       transition: fill .2s ease;
       pointer-events: none;
@@ -756,8 +751,10 @@ const SPOILER_PATTERNS: RegExp[] = [
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 116px;
-      height: 116px;
+      /* Shrunk from 116→96 so the inside-arc curved labels at r=60 have
+         visual breathing room around the avatar. */
+      width: 96px;
+      height: 96px;
       transform: translate(-50%, -50%);
       border-radius: 50%;
       object-fit: cover;
@@ -769,12 +766,38 @@ const SPOILER_PATTERNS: RegExp[] = [
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 44px;
+      font-size: 38px;
       font-weight: 300;
       color: var(--accent);
     }
 
-    /* Title row under the orbit. */
+    /* Identity block: top-right of the hero grid on desktop. Text
+       is right-aligned, with eyebrow / display title / diagnosis /
+       actions stacked vertically. On narrow viewports drops to a
+       centered column below the orbit (handled by media query). */
+    .hero-info {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: start;
+      justify-self: end;
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      padding-top: 16px;
+      max-width: 100%;
+    }
+    .orbit-wrap {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .sector-detail, .sector-detail.empty {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    /* Legacy .hero-content class kept for safety in case any descendant
+       template still uses it — visually it's still a centered column. */
     .hero-content {
       text-align: center;
       display: flex;
@@ -1012,22 +1035,40 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
 
     @media (max-width: 900px) {
-      .hero { padding: 24px 20px 22px; }
+      .hero { padding: 24px 20px 22px; gap: 18px 24px; }
     }
-    @media (max-width: 540px) {
+    /* Tablet & phone: stack orbit on top, identity block below
+       centered. Detail panel sits at the bottom as before. */
+    @media (max-width: 720px) {
       .hero {
-        padding: 20px 16px 18px;
+        grid-template-columns: 1fr;
+        padding: 24px 18px 20px;
         margin: 12px -16px 20px;
       }
+      .orbit-wrap {
+        grid-column: 1;
+        grid-row: 1;
+        justify-self: center;
+      }
+      .hero-info {
+        grid-column: 1;
+        grid-row: 2;
+        justify-self: center;
+        align-items: center;
+        text-align: center;
+        padding-top: 0;
+      }
+      .sector-detail, .sector-detail.empty {
+        grid-row: 3;
+      }
+    }
+    @media (max-width: 540px) {
       .orbit-wrap {
         width: 240px;
         height: 240px;
         transform: scale(0.86);
       }
-      .orbit-avatar { width: 100px; height: 100px; }
-      /* Hover doesn't trigger on touch; click-to-toggle stays in
-         control. Suppress the scale-on-hover so a stray finger drag
-         doesn't visually nudge unactive arcs. */
+      .orbit-avatar { width: 84px; height: 84px; }
       .arc-group:hover { transform: none; }
     }
 
