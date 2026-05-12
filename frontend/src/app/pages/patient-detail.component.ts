@@ -99,7 +99,26 @@ const SPOILER_PATTERNS: RegExp[] = [
                       (click)="confirmDelete()">🗑</button>
             }
             <button class="primary new-session-btn fx-glow" (click)="newSession()">
-              Нова сесія
+              <!-- Synapse-style reticle: 4 outer arc segments with gaps at
+                   N/S/E/W where short crosshair ticks extend outward,
+                   plus an inner ring and a center dot. Built from inline
+                   SVG primitives so the stroke colour follows the
+                   button's currentColor. -->
+              <svg class="btn-icon" viewBox="0 0 32 32" aria-hidden="true"
+                   fill="none" stroke="currentColor"
+                   stroke-width="1.4" stroke-linecap="round">
+                <path d="M 18.85 5.38 A 11 11 0 0 1 26.62 13.15"/>
+                <path d="M 26.62 18.85 A 11 11 0 0 1 18.85 26.62"/>
+                <path d="M 13.15 26.62 A 11 11 0 0 1 5.38 18.85"/>
+                <path d="M 5.38 13.15 A 11 11 0 0 1 13.15 5.38"/>
+                <circle cx="16" cy="16" r="4.5"/>
+                <circle cx="16" cy="16" r="1" fill="currentColor"/>
+                <path d="M 16 2 V 4.5"/>
+                <path d="M 16 27.5 V 30"/>
+                <path d="M 2 16 H 4.5"/>
+                <path d="M 27.5 16 H 30"/>
+              </svg>
+              <span class="btn-label">Нова сесія</span>
             </button>
           </div>
         </div>
@@ -1208,7 +1227,34 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--danger);
       border-color: var(--danger);
     }
-    .new-session-btn { padding: 12px 22px; }
+    /* Synapse-style CTA: reticle icon on the left, label vertically
+       centered next to it. Padding asymmetric — tight on the left so
+       the icon sits visually flush, comfortable on the right around
+       the label. The icon's stroke follows currentColor (which is
+       --accent-ink on the filled primary base), so it reads cleanly
+       on the lavender fill without needing its own colour token. */
+    .new-session-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 18px 8px 10px;
+    }
+    .new-session-btn .btn-icon {
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      display: block;
+      /* The reticle reads as "ranging in" on hover via a slow CCW spin
+         to balance the body-wide CW frame-rotate animation. */
+      transition: transform .4s var(--ease-decel, cubic-bezier(0.16,1,0.3,1));
+    }
+    .new-session-btn:hover .btn-icon {
+      transform: rotate(-12deg);
+    }
+    .new-session-btn .btn-label {
+      font-weight: 500;
+      line-height: 1;
+    }
 
     /* Vital tiles — Synapse-style data strip across the bottom of the
        hero. Always one horizontal row on desktop; gracefully reflows
