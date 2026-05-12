@@ -8,58 +8,68 @@ import { AuthService } from '../auth.service';
   standalone: true,
   imports: [FormsModule, RouterLink],
   template: `
-    <header class="header">
-      <h1>Reflect</h1>
-      <p class="subtitle">Увійти в кабінет</p>
-    </header>
+    <section class="auth-panel synapse-panel">
+      <header class="auth-header">
+        <span class="section-label">REFLECT</span>
+        <h1>Увійти в кабінет</h1>
+      </header>
 
-    <form class="auth-form" (ngSubmit)="submit()">
-      <label>
-        <span>Email</span>
-        <input type="email" name="email" [(ngModel)]="email" required autocomplete="username" />
-      </label>
-      <label>
-        <span>Пароль</span>
-        <input type="password" name="password" [(ngModel)]="password" required autocomplete="current-password" />
-      </label>
-      @if (error()) {
-        <p class="hint danger">{{ error() }}</p>
+      <form class="auth-form" (ngSubmit)="submit()">
+        <label>
+          <span>Email</span>
+          <input type="email" name="email" [(ngModel)]="email" required autocomplete="username" />
+        </label>
+        <label>
+          <span>Пароль</span>
+          <input type="password" name="password" [(ngModel)]="password" required autocomplete="current-password" />
+        </label>
+        @if (error()) {
+          <p class="hint danger">{{ error() }}</p>
+        }
+        <button class="primary" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Заходжу…' : 'Увійти' }}
+        </button>
+      </form>
+
+      @if (auth.providers().google || auth.providers().facebook) {
+        <div class="separator"><span>або</span></div>
+        <div class="oauth-buttons">
+          @if (auth.providers().google) {
+            <button class="oauth google" (click)="oauth('google')">
+              <span class="logo">G</span> Увійти через Google
+            </button>
+          }
+          @if (auth.providers().facebook) {
+            <button class="oauth facebook" (click)="oauth('facebook')">
+              <span class="logo">f</span> Увійти через Facebook
+            </button>
+          }
+        </div>
       }
-      <button class="primary" type="submit" [disabled]="loading()">
-        {{ loading() ? 'Заходжу…' : 'Увійти' }}
-      </button>
-    </form>
 
-    @if (auth.providers().google || auth.providers().facebook) {
-      <div class="separator"><span>або</span></div>
-      <div class="oauth-buttons">
-        @if (auth.providers().google) {
-          <button class="oauth google" (click)="oauth('google')">
-            <span class="logo">G</span> Увійти через Google
-          </button>
-        }
-        @if (auth.providers().facebook) {
-          <button class="oauth facebook" (click)="oauth('facebook')">
-            <span class="logo">f</span> Увійти через Facebook
-          </button>
-        }
-      </div>
-    }
-
-    <p class="link-row">
-      Немає акаунту? <a routerLink="/register">Зареєструйся</a>
-    </p>
+      <p class="link-row">
+        Немає акаунту? <a routerLink="/register">Зареєструйся</a>
+      </p>
+    </section>
   `,
   styles: [`
-    .header { margin-bottom: 28px; }
-    .header h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
-    .subtitle { color: var(--fg-dim); margin: 4px 0 0; font-size: 14px; }
+    .auth-panel {
+      max-width: 420px;
+      margin: 32px auto;
+      padding: 32px;
+    }
+    .auth-header { margin-bottom: 24px; }
+    .auth-header h1 {
+      font-size: 24px;
+      margin: 6px 0 0;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+    }
 
     .auth-form {
       display: flex;
       flex-direction: column;
       gap: 14px;
-      max-width: 360px;
     }
     .auth-form label {
       display: flex;
@@ -68,19 +78,11 @@ import { AuthService } from '../auth.service';
       font-size: 13px;
       color: var(--fg-dim);
     }
-    .auth-form input {
-      font: inherit;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: transparent;
-      color: var(--fg);
-    }
-    .auth-form input:focus { outline: none; border-color: var(--accent); }
+    /* input styling now comes from global styles.scss — accent-tinted
+       bg, accent-toned border, focus ring all match the Synapse palette. */
     .hint.danger { color: var(--danger); margin: 0; font-size: 13px; }
 
     .separator {
-      max-width: 360px;
       display: flex;
       align-items: center;
       margin: 24px 0 16px;
@@ -91,12 +93,11 @@ import { AuthService } from '../auth.service';
       content: '';
       flex: 1;
       height: 1px;
-      background: var(--border);
+      background: color-mix(in srgb, var(--accent) 18%, var(--border));
     }
     .separator span { padding: 0 12px; }
 
     .oauth-buttons {
-      max-width: 360px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -106,14 +107,18 @@ import { AuthService } from '../auth.service';
       align-items: center;
       gap: 12px;
       padding: 10px 14px;
-      border: 1px solid var(--border);
-      background: transparent;
+      border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+      background: color-mix(in srgb, var(--accent) 3%, transparent);
       color: var(--fg);
       font: inherit;
       cursor: pointer;
       border-radius: 8px;
+      transition: border-color .15s ease, background .15s ease;
     }
-    .oauth:hover { border-color: var(--accent); }
+    .oauth:hover {
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+      background: color-mix(in srgb, var(--accent) 7%, transparent);
+    }
     .oauth .logo {
       display: inline-flex;
       width: 24px;
@@ -127,7 +132,6 @@ import { AuthService } from '../auth.service';
     .oauth.facebook .logo { background: #1877f2; color: #fff; }
 
     .link-row {
-      max-width: 360px;
       margin-top: 28px;
       color: var(--fg-dim);
       font-size: 13px;

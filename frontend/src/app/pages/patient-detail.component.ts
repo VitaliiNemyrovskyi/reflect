@@ -1197,34 +1197,10 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--danger);
       border-color: var(--danger);
     }
-    /* Synapse-style translucent CTA — instead of the filled lavender
-       base from .primary we run a tinted "glass" surface: an accent-
-       washed background, accent-coloured text, and a subtle accent
-       border. backdrop-filter:blur lets the body's ambient gradient
-       wash bleed through so the button doesn't read as a flat tile
-       on top of the animated background. */
-    .new-session-btn {
-      padding: 10px 22px;
-      background: color-mix(in srgb, var(--accent) 14%, transparent);
-      color: var(--accent);
-      border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
-      backdrop-filter: blur(10px) saturate(140%);
-      -webkit-backdrop-filter: blur(10px) saturate(140%);
-      transition:
-        background .2s ease,
-        border-color .2s ease,
-        box-shadow .25s ease,
-        transform .12s ease;
-    }
-    .new-session-btn:hover {
-      background: color-mix(in srgb, var(--accent) 22%, transparent);
-      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-      box-shadow: 0 0 24px -4px color-mix(in srgb, var(--accent) 35%, transparent);
-      /* Cancel .primary's brightness filter — there's no solid fill
-         to brighten and it muddies the translucent surface. */
-      filter: none;
-    }
-    .new-session-btn:active { transform: scale(0.98); }
+    /* .new-session-btn just sets its padding — the translucent
+       Synapse-glass styling now lives globally on button.primary in
+       styles.scss, so every CTA across the app reads the same. */
+    .new-session-btn { padding: 10px 22px; }
 
     /* Vital tiles — Synapse-style data strip across the bottom of the
        hero. Always one horizontal row on desktop; gracefully reflows

@@ -316,6 +316,10 @@ interface SelectionAnchor {
       gap: 14px;
       min-height: 200px;
     }
+    /* Chat bubbles get the Synapse accent-tint treatment — soft
+       inner radial wash from the corner anchor (right for user,
+       left for assistant) plus an accent-toned border so messages
+       feel like distinct surfaces against the ambient body wash. */
     .bubble {
       position: relative;
       max-width: 85%;
@@ -323,16 +327,25 @@ interface SelectionAnchor {
       border-radius: 14px;
       white-space: pre-wrap;
       word-wrap: break-word;
-      border: 1px solid var(--border);
+      border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
       user-select: text;
     }
     .bubble.user {
-      background: var(--user-bg);
+      background:
+        radial-gradient(ellipse 80% 80% at 100% 100%,
+          color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+          transparent 65%),
+        color-mix(in srgb, var(--accent) 5%, var(--user-bg));
       align-self: flex-end;
       border-bottom-right-radius: 4px;
+      border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
     }
     .bubble.assistant {
-      background: var(--assistant-bg);
+      background:
+        radial-gradient(ellipse 80% 80% at 0% 100%,
+          color-mix(in srgb, var(--accent) 8%, transparent) 0%,
+          transparent 70%),
+        color-mix(in srgb, var(--accent) 3%, var(--assistant-bg));
       align-self: flex-start;
       border-bottom-left-radius: 4px;
     }
@@ -522,10 +535,12 @@ interface SelectionAnchor {
       line-height: 1.4;
     }
 
+    /* Notes side-panel: accent-toned vertical divider as a left border
+       (matches Synapse hairlines across the rest of the app). */
     .notes-panel {
       display: flex;
       flex-direction: column;
-      border-left: 1px solid var(--border);
+      border-left: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
       padding-left: 22px;
       min-height: 0;
     }

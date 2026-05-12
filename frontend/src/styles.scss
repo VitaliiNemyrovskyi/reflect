@@ -146,6 +146,68 @@ body {
   padding-top: var(--safe-top);
 }
 
+// ─── Synapse panel utility ─────────────────────────────────────────────────
+//
+// Drop `.synapse-panel` on any card / panel / section to get the same
+// look the patient-detail vital rows + sector-detail use: 1px gradient
+// border that rotates with --frame-angle, an accent-tinted inner radial
+// wash, and a slight bg tint so the panel reads as a distinct surface
+// against the body's ambient flow.
+//
+// The dual-pseudo-element trick gets re-used because background-clip
+// approaches sometimes clip the gradient border under Angular's view
+// encapsulation. Here it's a global rule so no encapsulation rewriting
+// happens, but using ::before for the radial wash + a `border-image`
+// equivalent via background-clip on the host keeps it ONE element
+// (the consumer doesn't need to wrap their content in extra divs).
+.synapse-panel {
+  position: relative;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%,
+      color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+      transparent 60%),
+    color-mix(in srgb, var(--accent) 4%, var(--bg));
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background-clip: padding-box;
+  // Gradient border via outline-like outer ring. Using a second box
+  // shadow layer rather than border-image so border-radius keeps a
+  // smooth curve and the border colour cycles with --frame-angle.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--frame-angle),
+      color-mix(in srgb, var(--accent) 45%, var(--border)) 0deg,
+      color-mix(in srgb, var(--accent) 18%, var(--border)) 90deg,
+      color-mix(in srgb, var(--accent) 38%, var(--border)) 180deg,
+      color-mix(in srgb, var(--accent) 18%, var(--border)) 270deg,
+      color-mix(in srgb, var(--accent) 45%, var(--border)) 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+  }
+  & > * { position: relative; z-index: 1; }
+}
+
+// Uppercase tracked label, e.g. "PATIENT STATE" — for section headings,
+// stat labels, etc. Pairs with .synapse-panel but works standalone.
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  font-weight: 500;
+}
+
 // Global dot-grid texture — Synapse-style sprinkled accents on top of the
 // animated radial wash. Lives on body::before (NOT another background
 // layer on body itself) because we want the dots to stay STATIC while the
@@ -187,38 +249,64 @@ button {
   user-select: none;
   -webkit-user-select: none;
 
+  // Translucent "glass" CTA — Synapse-style. Accent-tinted background,
+  // accent text, accent border, backdrop-filter so the body's ambient
+  // gradient + dot-grid bleeds through. Replaces the old solid-fill
+  // .primary across every page.
   &.primary {
-    background: var(--accent);
-    color: var(--accent-ink);
-    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
     font-weight: 500;
-    transition: filter .15s ease, transform .12s ease, box-shadow .25s ease;
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    transition:
+      background .2s ease,
+      border-color .2s ease,
+      box-shadow .25s ease,
+      transform .12s ease;
 
     &:hover {
-      filter: brightness(1.05);
-      // Theme-aware accent glow on hover. color-mix gives a translucent
-      // ring that flexes with whatever --accent is currently set to —
-      // lavender, sky-blue, or Synapse orange all read correctly.
-      box-shadow: 0 0 22px -4px color-mix(in srgb, var(--accent) 50%, transparent);
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+      box-shadow: 0 0 24px -4px color-mix(in srgb, var(--accent) 35%, transparent);
     }
     &:active { transform: scale(0.98); }
   }
-  &.ghost { border-color: var(--border); color: var(--fg-dim); }
+  &.ghost {
+    border-color: color-mix(in srgb, var(--accent) 14%, var(--border));
+    color: var(--fg-dim);
+    background: color-mix(in srgb, var(--accent) 3%, transparent);
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
+    &:hover {
+      color: var(--fg);
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+    }
+  }
   &.danger { color: var(--danger); border-color: var(--border); }
   &[disabled] { opacity: 0.55; cursor: progress; }
 }
 
 textarea, input {
   font: inherit;
-  background: transparent;
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
   color: var(--fg);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
   border-radius: 8px;
   padding: 10px 12px;
   // 16px on iOS prevents zoom-on-focus
   font-size: max(16px, var(--font-base));
+  transition: border-color .15s ease, background .15s ease, box-shadow .2s ease;
 
-  &:focus { outline: none; border-color: var(--accent); }
+  &::placeholder { color: var(--fg-dim); }
+
+  &:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  }
 }
 
 // Mobile: bigger touch targets globally

@@ -154,13 +154,43 @@ import { AuthService } from '../auth.service';
     .back:hover { color: var(--accent); }
     h1 { margin: 12px 0 0; font-size: 28px; letter-spacing: -0.02em; }
 
+    /* Profile cards inherit Synapse aesthetic: accent-tinted background,
+       gradient border via pseudo (avoids ::before encapsulation issues
+       on bare-class pseudo selectors), inner radial wash from top. */
     .card {
-      background: var(--assistant-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px 24px;
+      position: relative;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,
+          color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+          transparent 60%),
+        color-mix(in srgb, var(--accent) 4%, var(--assistant-bg));
+      border: 1px solid transparent;
+      border-radius: 14px;
+      padding: 24px 28px;
       margin-bottom: 18px;
     }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: conic-gradient(
+        from var(--frame-angle),
+        color-mix(in srgb, var(--accent) 38%, var(--border)) 0deg,
+        color-mix(in srgb, var(--accent) 14%, var(--border)) 90deg,
+        color-mix(in srgb, var(--accent) 32%, var(--border)) 180deg,
+        color-mix(in srgb, var(--accent) 14%, var(--border)) 270deg,
+        color-mix(in srgb, var(--accent) 38%, var(--border)) 360deg
+      );
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+    }
+    .card > * { position: relative; }
     .card-head h2 {
       margin: 0 0 16px;
       font-size: 15px;

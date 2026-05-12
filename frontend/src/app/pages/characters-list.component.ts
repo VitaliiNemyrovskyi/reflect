@@ -247,21 +247,58 @@ import { AuthService } from '../auth.service';
       .avatar { width: 56px; height: 56px; }
     }
 
+    /* Synapse card: accent-tinted bg, conic-gradient rotating border
+       (via the global --frame-angle), inner radial wash from the top.
+       Hover deepens the tint and lifts the card slightly. */
     .patient-card {
+      position: relative;
       display: flex;
       gap: 14px;
       align-items: center;
-      background: var(--assistant-bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,
+          color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+          transparent 60%),
+        color-mix(in srgb, var(--accent) 4%, var(--assistant-bg));
+      border: 1px solid transparent;
+      border-radius: 14px;
       padding: 16px;
       cursor: pointer;
-      transition: border-color .15s ease, transform .12s ease, background .15s ease;
+      transition: transform .12s ease, background .2s ease, box-shadow .25s ease;
     }
+    /* Gradient border via padding-trick pseudo (avoids the
+       background-clip path Angular's encapsulation rewriter mangles). */
+    .patient-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: conic-gradient(
+        from var(--frame-angle),
+        color-mix(in srgb, var(--accent) 42%, var(--border)) 0deg,
+        color-mix(in srgb, var(--accent) 16%, var(--border)) 90deg,
+        color-mix(in srgb, var(--accent) 36%, var(--border)) 180deg,
+        color-mix(in srgb, var(--accent) 16%, var(--border)) 270deg,
+        color-mix(in srgb, var(--accent) 42%, var(--border)) 360deg
+      );
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .patient-card > * { position: relative; z-index: 1; }
     .patient-card:hover {
-      border-color: var(--accent);
-      background: #18181f;
       transform: translateY(-2px);
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,
+          color-mix(in srgb, var(--accent) 18%, transparent) 0%,
+          transparent 60%),
+        color-mix(in srgb, var(--accent) 7%, var(--assistant-bg));
+      box-shadow: 0 14px 32px -16px color-mix(in srgb, var(--accent) 40%, transparent);
     }
 
     .avatar-wrap {

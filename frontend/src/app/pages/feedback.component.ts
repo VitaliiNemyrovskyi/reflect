@@ -82,16 +82,37 @@ marked.setOptions({
       50% { opacity: 1; transform: scale(1); }
     }
 
+    /* Feedback article gets the Synapse panel treatment — radial wash
+       from the top, rotating gradient border via background-clip
+       trick (no ::before to avoid scoping edge cases). */
     .feedback {
-      background: var(--assistant-bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 22px 26px;
+      position: relative;
+      border: 1px solid transparent;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,
+          color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+          transparent 60%) padding-box,
+        linear-gradient(
+          color-mix(in srgb, var(--accent) 4%, var(--assistant-bg)),
+          color-mix(in srgb, var(--accent) 4%, var(--assistant-bg))
+        ) padding-box,
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--accent) 42%, var(--border)) 0deg,
+          color-mix(in srgb, var(--accent) 16%, var(--border)) 90deg,
+          color-mix(in srgb, var(--accent) 36%, var(--border)) 180deg,
+          color-mix(in srgb, var(--accent) 16%, var(--border)) 270deg,
+          color-mix(in srgb, var(--accent) 42%, var(--border)) 360deg
+        ) border-box;
+      border-radius: 14px;
+      padding: 24px 28px;
       font-size: 15px;
       line-height: 1.65;
       min-height: 120px;
     }
-    .feedback.streaming { border-color: rgba(216, 201, 255, 0.35); }
+    .feedback.streaming {
+      box-shadow: 0 0 32px -8px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
 
     /* ─── Prose: rendered markdown ───────────────────────────────────── */
     .prose :first-child { margin-top: 0; }

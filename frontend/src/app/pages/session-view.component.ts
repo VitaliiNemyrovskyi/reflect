@@ -184,21 +184,34 @@ marked.setOptions({ gfm: true, breaks: true });
       flex-direction: column;
       gap: 10px;
     }
+    /* Transcript bubbles match chat.component bubbles — accent-tinted
+       background with inner radial wash from the corner anchor (right
+       for user, left for assistant) and accent-toned border. */
     .bubble {
       padding: 12px 16px;
-      border-radius: 12px;
+      border-radius: 14px;
       max-width: 80%;
       word-wrap: break-word;
+      border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
     }
     .bubble.user {
       align-self: flex-end;
-      background: rgba(216, 201, 255, 0.08);
-      border: 1px solid rgba(216, 201, 255, 0.25);
+      background:
+        radial-gradient(ellipse 80% 80% at 100% 100%,
+          color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+          transparent 65%),
+        color-mix(in srgb, var(--accent) 5%, var(--user-bg));
+      border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+      border-bottom-right-radius: 4px;
     }
     .bubble.assistant {
       align-self: flex-start;
-      background: var(--assistant-bg);
-      border: 1px solid var(--border);
+      background:
+        radial-gradient(ellipse 80% 80% at 0% 100%,
+          color-mix(in srgb, var(--accent) 8%, transparent) 0%,
+          transparent 70%),
+        color-mix(in srgb, var(--accent) 3%, var(--assistant-bg));
+      border-bottom-left-radius: 4px;
     }
     .bubble-meta {
       display: flex;
