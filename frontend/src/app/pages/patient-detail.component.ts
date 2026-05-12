@@ -590,10 +590,15 @@ const SPOILER_PATTERNS: RegExp[] = [
        only shows in the 1px border ring. No wrapper, no padding.
        Angle animates via @property so the bright spot of the
        conic-gradient travels around the perimeter. */
+    /* --frame-angle is the shared CSS variable that drives ALL the
+       gradient borders across the page. Setting inherits:true means
+       any element can use var(--frame-angle) in a conic-gradient and
+       all of them animate in sync as long as something up the tree
+       is running the frame-rotate keyframes (we put that on body). */
     @property --frame-angle {
       syntax: "<angle>";
       initial-value: 0deg;
-      inherits: false;
+      inherits: true;
     }
     /* Photo lives inside the frame. Same row as identity + vitals,
        so the hero "head" is one tidy band. Detail panel sits in row 2
@@ -617,8 +622,9 @@ const SPOILER_PATTERNS: RegExp[] = [
       isolation: isolate;
       /* Two-layer background: solid bg in the padding-box (covers
          everything except the 1px border ring), conic-gradient in
-         the border-box (only the border ring shows it). Border is
-         transparent so the gradient peeks through. */
+         the border-box (only the border ring shows it). --frame-angle
+         is animated globally on body, all gradient-bordered elements
+         rotate in lockstep. */
       border: 1px solid transparent;
       background:
         linear-gradient(var(--user-bg), var(--user-bg)) padding-box,
@@ -630,12 +636,6 @@ const SPOILER_PATTERNS: RegExp[] = [
           color-mix(in srgb, var(--accent) 12%, transparent) 280deg,
           color-mix(in srgb, var(--accent) 100%, transparent) 360deg
         ) border-box;
-      @media (prefers-reduced-motion: no-preference) {
-        animation: frame-rotate 6s linear infinite;
-      }
-    }
-    @keyframes frame-rotate {
-      to { --frame-angle: 360deg; }
     }
     .hero-photo img {
       width: 100%;
@@ -861,14 +861,26 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .vital-row {
       appearance: none;
-      /* Subtle accent radial in the top-right corner so each row
-         feels lit, not flat. Layered over the assistant-bg base. */
+      /* Three-layer background:
+         1. Subtle accent radial in top-right (the "lit corner")
+         2. Solid assistant-bg as fill — both clipped to padding-box,
+            so they only cover the inner area
+         3. Conic-gradient with the inherited --frame-angle in the
+            border-box — only the 1px ring shows it = gradient border */
+      border: 1px solid transparent;
       background:
         radial-gradient(ellipse 60% 100% at 100% 0%,
           color-mix(in srgb, var(--accent) 10%, transparent) 0%,
-          transparent 60%),
-        var(--assistant-bg);
-      border: 1px solid var(--border);
+          transparent 60%) padding-box,
+        linear-gradient(var(--assistant-bg), var(--assistant-bg)) padding-box,
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--accent) 90%, transparent) 0deg,
+          color-mix(in srgb, var(--accent) 15%, transparent) 90deg,
+          color-mix(in srgb, var(--accent) 80%, transparent) 180deg,
+          color-mix(in srgb, var(--accent) 15%, transparent) 270deg,
+          color-mix(in srgb, var(--accent) 90%, transparent) 360deg
+        ) border-box;
       border-radius: 8px;
       padding: 12px 14px;
       cursor: pointer;
@@ -880,8 +892,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       text-align: left;
       color: var(--fg);
       min-height: auto;
-      transition: background .15s ease, border-color .15s ease, transform .15s ease,
-                  box-shadow .2s ease;
+      transition: transform .15s ease, box-shadow .2s ease;
     }
     .vital-row .vital-label {
       grid-column: 1;
@@ -916,28 +927,46 @@ const SPOILER_PATTERNS: RegExp[] = [
       letter-spacing: 0.02em;
     }
     .vital-row:hover, .vital-row.active {
-      border-color: var(--accent);
-      /* Hover/active: stronger radial that fills more of the row,
-         layered over a slightly tinted base. */
+      /* Hover/active: stronger radial in the inner fill + brighter
+         conic-gradient at the border, plus an outer glow. */
       background:
         radial-gradient(ellipse 80% 120% at 100% 0%,
           color-mix(in srgb, var(--accent) 22%, transparent) 0%,
-          transparent 70%),
-        color-mix(in srgb, var(--accent) 8%, var(--assistant-bg));
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent),
-                  0 4px 18px -8px color-mix(in srgb, var(--accent) 35%, transparent);
+          transparent 70%) padding-box,
+        linear-gradient(
+          color-mix(in srgb, var(--accent) 8%, var(--assistant-bg)),
+          color-mix(in srgb, var(--accent) 8%, var(--assistant-bg))
+        ) padding-box,
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
+          color-mix(in srgb, var(--accent) 40%, transparent) 90deg,
+          color-mix(in srgb, var(--accent) 100%, transparent) 180deg,
+          color-mix(in srgb, var(--accent) 40%, transparent) 270deg,
+          color-mix(in srgb, var(--accent) 100%, transparent) 360deg
+        ) border-box;
+      box-shadow: 0 4px 18px -8px color-mix(in srgb, var(--accent) 45%, transparent);
     }
     .vital-row.active .vital-value { color: var(--accent); }
     .vital-row.vital-warn .vital-value { color: var(--danger); }
     .vital-row.vital-warn:hover, .vital-row.vital-warn.active {
-      border-color: var(--danger);
       background:
         radial-gradient(ellipse 80% 120% at 100% 0%,
           color-mix(in srgb, var(--danger) 22%, transparent) 0%,
-          transparent 70%),
-        color-mix(in srgb, var(--danger) 8%, var(--assistant-bg));
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 25%, transparent),
-                  0 4px 18px -8px color-mix(in srgb, var(--danger) 35%, transparent);
+          transparent 70%) padding-box,
+        linear-gradient(
+          color-mix(in srgb, var(--danger) 8%, var(--assistant-bg)),
+          color-mix(in srgb, var(--danger) 8%, var(--assistant-bg))
+        ) padding-box,
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--danger) 100%, transparent) 0deg,
+          color-mix(in srgb, var(--danger) 40%, transparent) 90deg,
+          color-mix(in srgb, var(--danger) 100%, transparent) 180deg,
+          color-mix(in srgb, var(--danger) 40%, transparent) 270deg,
+          color-mix(in srgb, var(--danger) 100%, transparent) 360deg
+        ) border-box;
+      box-shadow: 0 4px 18px -8px color-mix(in srgb, var(--danger) 45%, transparent);
     }
     .sector-detail, .sector-detail.empty {
       grid-column: 1 / -1;
@@ -955,22 +984,33 @@ const SPOILER_PATTERNS: RegExp[] = [
     .orbit-wrap { display: none; }
 
     /* Sector detail row — fixed min-height so the layout doesn't jump
-       between idle and hovered states. Background is a horizontal
-       wash: brighter accent on the left side, fading to the assistant
-       bg on the right — gives the panel a "lit from the side" feel. */
+       between idle and hovered states. Multi-layer background:
+       two radial accent washes inside, then a conic-gradient border
+       on the outer 1px ring. Same lockstep --frame-angle rotation. */
     .sector-detail {
       align-self: stretch;
       margin-top: 4px;
       padding: 16px 20px;
+      border: 1px solid transparent;
       background:
         radial-gradient(ellipse 50% 200% at 0% 50%,
           color-mix(in srgb, var(--accent) 20%, transparent) 0%,
-          transparent 70%),
+          transparent 70%) padding-box,
         radial-gradient(ellipse 30% 100% at 100% 100%,
           color-mix(in srgb, var(--accent) 10%, transparent) 0%,
-          transparent 70%),
-        color-mix(in srgb, var(--accent) 5%, var(--assistant-bg));
-      border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+          transparent 70%) padding-box,
+        linear-gradient(
+          color-mix(in srgb, var(--accent) 5%, var(--assistant-bg)),
+          color-mix(in srgb, var(--accent) 5%, var(--assistant-bg))
+        ) padding-box,
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--accent) 95%, transparent) 0deg,
+          color-mix(in srgb, var(--accent) 25%, transparent) 90deg,
+          color-mix(in srgb, var(--accent) 85%, transparent) 180deg,
+          color-mix(in srgb, var(--accent) 25%, transparent) 270deg,
+          color-mix(in srgb, var(--accent) 95%, transparent) 360deg
+        ) border-box;
       border-radius: 10px;
       min-height: 96px;
       animation: fx-fade-up .25s cubic-bezier(.16, 1, .3, 1);

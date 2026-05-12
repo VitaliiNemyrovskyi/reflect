@@ -93,7 +93,13 @@ html, body {
   background-attachment: fixed;
   background-repeat: no-repeat;
   @media (prefers-reduced-motion: no-preference) {
-    animation: ambient-flow 35s ease-in-out infinite;
+    // Two stacked animations: the slow background-position morph
+    // for the body itself, plus the shared --frame-angle rotation
+    // that every gradient-bordered element inherits and reuses for
+    // its conic-gradient border.
+    animation:
+      ambient-flow 35s ease-in-out infinite,
+      frame-rotate 8s linear infinite;
   }
   color: var(--fg);
   font: var(--font-base) / var(--line-height) -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -117,6 +123,19 @@ html, body {
   75% {
     background-position: 40% 100%, 90% 70%, 70% 10%, 0 0;
   }
+}
+
+// Shared rotation keyframe for the inherited --frame-angle CSS
+// custom property. Any element that uses conic-gradient(from
+// var(--frame-angle), …) border-box inside its background will see
+// its gradient border slowly turn in sync with every other element.
+@property --frame-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: true;
+}
+@keyframes frame-rotate {
+  to { --frame-angle: 360deg; }
 }
 
 body {
