@@ -55,133 +55,24 @@ const SPOILER_PATTERNS: RegExp[] = [
     } @else {
       <a routerLink="/" class="back">← Усі пацієнти</a>
 
-      <!-- ╔═══ SYNAPSE HERO ═══╗
-           Avatar centered with 4 vital arcs literally curling around it
-           (top/right/bottom/left). Each arc is an SVG <path> that's
-           hoverable: the arc fills, scales, and glows; the value text
-           sitting on top of the arc highlights; and a detail panel
-           expands below with extended context. -->
-      <section class="hero dot-grid-bg fx-fade-up">
-        <div class="orbit-wrap"
-             (mouseleave)="activeSector.set(null)">
+      <!-- ╔═══ HERO ═══╗
+           Portrait photo on the left + identity (name/diagnosis) +
+           vertical stack of vital rows on the right + a hover-detail
+           panel below. Cleaner, reads more like a clinical chart. -->
+      <section class="hero dot-grid-bg fx-fade-up"
+               (mouseleave)="activeSector.set(null)">
 
-          <!-- The 4 arcs + their value labels live in a single SVG so
-               their geometry stays in sync. The arc <path>s are
-               <g.arc-group>s with the path + text inside, both react
-               to the same .active state. -->
-          <svg class="orbit-svg" viewBox="0 0 280 280" aria-hidden="true">
-            <!-- Hidden text-paths: arcs at r=95 used only as guides for
-                 <textPath>. Each pair of "top" / "bottom" variants picks
-                 the right path direction so the label glyphs end up
-                 right-side-up no matter which arc they're on. -->
-            <!-- Text-paths sit AT r=75 — exactly on the visible arc
-                 centerline so labels render ON the colored stroke
-                 itself. dominant-baseline:middle on the <text> keeps
-                 glyphs vertically centered on the stroke (which is
-                 18px thick → r=66 inner to r=84 outer; glyph centers
-                 at r=75 land squarely in the middle).
-                 TOP and RIGHT use the same direction as the visible
-                 arcs (CW). BOTTOM and LEFT reverse to sweep=0 so
-                 walker direction aligns with natural reading. -->
-            <defs>
-              <path id="arc-top-text"
-                    d="M 89.3 84.7 A 75 75 0 0 1 190.7 84.7" />
-              <path id="arc-right-text"
-                    d="M 195.3 89.3 A 75 75 0 0 1 195.3 190.7" />
-              <path id="arc-bottom-text"
-                    d="M 89.3 195.3 A 75 75 0 0 0 190.7 195.3" />
-              <path id="arc-left-text"
-                    d="M 84.7 89.3 A 75 75 0 0 0 84.7 190.7" />
-            </defs>
-
-            <!-- Background trace ring — soft dotted circle behind the
-                 arcs so empty space doesn't feel like a vacuum. -->
-            <circle class="orbit-trace" cx="140" cy="140" r="75" />
-
-            <!-- TOP arc (SESSIONS): 75° centered on -90° -->
-            <g class="arc-group"
-               [class.active]="activeSector() === 'sessions'"
-               (mouseenter)="activeSector.set('sessions')"
-               (click)="toggleSector('sessions')">
-              <path class="arc-trace-bg"
-                    d="M 89.3 84.7 A 75 75 0 0 1 190.7 84.7" />
-              <path class="arc-fill"
-                    d="M 89.3 84.7 A 75 75 0 0 1 190.7 84.7" />
-              <text class="arc-curved-label" text-anchor="middle">
-                <textPath href="#arc-top-text" startOffset="50%">
-                  СЕСІЇ · {{ patient()!.sessionCount }}
-                </textPath>
-              </text>
-            </g>
-
-            <!-- RIGHT arc (СТАН): 75° centered on 0° -->
-            <g class="arc-group"
-               [class.active]="activeSector() === 'state'"
-               [class.arc-warn]="patient()!.progressBadge === 'worsening'"
-               (mouseenter)="activeSector.set('state')"
-               (click)="toggleSector('state')">
-              <path class="arc-trace-bg"
-                    d="M 195.3 89.3 A 75 75 0 0 1 195.3 190.7" />
-              <path class="arc-fill"
-                    d="M 195.3 89.3 A 75 75 0 0 1 195.3 190.7" />
-              <text class="arc-curved-label" text-anchor="middle">
-                <textPath href="#arc-right-text" startOffset="50%">
-                  СТАН · {{ stateGlyph(patient()!.progressBadge) }}
-                </textPath>
-              </text>
-            </g>
-
-            <!-- BOTTOM arc (ПОВЕДІНКА): 75° centered on 90° -->
-            @if (patient()!.difficulty != null) {
-              <g class="arc-group"
-                 [class.active]="activeSector() === 'behavior'"
-                 (mouseenter)="activeSector.set('behavior')"
-                 (click)="toggleSector('behavior')">
-                <path class="arc-trace-bg"
-                      d="M 190.7 195.3 A 75 75 0 0 1 89.3 195.3" />
-                <path class="arc-fill"
-                      d="M 190.7 195.3 A 75 75 0 0 1 89.3 195.3" />
-                <text class="arc-curved-label" text-anchor="middle">
-                  <textPath href="#arc-bottom-text" startOffset="50%">
-                    ПОВЕДІНКА · {{ patient()!.difficulty }}/5
-                  </textPath>
-                </text>
-              </g>
-            }
-
-            <!-- LEFT arc (ТЯЖКІСТЬ): 75° centered on 180° -->
-            @if (patient()!.complexity != null) {
-              <g class="arc-group"
-                 [class.active]="activeSector() === 'severity'"
-                 (mouseenter)="activeSector.set('severity')"
-                 (click)="toggleSector('severity')">
-                <path class="arc-trace-bg"
-                      d="M 84.7 190.7 A 75 75 0 0 1 84.7 89.3" />
-                <path class="arc-fill"
-                      d="M 84.7 190.7 A 75 75 0 0 1 84.7 89.3" />
-                <text class="arc-curved-label" text-anchor="middle">
-                  <textPath href="#arc-left-text" startOffset="50%">
-                    ТЯЖКІСТЬ · {{ patient()!.complexity }}/5
-                  </textPath>
-                </text>
-              </g>
-            }
-          </svg>
-
-          <!-- Avatar dead-center over the orbit. Pointer-events:none on
-               the SVG was the original plan, but we want arcs hoverable;
-               so the avatar gets pointer-events:none instead so cursor
-               can pass through to whatever arc is behind it. -->
+        <!-- Rectangular portrait. object-fit:cover with object-position
+             top so DiceBear avatars (heads near top of viewBox) don't
+             get cropped at the face. -->
+        <div class="hero-photo">
           @if (patient()!.avatarUrl) {
-            <img class="orbit-avatar" [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
+            <img [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
           } @else {
-            <div class="orbit-avatar fallback">{{ patient()!.displayName.charAt(0) }}</div>
+            <div class="hero-photo-fallback">{{ patient()!.displayName.charAt(0) }}</div>
           }
         </div>
 
-        <!-- Identity block: top-right of the hero on desktop, right-
-             aligned text, actions sit below the diagnosis. Falls back
-             to centered-below-orbit on mobile. -->
         <div class="hero-info">
           <h1 class="hero-title">{{ patient()!.displayName }}</h1>
           @if (patient()!.diagnosis) {
@@ -213,7 +104,58 @@ const SPOILER_PATTERNS: RegExp[] = [
           </div>
         </div>
 
-        <!-- Detail panel below — same content/logic as before. -->
+        <!-- Vertical stack of vital rows, anchored to the right of the
+             photo. Each row is a button so it's keyboard-focusable; on
+             hover/click it lights up + drives the detail panel below. -->
+        <aside class="vitals-stack fx-stagger">
+          <button type="button"
+                  class="vital-row"
+                  [class.active]="activeSector() === 'sessions'"
+                  (mouseenter)="activeSector.set('sessions')"
+                  (click)="toggleSector('sessions')">
+            <span class="vital-label">СЕСІЇ</span>
+            <span class="vital-value">{{ patient()!.sessionCount }}</span>
+            <span class="vital-meta">{{ patient()!.completedCount }} завершено</span>
+          </button>
+
+          <button type="button"
+                  class="vital-row"
+                  [class.active]="activeSector() === 'state'"
+                  [class.vital-warn]="patient()!.progressBadge === 'worsening'"
+                  (mouseenter)="activeSector.set('state')"
+                  (click)="toggleSector('state')">
+            <span class="vital-label">СТАН</span>
+            <span class="vital-value">{{ stateGlyph(patient()!.progressBadge) }}</span>
+            <span class="vital-meta">{{ badgeText(patient()!.progressBadge) }}</span>
+          </button>
+
+          @if (patient()!.difficulty != null) {
+            <button type="button"
+                    class="vital-row"
+                    [class.active]="activeSector() === 'behavior'"
+                    (mouseenter)="activeSector.set('behavior')"
+                    (click)="toggleSector('behavior')">
+              <span class="vital-label">ПОВЕДІНКА</span>
+              <span class="vital-value">{{ patient()!.difficulty }}<small>/5</small></span>
+              <span class="vital-meta">{{ stars(patient()!.difficulty!) }}</span>
+            </button>
+          }
+
+          @if (patient()!.complexity != null) {
+            <button type="button"
+                    class="vital-row"
+                    [class.active]="activeSector() === 'severity'"
+                    (mouseenter)="activeSector.set('severity')"
+                    (click)="toggleSector('severity')">
+              <span class="vital-label">ТЯЖКІСТЬ</span>
+              <span class="vital-value">{{ patient()!.complexity }}<small>/5</small></span>
+              <span class="vital-meta">{{ dots(patient()!.complexity!) }}</span>
+            </button>
+          }
+        </aside>
+
+        <!-- Detail panel below — placement at the bottom of the hero
+             grid (spans full width). -->
         @if (sectorDetail(); as d) {
           <article class="sector-detail">
             <header class="sector-detail-head">
@@ -231,7 +173,7 @@ const SPOILER_PATTERNS: RegExp[] = [
           </article>
         } @else {
           <div class="sector-detail empty">
-            <span>Наведи курсор на одну з арок навколо фото — побачиш деталі. На мобайлі — тапни.</span>
+            <span>Наведи на показник справа — побачиш деталі.</span>
           </div>
         }
       </section>
@@ -611,16 +553,45 @@ const SPOILER_PATTERNS: RegExp[] = [
 
     .hero {
       position: relative;
-      padding: 32px 32px 28px;
+      padding: 28px;
       margin: 16px -20px 28px;
       border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: 220px 1fr 220px;
       grid-template-rows: auto auto;
-      gap: 24px 36px;
+      gap: 22px 28px;
       align-items: start;
+    }
+    /* Photo (column 1) spans both rows so it forms the visual anchor. */
+    .hero-photo {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      width: 100%;
+      height: 300px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--user-bg);
+      position: relative;
+    }
+    .hero-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top; /* keep faces, crop chin/torso */
+      display: block;
+    }
+    .hero-photo-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 72px;
+      font-weight: 300;
+      color: var(--accent);
     }
 
     /* ─── Vital orbit (4 SVG arcs around the avatar) ─── */
@@ -768,33 +739,97 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--accent);
     }
 
-    /* Identity block: top-right of the hero grid on desktop. Text
-       is right-aligned, with eyebrow / display title / diagnosis /
-       actions stacked vertically. On narrow viewports drops to a
-       centered column below the orbit (handled by media query). */
+    /* Identity block: middle column of the hero grid. Stacks display
+       title + diagnosis caption + actions, top-aligned. */
     .hero-info {
       grid-column: 2;
       grid-row: 1;
       align-self: start;
-      justify-self: end;
-      text-align: right;
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
       gap: 10px;
-      padding-top: 16px;
-      max-width: 100%;
+      min-width: 0;
     }
-    .orbit-wrap {
+    /* Vital stack: right column of the hero grid, vertical column of
+       data rows. Each row is a button (keyboard-focusable, hoverable). */
+    .vitals-stack {
+      grid-column: 3;
+      grid-row: 1 / span 2;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-self: stretch;
+    }
+    .vital-row {
+      appearance: none;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+      column-gap: 10px;
+      align-items: baseline;
+      text-align: left;
+      color: var(--fg);
+      min-height: auto;
+      transition: background .15s ease, border-color .15s ease, transform .15s ease,
+                  box-shadow .2s ease;
+    }
+    .vital-row .vital-label {
       grid-column: 1;
       grid-row: 1;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .vital-row .vital-value {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      font-size: 28px;
+      font-weight: 300;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      color: var(--fg);
+      align-self: center;
+    }
+    .vital-row .vital-value small {
+      font-size: 13px;
+      color: var(--fg-dim);
+      margin-left: 1px;
+    }
+    .vital-row .vital-meta {
+      grid-column: 1;
+      grid-row: 2;
+      font-size: 11px;
+      color: var(--fg-dim);
+      letter-spacing: 0.02em;
+    }
+    .vital-row:hover, .vital-row.active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, var(--assistant-bg));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent),
+                  0 4px 18px -8px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .vital-row.active .vital-value { color: var(--accent); }
+    .vital-row.vital-warn .vital-value { color: var(--danger); }
+    .vital-row.vital-warn:hover, .vital-row.vital-warn.active {
+      border-color: var(--danger);
+      background: color-mix(in srgb, var(--danger) 8%, var(--assistant-bg));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 25%, transparent),
+                  0 4px 18px -8px color-mix(in srgb, var(--danger) 35%, transparent);
     }
     .sector-detail, .sector-detail.empty {
       grid-column: 1 / -1;
       grid-row: 2;
     }
-    /* Legacy .hero-content class kept for safety in case any descendant
-       template still uses it — visually it's still a centered column. */
+    /* Legacy .hero-content / .orbit-wrap classes kept for safety in
+       case any descendant template still references them. */
     .hero-content {
       text-align: center;
       display: flex;
@@ -802,6 +837,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       align-items: center;
       gap: 10px;
     }
+    .orbit-wrap { display: none; }
 
     /* Sector detail row — fixed min-height so the layout doesn't jump
        between idle and hovered states. */
@@ -1031,42 +1067,64 @@ const SPOILER_PATTERNS: RegExp[] = [
       letter-spacing: 0.02em;
     }
 
-    @media (max-width: 900px) {
-      .hero { padding: 24px 20px 22px; gap: 18px 24px; }
-    }
-    /* Tablet & phone: stack orbit on top, identity block below
-       centered. Detail panel sits at the bottom as before. */
-    @media (max-width: 720px) {
+    @media (max-width: 1000px) {
       .hero {
-        grid-template-columns: 1fr;
-        padding: 24px 18px 20px;
-        margin: 12px -16px 20px;
+        grid-template-columns: 180px 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 18px 22px;
+        padding: 22px 20px;
       }
-      .orbit-wrap {
+      .hero-photo {
         grid-column: 1;
-        grid-row: 1;
-        justify-self: center;
+        grid-row: 1 / span 2;
+        height: 260px;
       }
       .hero-info {
-        grid-column: 1;
+        grid-column: 2;
+        grid-row: 1;
+      }
+      .vitals-stack {
+        grid-column: 2;
         grid-row: 2;
-        justify-self: center;
-        align-items: center;
-        text-align: center;
-        padding-top: 0;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .vital-row {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 140px;
       }
       .sector-detail, .sector-detail.empty {
         grid-row: 3;
       }
     }
+    /* Phones: photo on top, identity below, vitals as 2x2 grid, detail
+       at the very bottom. */
     @media (max-width: 540px) {
-      .orbit-wrap {
-        width: 240px;
-        height: 240px;
-        transform: scale(0.86);
+      .hero {
+        grid-template-columns: 1fr;
+        padding: 18px 16px 18px;
+        margin: 12px -16px 20px;
       }
-      .orbit-avatar { width: 84px; height: 84px; }
-      .arc-group:hover { transform: none; }
+      .hero-photo {
+        grid-column: 1;
+        grid-row: 1;
+        height: 240px;
+      }
+      .hero-info {
+        grid-column: 1;
+        grid-row: 2;
+      }
+      .vitals-stack {
+        grid-column: 1;
+        grid-row: 3;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .vital-row { min-width: 0; }
+      .sector-detail, .sector-detail.empty {
+        grid-row: 4;
+      }
     }
 
     /* ═══════════════════ PANELS ═══════════════════ */
