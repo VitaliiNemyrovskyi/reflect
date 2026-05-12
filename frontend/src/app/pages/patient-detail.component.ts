@@ -566,23 +566,23 @@ const SPOILER_PATTERNS: RegExp[] = [
       gap: 22px 28px;
       align-items: start;
     }
-    /* Accent backplate — sits behind the photo, slightly larger, with
-       a clipped diagonal corner at top-right. Synapse-style frame.
-       Colour follows the theme accent, opacity tuned so a coloured
-       border (~6-8px) is visible around the photo edges.
-       The whole thing also has a soft outer accent glow.
-       Notched corner is identical on the frame AND the photo so the
-       cut reads cleanly even when both layers are visible. */
+    /* Accent backplate — Synapse-style frame behind the photo, with
+       a clipped diagonal corner at top-right and an ANIMATED conic
+       gradient that rotates slowly through the accent colour. Read
+       it as a "spotlight" sweeping around the frame.
+       Colour follows the active theme accent automatically. */
+    @property --frame-angle {
+      syntax: "<angle>";
+      initial-value: 0deg;
+      inherits: false;
+    }
     .photo-frame {
       grid-column: 1;
       grid-row: 1;
       width: 100%;
       padding: 8px;
-      background: color-mix(in srgb, var(--accent) 78%, var(--bg));
       border-radius: 14px;
-      box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
-        0 12px 48px -16px color-mix(in srgb, var(--accent) 60%, transparent);
+      position: relative;
       clip-path: polygon(
         0 0,
         calc(100% - 28px) 0,
@@ -591,6 +591,35 @@ const SPOILER_PATTERNS: RegExp[] = [
         0 100%
       );
       isolation: isolate;
+      /* Base layer: solid muted accent so there's always something
+         visible behind the spotlight even at low-opacity stops. */
+      background: color-mix(in srgb, var(--accent) 32%, var(--bg));
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+        0 14px 56px -18px color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+    /* Conic-gradient spotlight layer — rotates via @property animation.
+       The bright accent peaks alternate with darker mid-tone, so as it
+       turns it looks like a soft light traveling around the frame. */
+    .photo-frame::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: conic-gradient(
+        from var(--frame-angle),
+        color-mix(in srgb, var(--accent) 95%, transparent) 0deg,
+        color-mix(in srgb, var(--accent) 35%, var(--bg)) 90deg,
+        color-mix(in srgb, var(--accent) 80%, transparent) 180deg,
+        color-mix(in srgb, var(--accent) 40%, var(--bg)) 270deg,
+        color-mix(in srgb, var(--accent) 95%, transparent) 360deg
+      );
+      @media (prefers-reduced-motion: no-preference) {
+        animation: frame-rotate 8s linear infinite;
+      }
+    }
+    @keyframes frame-rotate {
+      to { --frame-angle: 360deg; }
     }
     /* Photo lives inside the frame. Same row as identity + vitals,
        so the hero "head" is one tidy band. Detail panel sits in row 2
