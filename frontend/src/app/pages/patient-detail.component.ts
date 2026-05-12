@@ -1682,28 +1682,16 @@ const SPOILER_PATTERNS: RegExp[] = [
       padding: 6px 2px;
     }
     .tabs::-webkit-scrollbar { display: none; }
+    /* Two-pseudo trick: ::before is the OUTER notched shape carrying
+       the gradient (the visible "border"). ::after is a 1px-smaller
+       notched shape filled with the inner background, sitting on
+       top of ::before, hiding all but the outer 1px ring — including
+       along the diagonal cut where background-clip:border-box failed
+       to leave a visible gradient line. */
     .tabs button {
-      /* Conic-gradient border driven by the inherited --frame-angle
-         (animated globally on body). All four sides + the diagonal
-         cut get visible border because the gradient is radial-symmetric
-         around the centre — no "dim corner" issue. clip-path cuts the
-         top-right notch; padding-box vs border-box clipping keeps the
-         border ring 1px wide all the way around (including along the
-         diagonal). */
-      border: 1px solid transparent;
-      background:
-        radial-gradient(ellipse 100% 200% at 50% 100%,
-          color-mix(in srgb, var(--accent) 6%, transparent) 0%,
-          transparent 70%) padding-box,
-        linear-gradient(var(--assistant-bg), var(--assistant-bg)) padding-box,
-        conic-gradient(
-          from var(--frame-angle),
-          color-mix(in srgb, var(--accent) 60%, var(--border)) 0deg,
-          color-mix(in srgb, var(--accent) 25%, var(--border)) 90deg,
-          color-mix(in srgb, var(--accent) 55%, var(--border)) 180deg,
-          color-mix(in srgb, var(--accent) 25%, var(--border)) 270deg,
-          color-mix(in srgb, var(--accent) 60%, var(--border)) 360deg
-        ) border-box;
+      position: relative;
+      border: none;
+      background: transparent;
       color: var(--fg-dim);
       padding: 12px 22px;
       font-size: 13px;
@@ -1715,7 +1703,23 @@ const SPOILER_PATTERNS: RegExp[] = [
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      border-radius: 10px;
+      transition: color .15s ease, filter .2s ease, transform .12s ease;
+      isolation: isolate;
+    }
+    .tabs button::before {
+      /* Outer notched shape — paints the gradient that becomes the border. */
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background: conic-gradient(
+        from var(--frame-angle),
+        color-mix(in srgb, var(--accent) 60%, var(--border)) 0deg,
+        color-mix(in srgb, var(--accent) 25%, var(--border)) 90deg,
+        color-mix(in srgb, var(--accent) 55%, var(--border)) 180deg,
+        color-mix(in srgb, var(--accent) 25%, var(--border)) 270deg,
+        color-mix(in srgb, var(--accent) 60%, var(--border)) 360deg
+      );
       clip-path: polygon(
         0 0,
         calc(100% - 14px) 0,
@@ -1723,28 +1727,54 @@ const SPOILER_PATTERNS: RegExp[] = [
         100% 100%,
         0 100%
       );
-      transition: color .15s ease, filter .2s ease, transform .12s ease;
+      border-radius: 10px;
+    }
+    .tabs button::after {
+      /* Inner notched shape — solid fill that covers ::before except
+         the outer 1px ring. Inset by 1px on the axis-aligned edges
+         AND the notch corner pulls in by 1px both x and y so the
+         diagonal cut also reveals 1px of gradient. */
+      content: '';
+      position: absolute;
+      inset: 1px;
+      z-index: -1;
+      background:
+        radial-gradient(ellipse 100% 200% at 50% 100%,
+          color-mix(in srgb, var(--accent) 6%, transparent) 0%,
+          transparent 70%),
+        var(--assistant-bg);
+      clip-path: polygon(
+        0 0,
+        calc(100% - 14px) 0,
+        100% 14px,
+        100% 100%,
+        0 100%
+      );
+      border-radius: 9px;
     }
     .tabs button:hover {
       color: var(--fg);
       filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 18%, transparent));
     }
-    .tabs button.active {
-      color: var(--accent);
+    .tabs button.active { color: var(--accent); }
+    .tabs button.active::before {
+      background: conic-gradient(
+        from var(--frame-angle),
+        color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
+        color-mix(in srgb, var(--accent) 55%, transparent) 90deg,
+        color-mix(in srgb, var(--accent) 95%, transparent) 180deg,
+        color-mix(in srgb, var(--accent) 55%, transparent) 270deg,
+        color-mix(in srgb, var(--accent) 100%, transparent) 360deg
+      );
+    }
+    .tabs button.active::after {
       background:
         radial-gradient(ellipse 100% 200% at 50% 100%,
           color-mix(in srgb, var(--accent) 22%, transparent) 0%,
-          transparent 75%) padding-box,
-        linear-gradient(var(--user-bg), var(--user-bg)) padding-box,
-        conic-gradient(
-          from var(--frame-angle),
-          color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
-          color-mix(in srgb, var(--accent) 55%, transparent) 90deg,
-          color-mix(in srgb, var(--accent) 95%, transparent) 180deg,
-          color-mix(in srgb, var(--accent) 55%, transparent) 270deg,
-          color-mix(in srgb, var(--accent) 100%, transparent) 360deg
-        ) border-box;
-      /* drop-shadow can pass through clip-path (box-shadow can't). */
+          transparent 75%),
+        var(--user-bg);
+    }
+    .tabs button.active {
       filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 40%, transparent));
     }
     .tab-label { font-weight: 500; }
