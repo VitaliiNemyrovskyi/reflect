@@ -861,7 +861,13 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .vital-row {
       appearance: none;
-      background: var(--assistant-bg);
+      /* Subtle accent radial in the top-right corner so each row
+         feels lit, not flat. Layered over the assistant-bg base. */
+      background:
+        radial-gradient(ellipse 60% 100% at 100% 0%,
+          color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+          transparent 60%),
+        var(--assistant-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px 14px;
@@ -911,7 +917,13 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .vital-row:hover, .vital-row.active {
       border-color: var(--accent);
-      background: color-mix(in srgb, var(--accent) 8%, var(--assistant-bg));
+      /* Hover/active: stronger radial that fills more of the row,
+         layered over a slightly tinted base. */
+      background:
+        radial-gradient(ellipse 80% 120% at 100% 0%,
+          color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+          transparent 70%),
+        color-mix(in srgb, var(--accent) 8%, var(--assistant-bg));
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent),
                   0 4px 18px -8px color-mix(in srgb, var(--accent) 35%, transparent);
     }
@@ -919,7 +931,11 @@ const SPOILER_PATTERNS: RegExp[] = [
     .vital-row.vital-warn .vital-value { color: var(--danger); }
     .vital-row.vital-warn:hover, .vital-row.vital-warn.active {
       border-color: var(--danger);
-      background: color-mix(in srgb, var(--danger) 8%, var(--assistant-bg));
+      background:
+        radial-gradient(ellipse 80% 120% at 100% 0%,
+          color-mix(in srgb, var(--danger) 22%, transparent) 0%,
+          transparent 70%),
+        color-mix(in srgb, var(--danger) 8%, var(--assistant-bg));
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 25%, transparent),
                   0 4px 18px -8px color-mix(in srgb, var(--danger) 35%, transparent);
     }
@@ -939,12 +955,21 @@ const SPOILER_PATTERNS: RegExp[] = [
     .orbit-wrap { display: none; }
 
     /* Sector detail row — fixed min-height so the layout doesn't jump
-       between idle and hovered states. */
+       between idle and hovered states. Background is a horizontal
+       wash: brighter accent on the left side, fading to the assistant
+       bg on the right — gives the panel a "lit from the side" feel. */
     .sector-detail {
       align-self: stretch;
       margin-top: 4px;
       padding: 16px 20px;
-      background: color-mix(in srgb, var(--accent) 5%, var(--assistant-bg));
+      background:
+        radial-gradient(ellipse 50% 200% at 0% 50%,
+          color-mix(in srgb, var(--accent) 20%, transparent) 0%,
+          transparent 70%),
+        radial-gradient(ellipse 30% 100% at 100% 100%,
+          color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+          transparent 70%),
+        color-mix(in srgb, var(--accent) 5%, var(--assistant-bg));
       border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
       border-radius: 10px;
       min-height: 96px;
