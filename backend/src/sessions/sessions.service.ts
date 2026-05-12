@@ -173,13 +173,36 @@ export class SessionsService {
       })
       .join('\n\n');
 
-    const systemPrompt = this.prompts.fill(this.prompts.hintSystem, {
-      PROFILE: session.character.profileText,
-      TRANSCRIPT: transcript,
-    });
+    // Multi-block cache: hint_system + PROFILE is stable across the whole
+    // session (and across many sessions for the same character), so cache
+    // it; TRANSCRIPT grows each turn and must stay uncached.
+    const tpl = this.prompts.hintSystem;
+    const transcriptIdx = tpl.indexOf('{{TRANSCRIPT}}');
+    const systemBlocks = transcriptIdx >= 0
+      ? [
+          {
+            text: tpl
+              .substring(0, transcriptIdx)
+              .replaceAll('{{PROFILE}}', session.character.profileText),
+            cache: true,
+          },
+          {
+            text: tpl
+              .substring(transcriptIdx)
+              .replaceAll('{{TRANSCRIPT}}', transcript),
+          },
+        ]
+      : [
+          {
+            text: this.prompts.fill(tpl, {
+              PROFILE: session.character.profileText,
+              TRANSCRIPT: transcript,
+            }),
+          },
+        ];
 
     const raw = await this.llm.chat({
-      systemPrompt,
+      systemBlocks,
       history: [
         {
           role: 'user',
@@ -324,7 +347,7 @@ export class SessionsService {
     userId: number,
     sessionId: number,
   ): AsyncGenerator<
-    | { type: 'cached'; data: { feedback: string } }
+    | { type: 'cached'; data: { feedback: string; assessment: unknown } }
     | { type: 'chunk'; data: { text: string } }
     | { type: 'done'; data: { feedback: string; assessment: unknown } },
     void,
@@ -336,7 +359,11 @@ export class SessionsService {
     });
     if (!session || session.userId !== userId) throw new NotFoundException('session not found');
     if (session.endedAt && session.feedback) {
-      yield { type: 'cached', data: { feedback: session.feedback } };
+      // Replay both the markdown narrative AND the machine-readable
+      // assessment for cached/already-ended sessions so the competency
+      // rubric UI can render without a separate viewSession() fetch.
+      const assessment = session.feedbackJson ? safeParseJson(session.feedbackJson) : null;
+      yield { type: 'cached', data: { feedback: session.feedback, assessment } };
       return;
     }
 

@@ -34,6 +34,13 @@ interface SessionSummary {
   noteCount: number;
   assessment: AssessmentJson | null;
   feedbackPreview: string | null;
+  /** Supervisor-generated "what the patient remembers" narrative, in
+   *  the patient's first-person voice. Stored on Session.patientMemory
+   *  after feedback generation; used by chat to seed the patient's
+   *  memory of prior sessions, and now shown on the detail page so
+   *  the trainee can preview that carry-forward state before opening
+   *  a new session. */
+  patientMemory: string | null;
 }
 
 interface ProgressTrend {
@@ -201,6 +208,11 @@ export class CharactersController {
       noteCount: s._count.notes,
       assessment: this.parseAssessment(s.feedbackJson),
       feedbackPreview: s.feedback ? this.previewFeedback(s.feedback) : null,
+      // patientMemory is the supervisor-generated "what the patient
+      // remembers" first-person narrative — surfacing it on the detail
+      // page lets the trainee preview the carry-forward state before
+      // starting their next session with this patient.
+      patientMemory: s.patientMemory,
     }));
 
     // All notes across all sessions for this character + user

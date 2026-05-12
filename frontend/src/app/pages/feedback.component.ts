@@ -2,8 +2,49 @@ import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { marked } from 'marked';
-import { ApiService } from '../api.service';
+import { ApiService, AssessmentJson } from '../api.service';
 import { SessionStateService } from '../session-state.service';
+
+/**
+ * Therapist competency rubric. Each row maps a JSON key from the
+ * supervisor's machine-readable assessment to a human label + a short
+ * "what does this measure" tooltip. 0-6 scale (the supervisor prompt
+ * specifies it).
+ *
+ * Why expose this beyond the narrative: the markdown feedback tells
+ * you WHAT to improve; the rubric tells you HOW WELL you did across
+ * the standard dimensions. Trainees can scan the bars in 2 seconds
+ * and immediately see "I'm strong on empathy but weak on guided
+ * discovery" — that's the kind of cumulative learning signal that
+ * makes the simulator a real training tool.
+ */
+const THERAPIST_RUBRIC: Array<{
+  key: keyof NonNullable<AssessmentJson['therapist']>;
+  label: string;
+  hint: string;
+}> = [
+  { key: 'empathy', label: 'Емпатія', hint: 'Чи передаєш відчуття того, що тебе по-справжньому почули' },
+  { key: 'collaboration', label: 'Співпраця', hint: 'Чи рухаєшся з клієнтом разом, без диктату' },
+  { key: 'guidedDiscovery', label: 'Скеровані відкриття', hint: 'Чи допомагаєш клієнту самому дійти інсайтів через сократичні запитання' },
+  { key: 'strategyForChange', label: 'Стратегія змін', hint: 'Чи маєш чітку гіпотезу і план, як вести сесію' },
+];
+
+/** Patient state metrics — 1-10 scale, clinical readout (not therapist
+ *  performance). Shown separately so the trainee can distinguish
+ *  "my work was good but the client is in rough shape" from
+ *  "the client improved AND I did well". */
+const PATIENT_METRICS: Array<{
+  key: keyof NonNullable<AssessmentJson['patient']>;
+  label: string;
+  /** When true, HIGH score = bad (e.g. symptom severity 9 is concerning) */
+  highIsBad: boolean;
+}> = [
+  { key: 'symptomSeverity', label: 'Симптомна тяжкість', highIsBad: true },
+  { key: 'insight', label: 'Інсайт', highIsBad: false },
+  { key: 'alliance', label: 'Альянс', highIsBad: false },
+  { key: 'defensiveness', label: 'Захисність', highIsBad: true },
+  { key: 'hopefulness', label: 'Надія', highIsBad: false },
+];
 
 // Configure marked once at module load. We trust the supervisor LLM output
 // because (a) it's piped through Angular's [innerHTML] sanitizer downstream,
@@ -34,9 +75,69 @@ marked.setOptions({
     @if (waiting() && !feedback()) {
       <p class="hint">Готую фідбек…</p>
     } @else {
+      <!-- Competency rubric: machine-readable scores from the supervisor
+           assessment block, rendered as bars + numerical values. Renders
+           ONLY after we have the JSON (streaming end-of-call or cached).
+           Therapist competencies (0-6) live on top — that's the trainee
+           scorecard. Patient state (1-10) lives below for context. -->
+      @if (assessment(); as a) {
+        <section class="rubric" aria-label="Оцінка сесії">
+          @if (a.therapist) {
+            <div class="rubric-group">
+              <h3 class="rubric-title">Твоя робота</h3>
+              <p class="rubric-sub">Шкала 0–6 по чотирьох ключових компетенціях терапевта</p>
+              <dl class="rubric-bars">
+                @for (item of therapistRubric; track item.key) {
+                  @let s = scoreFor('therapist', item.key);
+                  <div class="rubric-row" [class.unmeasured]="s == null"
+                       [title]="item.hint">
+                    <dt class="rubric-label">{{ item.label }}</dt>
+                    <dd class="rubric-value">
+                      @if (s != null) { <strong>{{ s }}</strong><span>/6</span> }
+                      @else { <span class="dim">—</span> }
+                    </dd>
+                    <dd class="rubric-bar" aria-hidden="true">
+                      <span class="rubric-fill"
+                            [style.width.%]="s != null ? (s / 6) * 100 : 0"
+                            [class.weak]="s != null && s <= 2"
+                            [class.strong]="s != null && s >= 5"></span>
+                    </dd>
+                  </div>
+                }
+              </dl>
+            </div>
+          }
+          @if (a.patient) {
+            <div class="rubric-group">
+              <h3 class="rubric-title">Клінічний стан</h3>
+              <p class="rubric-sub">Шкала 1–10 — стан клієнта, а не оцінка твоєї роботи</p>
+              <dl class="rubric-bars">
+                @for (item of patientMetrics; track item.key) {
+                  @let s = scoreFor('patient', item.key);
+                  <div class="rubric-row" [class.unmeasured]="s == null">
+                    <dt class="rubric-label">{{ item.label }}</dt>
+                    <dd class="rubric-value">
+                      @if (s != null) { <strong>{{ s }}</strong><span>/10</span> }
+                      @else { <span class="dim">—</span> }
+                    </dd>
+                    <dd class="rubric-bar" aria-hidden="true">
+                      <span class="rubric-fill"
+                            [style.width.%]="s != null ? (s / 10) * 100 : 0"
+                            [class.weak]="s != null && item.highIsBad && s >= 7"
+                            [class.strong]="s != null && !item.highIsBad && s >= 7"></span>
+                    </dd>
+                  </div>
+                }
+              </dl>
+            </div>
+          }
+        </section>
+      }
+
       <article class="feedback prose"
                [class.streaming]="streaming()"
-               [innerHTML]="feedbackHtml()"></article>
+               [innerHTML]="feedbackHtml()"
+               (click)="onFeedbackClick($event)"></article>
     }
 
     <div class="actions">
@@ -47,6 +148,14 @@ marked.setOptions({
           Зберегти і повернутися
         }
       </button>
+      @if (feedback() && !streaming()) {
+        <button class="ghost"
+                type="button"
+                (click)="downloadMarkdown()"
+                title="Завантажити фідбек як markdown-файл для портфоліо чи супервізора-людини">
+          ↓ Markdown
+        </button>
+      }
     </div>
   `,
   styles: [`
@@ -81,6 +190,99 @@ marked.setOptions({
       0%, 100% { opacity: 0.35; transform: scale(0.85); }
       50% { opacity: 1; transform: scale(1); }
     }
+
+    /* Competency rubric — bars + numerical scores, two groups (your
+       therapy work, the patient's state). Sits above the markdown
+       narrative so the trainee gets the scorecard at a glance before
+       reading the prose. */
+    .rubric {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 760px) {
+      .rubric { grid-template-columns: 1fr; gap: 18px; }
+    }
+    .rubric-group {
+      padding: 22px 24px;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,
+          color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+          transparent 60%),
+        color-mix(in srgb, var(--accent) 4%, var(--assistant-bg));
+      border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+      border-radius: 14px;
+    }
+    .rubric-title {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .rubric-sub {
+      margin: 4px 0 18px;
+      font-size: 12px;
+      color: var(--fg-dim);
+      line-height: 1.4;
+    }
+    .rubric-bars {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .rubric-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "label value"
+        "bar bar";
+      column-gap: 14px;
+      row-gap: 4px;
+      align-items: baseline;
+    }
+    .rubric-row.unmeasured { opacity: 0.55; }
+    .rubric-label {
+      grid-area: label;
+      font-size: 13px;
+      color: var(--fg);
+      margin: 0;
+      cursor: help;
+    }
+    .rubric-value {
+      grid-area: value;
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+      font-size: 16px;
+      color: var(--fg-dim);
+      letter-spacing: -0.01em;
+    }
+    .rubric-value strong {
+      color: var(--fg);
+      font-weight: 400;
+      font-size: 22px;
+      margin-right: 2px;
+    }
+    .rubric-value .dim { color: var(--fg-dim); font-size: 18px; }
+    .rubric-bar {
+      grid-area: bar;
+      margin: 0;
+      height: 4px;
+      border-radius: 2px;
+      background: color-mix(in srgb, var(--accent) 6%, var(--border));
+      overflow: hidden;
+    }
+    .rubric-fill {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      transition: width .8s cubic-bezier(.65, 0, .35, 1);
+    }
+    .rubric-fill.weak   { background: var(--danger); }
+    .rubric-fill.strong { background: var(--success); }
 
     /* Feedback article gets the Synapse panel treatment — radial wash
        from the top, rotating gradient border via background-clip
@@ -218,23 +420,30 @@ marked.setOptions({
     .prose tbody tr:hover { background: rgba(255,255,255,0.02); }
 
     /* Line-reference badges. The supervisor must end every claim with
-       a [Lnumber] reference (see supervisor_system.md). We post-process
-       the rendered HTML to wrap these in span.line-ref for a clear
-       visual anchor — the student can quickly see "this critique is
-       grounded at line N". */
+       a [Lnumber] reference (see supervisor_system.md). Now rendered as
+       <a> anchors — clicking them routes to /session/:id/view#msg-<n>
+       where session-view scrolls + flashes the matching bubble. */
     .prose .line-ref {
       display: inline-block;
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
       padding: 1px 6px;
       margin: 0 1px;
-      background: rgba(216, 201, 255, 0.08);
-      border: 1px solid rgba(216, 201, 255, 0.25);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
       border-radius: 999px;
       color: var(--accent);
       vertical-align: 1px;
       white-space: nowrap;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, transform .1s ease;
     }
+    .prose .line-ref:hover {
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+    .prose .line-ref:active { transform: scale(0.95); }
 
     /* Status emojis used in the protocol-overview table — give them
        breathing room when they appear inline. */
@@ -312,11 +521,34 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   private sanitizer = inject(DomSanitizer);
 
   feedback = signal<string>('');
+  /** Machine-readable assessment block — drives the rubric UI above
+   *  the narrative. Null while feedback is streaming (we only get it
+   *  in the 'done' event); also null for legacy sessions saved before
+   *  feedbackJson was added. */
+  assessment = signal<AssessmentJson | null>(null);
   /** Initial wait before first chunk arrives. */
   waiting = signal(true);
   /** A stream is in flight (chunks may still arrive). */
   streaming = signal(false);
   error = signal<string | null>(null);
+  /** Cached session id from the URL — used to build citation links
+   *  that route to /session/:id/view#msg-<n> on click. */
+  private sessionId = signal<number | null>(null);
+
+  /** Static rubric definitions exposed to the template. */
+  readonly therapistRubric = THERAPIST_RUBRIC;
+  readonly patientMetrics = PATIENT_METRICS;
+
+  /** Returns the integer score (0-6 for therapist, 1-10 for patient)
+   *  or null. Type assertion via dynamic key access — TS can't narrow
+   *  a generic key off the union type, so this stays as `unknown`. */
+  scoreFor(group: 'therapist' | 'patient', key: string): number | null {
+    const a = this.assessment();
+    if (!a) return null;
+    const groupData = (a[group] ?? {}) as Record<string, number | null | undefined>;
+    const v = groupData[key];
+    return typeof v === 'number' ? v : null;
+  }
 
   /**
    * Markdown → HTML. Re-parses on every signal change; marked is fast
@@ -338,9 +570,34 @@ export class FeedbackComponent implements OnInit, OnDestroy {
     const text = this.feedback();
     if (!text) return '';
     const html = marked.parse(text, { async: false }) as string;
-    const withRefs = html.replace(/\[L(\d+)\]/g, '<span class="line-ref">[L$1]</span>');
+    // Each [L<n>] becomes an anchor whose href targets the session-view
+    // route + hash. We intercept the click below via onFeedbackClick to
+    // do an SPA navigation instead of a full reload; the href stays so
+    // middle-click / cmd-click "open in new tab" still works.
+    const sid = this.sessionId();
+    const withRefs = html.replace(/\[L(\d+)\]/g, (_m, n: string) => {
+      const href = sid != null ? `/session/${sid}/view#msg-${n}` : '#';
+      return `<a class="line-ref" href="${href}" data-line="${n}">[L${n}]</a>`;
+    });
     return this.sanitizer.bypassSecurityTrustHtml(withRefs);
   });
+
+  /**
+   * Intercept clicks on `.line-ref` anchors. Native navigation would
+   * trigger a full page load; we route via the SPA so the session-view
+   * component can pick up the #msg-<n> hash and scroll/flash. Cmd/Ctrl
+   * + click and middle-click fall through to the browser (open new tab).
+   */
+  onFeedbackClick(event: MouseEvent) {
+    const ref = (event.target as HTMLElement).closest<HTMLElement>('.line-ref');
+    if (!ref) return;
+    if (event.metaKey || event.ctrlKey || event.button === 1) return; // open-in-new-tab
+    const sid = this.sessionId();
+    const line = Number(ref.dataset['line']);
+    if (!sid || !line) return;
+    event.preventDefault();
+    void this.router.navigate(['/session', sid, 'view'], { fragment: `msg-${line}` });
+  }
 
   private abort = new AbortController();
 
@@ -351,6 +608,8 @@ export class FeedbackComponent implements OnInit, OnDestroy {
       this.waiting.set(false);
       return;
     }
+    // Cache for the feedbackHtml computed — drives [L<n>] anchor href.
+    this.sessionId.set(sessionId);
 
     this.streaming.set(true);
     let buffer = '';
@@ -360,8 +619,10 @@ export class FeedbackComponent implements OnInit, OnDestroy {
       for await (const event of this.api.endSessionStream(sessionId, this.abort.signal)) {
         switch (event.type) {
           case 'cached':
-            // Already-finalized session — render saved feedback in one go.
+            // Already-finalized session — render saved feedback + the
+            // machine-readable assessment so the rubric UI can render.
             this.feedback.set(event.data.feedback);
+            this.assessment.set(event.data.assessment ?? null);
             this.waiting.set(false);
             this.streaming.set(false);
             return;
@@ -379,8 +640,10 @@ export class FeedbackComponent implements OnInit, OnDestroy {
             break;
           case 'done':
             // Backend has post-processed (quote-audit + JSON split). Replace
-            // streamed buffer with the canonical narrative.
+            // streamed buffer with the canonical narrative + machine-readable
+            // assessment so the rubric UI populates.
             this.feedback.set(event.data.feedback);
+            this.assessment.set(event.data.assessment ?? null);
             this.streaming.set(false);
             return;
           case 'error':
@@ -409,6 +672,66 @@ export class FeedbackComponent implements OnInit, OnDestroy {
     if (this.streaming()) return;
     this.state.reset();
     void this.router.navigate(['/']);
+  }
+
+  /**
+   * Download the feedback as a single .md file — useful for trainees
+   * who keep portfolios for their human supervisor / coursework.
+   *
+   * Includes the narrative + a compact rubric table (if assessment
+   * data is available) so the export is self-contained. Filename
+   * embeds the session id and current date for easy filing.
+   */
+  downloadMarkdown() {
+    const sid = this.sessionId();
+    const date = new Date().toISOString().slice(0, 10);
+    const rubric = this.formatRubricMarkdown();
+    const body = [
+      `# Reflect — фідбек ${sid != null ? '(сесія #' + sid + ')' : ''}`,
+      `_Згенеровано ${date}_`,
+      '',
+      rubric,
+      this.feedback(),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reflect-feedback-${sid ?? 'session'}-${date}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Defer revoke a tick so Safari finishes the download trigger.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  /** Renders the assessment scores as a markdown table for the export. */
+  private formatRubricMarkdown(): string {
+    const a = this.assessment();
+    if (!a) return '';
+    const sections: string[] = [];
+    if (a.therapist) {
+      const rows = THERAPIST_RUBRIC.map((it) => {
+        const v = this.scoreFor('therapist', it.key);
+        return `| ${it.label} | ${v != null ? v + ' / 6' : '—'} |`;
+      }).join('\n');
+      sections.push(
+        ['## Твоя робота (компетенції)', '', '| Параметр | Оцінка |', '|---|---|', rows].join('\n'),
+      );
+    }
+    if (a.patient) {
+      const rows = PATIENT_METRICS.map((it) => {
+        const v = this.scoreFor('patient', it.key);
+        return `| ${it.label} | ${v != null ? v + ' / 10' : '—'} |`;
+      }).join('\n');
+      sections.push(
+        ['## Клінічний стан клієнта', '', '| Параметр | Оцінка |', '|---|---|', rows].join('\n'),
+      );
+    }
+    return sections.join('\n\n');
   }
 }
 

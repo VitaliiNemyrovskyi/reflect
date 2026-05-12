@@ -112,6 +112,10 @@ export interface SessionSummary {
   noteCount: number;
   assessment: AssessmentJson | null;
   feedbackPreview: string | null;
+  /** Patient's first-person memory of this session, surfaced on the
+   *  detail page so the trainee can see what carries forward into
+   *  the next session before opening it. */
+  patientMemory: string | null;
 }
 
 export interface ProgressTrendPoint {
@@ -181,7 +185,7 @@ export interface SessionView {
 }
 
 export type FeedbackStreamEvent =
-  | { type: 'cached'; data: { feedback: string } }
+  | { type: 'cached'; data: { feedback: string; assessment: AssessmentJson | null } }
   | { type: 'chunk'; data: { text: string } }
   | { type: 'done'; data: { feedback: string; assessment: AssessmentJson | null } }
   | { type: 'error'; data: { message: string } };

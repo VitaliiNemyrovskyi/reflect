@@ -120,6 +120,7 @@ interface SelectionAnchor {
             name="draft"
             [placeholder]="recognition.listening() ? 'Слухаю…' : 'Напишіть або натисніть мікрофон…'"
             [disabled]="sending()"
+            (ngModelChange)="saveDraft()"
             (keydown.meta.enter)="send()"
             (keydown.control.enter)="send()"></textarea>
           @if (prefs.hintsEnabled()) {
@@ -839,6 +840,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.startedAt = Date.now();
     this.tickHandle = window.setInterval(() => this.nowMs.set(Date.now()), 1000);
 
+    // Restore any draft the user had typed before they navigated away
+    // (browser crash, accidental back nav, refresh). Per-session key so
+    // drafts don't bleed between unrelated chats.
+    const restored = this.readDraft();
+    if (restored) this.draft = restored;
+
     const last = bubbles[bubbles.length - 1];
     if (last?.role === 'assistant' && !last.pending) {
       this.voice.speak(last.content);
@@ -848,6 +855,31 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     } catch {
       // noop on first session
     }
+  }
+
+  /** localStorage key — namespaced per-session so a draft in session A
+   *  doesn't pop up in session B. */
+  private draftKey(): string {
+    return `reflect:chat-draft:${this.sessionId}`;
+  }
+  private readDraft(): string {
+    try { return localStorage.getItem(this.draftKey()) ?? ''; } catch { return ''; }
+  }
+  /** Called on every keystroke from the textarea's (ngModelChange).
+   *  Writes synchronously — localStorage at <1KB is fast and the user
+   *  never has to wait. Empty drafts are removed to keep storage tidy. */
+  saveDraft() {
+    try {
+      const v = this.draft;
+      if (v && v.trim()) localStorage.setItem(this.draftKey(), v);
+      else localStorage.removeItem(this.draftKey());
+    } catch {
+      // Storage quota or private mode — silently degrade, user can still
+      // type normally; they just lose autosave for this session.
+    }
+  }
+  private clearDraft() {
+    try { localStorage.removeItem(this.draftKey()); } catch { /* noop */ }
   }
 
   ngAfterViewChecked() {
@@ -951,7 +983,29 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape() {
+    // Escape closes the topmost transient overlay: hints popover first
+    // (always above), then the mobile notes sheet. Two presses to clear
+    // both. Matches OS conventions — hit Esc, lose the most-recent thing.
+    if (this.hintsOpen()) {
+      this.hintsOpen.set(false);
+      return;
+    }
     if (this.notesOpen()) this.closeNotes();
+  }
+
+  /**
+   * Cmd+K (Mac) / Ctrl+K (Windows/Linux) — open the hint coach.
+   * Bound to the document so it works regardless of focus (inside the
+   * composer or anywhere else on the page).
+   */
+  @HostListener('document:keydown', ['$event'])
+  onGlobalKey(e: KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      // toggleHints is async — we don't await; the user gets immediate
+      // open feedback and the request resolves in the background.
+      void this.toggleHints();
+    }
   }
 
   @HostListener('document:selectionchange')
@@ -1036,6 +1090,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.recognition.stop();
     this.sending.set(true);
     this.draft = '';
+    this.clearDraft();
     this.state.push({ role: 'user', content: text });
     this.state.push({ role: 'assistant', content: '…', pending: true });
     this.shouldScroll = true;

@@ -231,12 +231,22 @@ export class CharactersService {
       throw new BadRequestException('displayName is required');
     }
     const briefText = formatBrief(brief);
-    const systemPrompt = this.prompts.fill(this.prompts.patientGenerationSystem, {
-      BRIEF: briefText,
-    });
+    // Multi-block cache: the patient_generation_system template is stable
+    // across all profile generations (it's the structural guide for how
+    // to write a patient profile). BRIEF is unique per request. Splitting
+    // at the {{BRIEF}} boundary lets repeated profile generations within
+    // the cache window share the ~stable template prefix.
+    const tpl = this.prompts.patientGenerationSystem;
+    const briefIdx = tpl.indexOf('{{BRIEF}}');
+    const systemBlocks = briefIdx >= 0
+      ? [
+          { text: tpl.substring(0, briefIdx), cache: true },
+          { text: tpl.substring(briefIdx).replaceAll('{{BRIEF}}', briefText) },
+        ]
+      : [{ text: this.prompts.fill(tpl, { BRIEF: briefText }) }];
 
     const raw = await this.llm.chat({
-      systemPrompt,
+      systemBlocks,
       history: [
         {
           role: 'user',

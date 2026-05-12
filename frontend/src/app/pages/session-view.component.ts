@@ -47,15 +47,20 @@ marked.setOptions({ gfm: true, breaks: true });
       </header>
 
       @if (feedbackOpen() && s.feedback) {
-        <article class="feedback-pane prose" [innerHTML]="feedbackHtml()"></article>
+        <article class="feedback-pane prose"
+                 [innerHTML]="feedbackHtml()"
+                 (click)="onFeedbackClick($event)"></article>
       }
 
       <section class="transcript">
-        @for (m of s.messages; track m.id) {
+        @for (m of s.messages; track m.id; let i = $index) {
           <div class="bubble"
+               [id]="'msg-' + (i + 1)"
                [class.user]="m.role === 'user'"
-               [class.assistant]="m.role === 'assistant'">
+               [class.assistant]="m.role === 'assistant'"
+               [class.flash]="flashedLine() === i + 1">
             <div class="bubble-meta">
+              <span class="line-no">[L{{ i + 1 }}]</span>
               <span class="role">
                 {{ m.role === 'user' ? 'Терапевт' : s.character.displayName }}
               </span>
@@ -151,6 +156,29 @@ marked.setOptions({ gfm: true, breaks: true });
     .prose h3 { font-size: 14px; }
     .prose p { margin: 0 0 10px; }
     .prose strong { color: var(--accent); }
+    /* Clickable citation badge — supervisor references like [L7].
+       On click, the parent article handler scrolls + flashes that
+       bubble in the transcript below. */
+    .prose .line-ref {
+      display: inline-block;
+      padding: 1px 6px;
+      margin: 0 1px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-variant-numeric: tabular-nums;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, transform .1s ease;
+    }
+    .prose .line-ref:hover {
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+    .prose .line-ref:active { transform: scale(0.95); }
     .prose ul, .prose ol { padding-left: 22px; margin: 6px 0 10px; }
     .prose li { margin: 4px 0; }
     .prose table {
@@ -223,6 +251,35 @@ marked.setOptions({ gfm: true, breaks: true });
       letter-spacing: .03em;
     }
     .bubble.user .role { color: var(--accent); }
+    /* Line number in the bubble meta — visual anchor that lets the
+       reader match supervisor's [L<n>] citation to the right bubble. */
+    .line-no {
+      font-variant-numeric: tabular-nums;
+      color: color-mix(in srgb, var(--accent) 60%, var(--fg-dim));
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+    /* Flash highlight applied for ~1.6s when a citation in the feedback
+       pane scrolls to this bubble — gives a clear "this is the moment
+       the supervisor is talking about" cue without being annoying. */
+    .bubble.flash {
+      animation: bubble-flash 1.6s ease-out;
+    }
+    @keyframes bubble-flash {
+      0%   {
+        outline: 2px solid color-mix(in srgb, var(--accent) 80%, transparent);
+        outline-offset: 4px;
+        box-shadow: 0 0 28px -4px color-mix(in srgb, var(--accent) 60%, transparent);
+      }
+      100% {
+        outline: 2px solid transparent;
+        outline-offset: 4px;
+        box-shadow: 0 0 28px -4px transparent;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bubble.flash { animation: none; outline: 2px solid var(--accent); outline-offset: 4px; }
+    }
     .bubble-text {
       white-space: pre-wrap;
       font-size: 14px;
@@ -287,15 +344,53 @@ export class SessionViewComponent implements OnInit {
   error = signal<string | null>(null);
   session = signal<SessionView | null>(null);
   feedbackOpen = signal(false);
+  /** Line number that's currently flashing (after click on [L<n>] ref).
+   *  Drives the .flash class on the matching .bubble — auto-clears 1.6s
+   *  later via setTimeout. null = nothing flashing. */
+  flashedLine = signal<number | null>(null);
 
-  /** Markdown → HTML for the feedback pane (toggled by user). */
+  /** Markdown → HTML for the feedback pane (toggled by user). The
+   *  [L<n>] post-process turns each citation into a clickable anchor
+   *  bound to #msg-<n>, which onFeedbackClick handles. */
   feedbackHtml = computed<SafeHtml>(() => {
     const fb = this.session()?.feedback;
     if (!fb) return '';
     const html = marked.parse(fb, { async: false }) as string;
-    const withRefs = html.replace(/\[L(\d+)\]/g, '<span class="line-ref">[L$1]</span>');
+    const withRefs = html.replace(
+      /\[L(\d+)\]/g,
+      (_m, n: string) =>
+        `<a class="line-ref" href="#msg-${n}" data-line="${n}">[L${n}]</a>`,
+    );
     return this.sanitizer.bypassSecurityTrustHtml(withRefs);
   });
+
+  /**
+   * Intercept clicks on `.line-ref` anchors inside the feedback pane.
+   * Native href navigation would jam a hash into the URL and trigger
+   * a default jump (no smooth scroll, no flash). We hijack: scroll
+   * the matching .bubble into view smoothly and flash it for 1.6s.
+   */
+  onFeedbackClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    const ref = target.closest<HTMLElement>('.line-ref');
+    if (!ref) return;
+    event.preventDefault();
+    const line = Number(ref.dataset['line']);
+    if (!line) return;
+    this.scrollToLine(line);
+  }
+
+  private scrollToLine(line: number) {
+    const el = document.getElementById(`msg-${line}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    this.flashedLine.set(line);
+    // Clear the flash class after the animation completes so a second
+    // click on the same line re-triggers the highlight.
+    setTimeout(() => {
+      if (this.flashedLine() === line) this.flashedLine.set(null);
+    }, 1600);
+  }
 
   /** Duration in minutes (rounded). null if session not ended. */
   durationMin = computed<number | null>(() => {
@@ -329,6 +424,13 @@ export class SessionViewComponent implements OnInit {
     try {
       const s = await this.api.viewSession(id);
       this.session.set(s);
+      // If we landed here from a feedback citation like /session/X/view#msg-7,
+      // wait one frame for the bubble DOM to mount, then scroll + flash.
+      const hash = location.hash.match(/^#msg-(\d+)$/);
+      if (hash) {
+        const line = Number(hash[1]);
+        requestAnimationFrame(() => requestAnimationFrame(() => this.scrollToLine(line)));
+      }
     } catch (e: unknown) {
       const httpErr = e as { status?: number; error?: { message?: string }; message?: string };
       const msg =

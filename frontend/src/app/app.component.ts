@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterLink, RouterOutlet } from '@angular/router';
 import { ThemeService } from './theme.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, RouterLink],
   template: `
     <!-- Ambient "blob" layer: a few fixed, blurred accent orbs that
          drift slowly behind everything. Each one has its own size,
@@ -20,6 +20,18 @@ import { ThemeService } from './theme.service';
     </div>
     <main class="shell">
       <router-outlet />
+      <!-- Global footer: subtle disclaimer + link to /safety. Lives at
+           the bottom of every page (router-outlet content above stacks
+           on top of it inside the flex column shell). The disclaimer
+           text is short and quiet — visible but never competing with
+           the page content. -->
+      <footer class="app-footer">
+        <p>
+          Reflect — навчальний тренажер з AI-пацієнтами. Це
+          <strong>не</strong> справжня терапія.
+          <a routerLink="/safety">Безпека та кризові ресурси →</a>
+        </p>
+      </footer>
     </main>
   `,
   styles: [`
@@ -33,6 +45,28 @@ import { ThemeService } from './theme.service';
       position: relative;
       z-index: 1;
     }
+
+    /* Subtle global footer with the disclaimer + crisis-resources link.
+       margin-top:auto pushes it to the bottom of the flex shell so the
+       page content fills the space above and the footer always sits
+       at the bottom of the viewport (or below content if the page is
+       long). Quiet styling so it doesn't compete with content. */
+    .app-footer {
+      margin-top: auto;
+      padding: 24px 0 0;
+      border-top: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+      font-size: 12px;
+      color: var(--fg-dim);
+      line-height: 1.5;
+    }
+    .app-footer p { margin: 16px 0 0; }
+    .app-footer strong { color: var(--fg); font-weight: 500; }
+    .app-footer a {
+      color: var(--accent);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .app-footer a:hover { text-decoration: underline; }
 
     .ambient-blobs {
       position: fixed;

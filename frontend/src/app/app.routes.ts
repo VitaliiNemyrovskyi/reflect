@@ -90,5 +90,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/admin.component').then((m) => m.AdminComponent),
   },
+  {
+    // Public — anyone (signed in or out) should be able to read this.
+    // It's the disclaimer + crisis resources page.
+    path: 'safety',
+    loadComponent: () =>
+      import('./pages/safety.component').then((m) => m.SafetyComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

@@ -67,15 +67,63 @@ import { LogoComponent } from '../logo.component';
       }
     </header>
 
+    <!-- Quick stats strip — only renders when there's at least one
+         logged session anywhere. Three readouts side-by-side: total
+         sessions (sense of practice volume), active cases (how many
+         patients you've actually worked with), last session date
+         (have you slipped into a gap?). Computed on the frontend from
+         the same character data we already have — no extra API call. -->
+    @if (stats(); as st) {
+      <section class="stats-strip fx-fade-up">
+        <div class="stat-cell">
+          <span class="stat-label">Сесій усього</span>
+          <span class="stat-value">{{ st.totalSessions }}</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">Активних кейсів</span>
+          <span class="stat-value">{{ st.activeCases }}<small> / {{ characters().length }}</small></span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">Остання сесія</span>
+          <span class="stat-value">{{ st.lastSessionAgo }}</span>
+        </div>
+      </section>
+    }
+
     @if (loading()) {
       <div class="hint">Завантаження…</div>
     } @else if (error()) {
       <div class="hint danger">{{ error() }}</div>
     } @else if (characters().length === 0) {
-      <div class="hint">
-        Жодного пацієнта в картотеці. Додай профілі в <code>prompts/profiles/</code>
-        і перезапусти сервер.
-      </div>
+      <!-- Zero patients ever — show the "create your first" empty state.
+           The friendly copy + big primary CTA replaces the old technical
+           "edit prompts/profiles/" hint, which only made sense to devs. -->
+      <section class="empty-state synapse-panel">
+        <div class="empty-illustration" aria-hidden="true">⊙</div>
+        <h2>Поки що порожньо</h2>
+        <p>
+          Створи першого пацієнта — заповни короткий бриф, і AI допоможе
+          згенерувати повноцінний клінічний профіль. Далі — перша тренувальна
+          сесія в кілька кліків.
+        </p>
+        <a routerLink="/patient/new" class="primary">
+          + Створити пацієнтку
+        </a>
+      </section>
+    } @else if (filteredCharacters().length === 0) {
+      <!-- Has patients but the active filter excluded all of them. Offer
+           a one-click way to drop the filter rather than leaving the
+           user to figure out where the chips reset. -->
+      <section class="empty-state synapse-panel filtered">
+        <h2>Під цей фільтр ніхто не підпадає</h2>
+        <p>
+          За поточним фільтром «{{ stars(difficultyFilter()!) }}» ({{ difficultyFilter() }}/5)
+          у тебе немає жодного пацієнта.
+        </p>
+        <button class="primary" type="button" (click)="difficultyFilter.set(null)">
+          Скинути фільтр
+        </button>
+      </section>
     } @else {
       <ul class="patient-grid fx-stagger">
         @for (c of filteredCharacters(); track c.id) {
@@ -174,6 +222,85 @@ import { LogoComponent } from '../logo.component';
     .header { margin-bottom: 24px; position: relative; z-index: 1; }
     .brand-block { display: flex; flex-direction: column; gap: 6px; }
     .subtitle { color: var(--fg-dim); margin: 0; font-size: 14px; }
+
+    /* Aggregate stats strip — quiet, monospaced numeric readouts.
+       Three equal-width cells with an accent-tinted divider between.
+       Sits above the patient grid as a "sense of progress" anchor. */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      margin-bottom: 22px;
+      padding: 14px 22px;
+      background: color-mix(in srgb, var(--accent) 4%, var(--assistant-bg));
+      border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+      border-radius: 12px;
+    }
+    .stat-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 0 12px;
+      border-left: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
+    }
+    .stat-cell:first-child { border-left: none; padding-left: 0; }
+    .stat-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+      font-weight: 500;
+    }
+    .stat-value {
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: -0.01em;
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .stat-value small {
+      font-size: 13px;
+      color: var(--fg-dim);
+      margin-left: 1px;
+    }
+    @media (max-width: 540px) {
+      .stats-strip { padding: 12px 16px; }
+      .stat-cell { padding: 0 8px; }
+      .stat-value { font-size: 18px; }
+    }
+
+    /* Empty-state panel — full-width Synapse card with a centred CTA.
+       Two flavours: blank "first run" (cosmic circle illustration +
+       create button) and "filter has zero results" (reset button). */
+    .empty-state {
+      padding: 48px 32px;
+      text-align: center;
+      max-width: 540px;
+      margin: 40px auto;
+    }
+    .empty-illustration {
+      font-size: 64px;
+      line-height: 1;
+      color: color-mix(in srgb, var(--accent) 70%, transparent);
+      margin-bottom: 12px;
+      filter: drop-shadow(0 0 20px color-mix(in srgb, var(--accent) 35%, transparent));
+    }
+    .empty-state h2 {
+      font-size: 20px;
+      font-weight: 400;
+      margin: 0 0 10px;
+    }
+    .empty-state p {
+      color: var(--fg-dim);
+      margin: 0 0 22px;
+      line-height: 1.55;
+    }
+    .empty-state .primary {
+      display: inline-block;
+      text-decoration: none;
+      padding: 12px 26px;
+    }
     .title-row {
       display: flex;
       justify-content: space-between;
@@ -499,6 +626,58 @@ export class CharactersListComponent implements OnInit {
     if (filter === null) return this.characters();
     return this.characters().filter((c) => c.difficulty === filter);
   });
+
+  /**
+   * Aggregate quick-stats for the strip above the list. Returns null
+   * when there's nothing to show (no sessions logged anywhere yet) so
+   * the template can skip the whole panel.
+   *
+   * Three readouts:
+   *   • totalSessions   — sum of c.sessionCount across all patients,
+   *                       a sense of practice volume.
+   *   • activeCases     — how many patients you've actually worked
+   *                       with (sessionCount > 0). The ratio against
+   *                       total patients hints at content underuse.
+   *   • lastSessionAgo  — human-readable "x days ago" for the latest
+   *                       lastSessionAt, so you can sense if you've
+   *                       slipped into a gap (Reflect is a habit tool).
+   */
+  stats = computed<{
+    totalSessions: number;
+    activeCases: number;
+    lastSessionAgo: string;
+  } | null>(() => {
+    const all = this.characters();
+    if (all.length === 0) return null;
+    const totalSessions = all.reduce((s, c) => s + (c.sessionCount ?? 0), 0);
+    if (totalSessions === 0) return null;
+    const activeCases = all.filter((c) => (c.sessionCount ?? 0) > 0).length;
+    const lastTs = all.reduce<number | null>((latest, c) => {
+      if (!c.lastSessionAt) return latest;
+      const t = new Date(c.lastSessionAt).getTime();
+      return latest == null || t > latest ? t : latest;
+    }, null);
+    return {
+      totalSessions,
+      activeCases,
+      lastSessionAgo: lastTs != null ? this.relativeTime(lastTs) : '—',
+    };
+  });
+
+  /** Returns a short "x хв/год/дн тому" label for a past timestamp.
+   *  Falls back to ISO date for very old timestamps (>30 days). */
+  private relativeTime(ts: number): string {
+    const ms = Date.now() - ts;
+    const min = Math.floor(ms / 60_000);
+    if (min < 1) return 'щойно';
+    if (min < 60) return `${min} хв тому`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} год тому`;
+    const day = Math.floor(hr / 24);
+    if (day === 1) return 'учора';
+    if (day < 30) return `${day} дн тому`;
+    return new Date(ts).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+  }
 
   logout() {
     void this.auth.logout();
