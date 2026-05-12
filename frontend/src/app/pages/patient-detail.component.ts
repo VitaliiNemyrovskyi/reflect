@@ -74,30 +74,24 @@ const SPOILER_PATTERNS: RegExp[] = [
                  <textPath>. Each pair of "top" / "bottom" variants picks
                  the right path direction so the label glyphs end up
                  right-side-up no matter which arc they're on. -->
-            <!-- Text-paths now live INSIDE the orbit between the avatar
-                 (r=50) and the visible arc inner edge (r=66). All sit
-                 at r=60, with sweep direction chosen per-arc so glyphs
-                 land toward the avatar (in the gap) AND read in their
-                 natural direction:
-                   - TOP path goes left→right, glyphs naturally above
-                     path = inside the arc stroke. Reads L→R.
-                   - RIGHT path goes top→bottom, glyphs to the right of
-                     path = toward arc outer. Reads top→bottom (vertical).
-                   - BOTTOM path REVERSED to go left→right through the
-                     bottom (sweep=0 → CCW through 6 o'clock). Reads L→R
-                     naturally, glyphs sit above the path = toward avatar.
-                   - LEFT path REVERSED to go top→bottom (sweep=0 → CCW
-                     through 9 o'clock). Reads top→bottom, glyphs to the
-                     right of path = toward avatar. -->
+            <!-- Text-paths sit AT r=75 — exactly on the visible arc
+                 centerline so labels render ON the colored stroke
+                 itself. dominant-baseline:middle on the <text> keeps
+                 glyphs vertically centered on the stroke (which is
+                 18px thick → r=66 inner to r=84 outer; glyph centers
+                 at r=75 land squarely in the middle).
+                 TOP and RIGHT use the same direction as the visible
+                 arcs (CW). BOTTOM and LEFT reverse to sweep=0 so
+                 walker direction aligns with natural reading. -->
             <defs>
               <path id="arc-top-text"
-                    d="M 103.5 92.4 A 60 60 0 0 1 176.5 92.4" />
+                    d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
               <path id="arc-right-text"
-                    d="M 187.6 103.5 A 60 60 0 0 1 187.6 176.5" />
+                    d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
               <path id="arc-bottom-text"
-                    d="M 103.5 187.6 A 60 60 0 0 0 176.5 187.6" />
+                    d="M 94.3 199.5 A 75 75 0 0 0 185.7 199.5" />
               <path id="arc-left-text"
-                    d="M 92.4 103.5 A 60 60 0 0 0 92.4 176.5" />
+                    d="M 80.5 94.3 A 75 75 0 0 0 80.5 185.7" />
             </defs>
 
             <!-- Background trace ring — soft dotted circle behind the
@@ -115,12 +109,12 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
               <text class="arc-curved-label">
                 <textPath href="#arc-top-text" startOffset="50%" text-anchor="middle">
-                  SESSIONS · {{ patient()!.sessionCount }}
+                  СЕСІЇ · {{ patient()!.sessionCount }}
                 </textPath>
               </text>
             </g>
 
-            <!-- RIGHT arc (STATE): 75° centered on 0° -->
+            <!-- RIGHT arc (СТАН): 75° centered on 0° -->
             <g class="arc-group"
                [class.active]="activeSector() === 'state'"
                [class.arc-warn]="patient()!.progressBadge === 'worsening'"
@@ -132,12 +126,12 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
               <text class="arc-curved-label">
                 <textPath href="#arc-right-text" startOffset="50%" text-anchor="middle">
-                  STATE · {{ stateGlyph(patient()!.progressBadge) }}
+                  СТАН · {{ stateGlyph(patient()!.progressBadge) }}
                 </textPath>
               </text>
             </g>
 
-            <!-- BOTTOM arc (BEHAVIOR): 75° centered on 90° -->
+            <!-- BOTTOM arc (ПОВЕДІНКА): 75° centered on 90° -->
             @if (patient()!.difficulty != null) {
               <g class="arc-group"
                  [class.active]="activeSector() === 'behavior'"
@@ -149,13 +143,13 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
                 <text class="arc-curved-label">
                   <textPath href="#arc-bottom-text" startOffset="50%" text-anchor="middle">
-                    BEHAVIOR · {{ patient()!.difficulty }}/5
+                    ПОВЕДІНКА · {{ patient()!.difficulty }}/5
                   </textPath>
                 </text>
               </g>
             }
 
-            <!-- LEFT arc (SEVERITY): 75° centered on 180° -->
+            <!-- LEFT arc (ТЯЖКІСТЬ): 75° centered on 180° -->
             @if (patient()!.complexity != null) {
               <g class="arc-group"
                  [class.active]="activeSector() === 'severity'"
@@ -167,7 +161,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
                 <text class="arc-curved-label">
                   <textPath href="#arc-left-text" startOffset="50%" text-anchor="middle">
-                    SEVERITY · {{ patient()!.complexity }}/5
+                    ТЯЖКІСТЬ · {{ patient()!.complexity }}/5
                   </textPath>
                 </text>
               </g>
@@ -697,17 +691,20 @@ const SPOILER_PATTERNS: RegExp[] = [
       fill: var(--fg-dim);
     }
     .arc-text-glyph { font-size: 22px; }
-    /* Curved label following the arc. Now sits at r=60 (between avatar
-       and arc inner edge), so we want tighter tracking and bolder
-       weight to read clearly inside that 16px gap. */
+    /* Curved label following the visible arc itself (r=75 on the
+       stroke centerline). dominant-baseline:middle vertically centers
+       glyphs on the 18px-wide stroke. Default state: light text on
+       the dim grey trace. Active state (arc filled with accent):
+       text flips to --accent-ink so it's dark on the bright fill. */
     .arc-curved-label {
       fill: var(--fg);
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       transition: fill .2s ease;
       pointer-events: none;
+      dominant-baseline: middle;
     }
     /* Hover / active: fill the arc, scale up, recolour text. */
     .arc-group:hover, .arc-group.active {
@@ -728,7 +725,10 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .arc-group:hover .arc-curved-label,
     .arc-group.active .arc-curved-label {
-      fill: var(--accent);
+      /* On the bright accent fill, the label needs to flip dark for
+         contrast — same dark colour the .primary button uses on its
+         accent background. */
+      fill: var(--accent-ink);
     }
     /* Worsening-state arc uses the danger palette instead. */
     .arc-group.arc-warn:hover .arc-fill,
@@ -737,10 +737,13 @@ const SPOILER_PATTERNS: RegExp[] = [
       filter: drop-shadow(0 0 8px color-mix(in srgb, var(--danger) 55%, transparent));
     }
     .arc-group.arc-warn:hover .arc-text,
-    .arc-group.arc-warn.active .arc-text,
+    .arc-group.arc-warn.active .arc-text {
+      fill: var(--danger);
+    }
     .arc-group.arc-warn:hover .arc-curved-label,
     .arc-group.arc-warn.active .arc-curved-label {
-      fill: var(--danger);
+      /* On danger-coloured fill, keep text white for contrast. */
+      fill: #fff;
     }
 
     /* Avatar sits dead-center inside the orbit (the 100px hole inside
@@ -751,10 +754,8 @@ const SPOILER_PATTERNS: RegExp[] = [
       position: absolute;
       top: 50%;
       left: 50%;
-      /* Shrunk from 116→96 so the inside-arc curved labels at r=60 have
-         visual breathing room around the avatar. */
-      width: 96px;
-      height: 96px;
+      width: 116px;
+      height: 116px;
       transform: translate(-50%, -50%);
       border-radius: 50%;
       object-fit: cover;
@@ -766,7 +767,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 38px;
+      font-size: 44px;
       font-weight: 300;
       color: var(--accent);
     }
