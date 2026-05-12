@@ -862,15 +862,17 @@ const SPOILER_PATTERNS: RegExp[] = [
     .vital-row {
       appearance: none;
       /* Three-layer background:
-         1. Subtle accent radial in top-right (the "lit corner")
+         1. Accent radial that travels around the row interior via
+            background-position animation (background-size:200% lets
+            the centre shift across viewport-percent space).
          2. Solid assistant-bg as fill — both clipped to padding-box,
-            so they only cover the inner area
+            so they only cover the inner area.
          3. Conic-gradient with the inherited --frame-angle in the
-            border-box — only the 1px ring shows it = gradient border */
+            border-box — only the 1px ring shows it = gradient border. */
       border: 1px solid transparent;
       background:
-        radial-gradient(ellipse 60% 100% at 100% 0%,
-          color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+        radial-gradient(ellipse 70% 110% at 50% 50%,
+          color-mix(in srgb, var(--accent) 14%, transparent) 0%,
           transparent 60%) padding-box,
         linear-gradient(var(--assistant-bg), var(--assistant-bg)) padding-box,
         conic-gradient(
@@ -881,6 +883,12 @@ const SPOILER_PATTERNS: RegExp[] = [
           color-mix(in srgb, var(--accent) 15%, transparent) 270deg,
           color-mix(in srgb, var(--accent) 90%, transparent) 360deg
         ) border-box;
+      background-size: 200% 200%, 100% 100%, 100% 100%;
+      background-position: 0% 0%, 0 0, 0 0;
+      background-repeat: no-repeat;
+      @media (prefers-reduced-motion: no-preference) {
+        animation: vital-glow 18s ease-in-out infinite;
+      }
       border-radius: 8px;
       padding: 12px 14px;
       cursor: pointer;
@@ -893,6 +901,14 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--fg);
       min-height: auto;
       transition: transform .15s ease, box-shadow .2s ease;
+    }
+    /* Position keyframes — only the first layer (the radial accent
+       glow) moves; layers 2 and 3 stay anchored to their boxes. */
+    @keyframes vital-glow {
+      0%, 100% { background-position: 0% 0%, 0 0, 0 0; }
+      25%      { background-position: 100% 30%, 0 0, 0 0; }
+      50%      { background-position: 80% 100%, 0 0, 0 0; }
+      75%      { background-position: 10% 70%, 0 0, 0 0; }
     }
     .vital-row .vital-label {
       grid-column: 1;
@@ -985,19 +1001,21 @@ const SPOILER_PATTERNS: RegExp[] = [
 
     /* Sector detail row — fixed min-height so the layout doesn't jump
        between idle and hovered states. Multi-layer background:
-       two radial accent washes inside, then a conic-gradient border
-       on the outer 1px ring. Same lockstep --frame-angle rotation. */
+       two radial accent washes inside (both with their own moving
+       position animations), then a conic-gradient border on the
+       outer 1px ring. Inherited --frame-angle keeps the border in
+       lockstep with everything else. */
     .sector-detail {
       align-self: stretch;
       margin-top: 4px;
       padding: 16px 20px;
       border: 1px solid transparent;
       background:
-        radial-gradient(ellipse 50% 200% at 0% 50%,
-          color-mix(in srgb, var(--accent) 20%, transparent) 0%,
+        radial-gradient(ellipse 50% 200% at 50% 50%,
+          color-mix(in srgb, var(--accent) 22%, transparent) 0%,
           transparent 70%) padding-box,
-        radial-gradient(ellipse 30% 100% at 100% 100%,
-          color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+        radial-gradient(ellipse 35% 110% at 50% 50%,
+          color-mix(in srgb, var(--accent) 12%, transparent) 0%,
           transparent 70%) padding-box,
         linear-gradient(
           color-mix(in srgb, var(--accent) 5%, var(--assistant-bg)),
@@ -1011,9 +1029,23 @@ const SPOILER_PATTERNS: RegExp[] = [
           color-mix(in srgb, var(--accent) 25%, transparent) 270deg,
           color-mix(in srgb, var(--accent) 95%, transparent) 360deg
         ) border-box;
+      background-size: 200% 200%, 200% 200%, 100% 100%, 100% 100%;
+      background-position: -20% 50%, 80% 50%, 0 0, 0 0;
+      background-repeat: no-repeat;
+      @media (prefers-reduced-motion: no-preference) {
+        animation:
+          fx-fade-up .25s cubic-bezier(.16, 1, .3, 1),
+          detail-glow 22s ease-in-out infinite;
+      }
       border-radius: 10px;
       min-height: 96px;
-      animation: fx-fade-up .25s cubic-bezier(.16, 1, .3, 1);
+    }
+    /* Two washes that drift slowly in opposite directions across the
+       panel — feels like two lights orbiting each other. */
+    @keyframes detail-glow {
+      0%, 100% { background-position: -20% 50%, 80% 50%, 0 0, 0 0; }
+      33%      { background-position: 60% 20%, 20% 80%, 0 0, 0 0; }
+      66%      { background-position: 100% 80%, -10% 20%, 0 0, 0 0; }
     }
     .sector-detail.empty {
       background: transparent;
