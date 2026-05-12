@@ -236,14 +236,26 @@ interface SelectionAnchor {
   `,
   styles: [`
     :host { display: flex; flex-direction: column; flex: 1; }
+    /* Sticky chat header — pins at the top of the viewport when the
+       message stream scrolls past. The translucent backdrop + blur
+       keeps it legible while the bubbles slide underneath.
+       Horizontal margin/padding tradeoff bleeds the bg across the
+       shell's 20px side padding so messages don't peek through at
+       the edges of a sticky header. top respects the iOS safe area. */
     .chat-header {
+      position: sticky;
+      top: var(--safe-top, 0px);
+      z-index: 10;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 14px;
-      margin-bottom: 0;
       gap: 8px;
+      margin: 0 -20px;
+      padding: 12px 20px 14px;
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: blur(20px) saturate(140%);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
     }
     h2 { font-size: 22px; margin: 0; font-weight: 500; }
     @media (max-width: 720px) {
