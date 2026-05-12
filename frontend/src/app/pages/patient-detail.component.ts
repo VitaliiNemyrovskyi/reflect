@@ -74,7 +74,20 @@ const SPOILER_PATTERNS: RegExp[] = [
         </div>
 
         <div class="hero-info">
+          <!-- Top: the big CTA where the patient name used to live —
+               this is the page's primary action, so it takes the most
+               visually dominant slot. -->
+          <button class="primary new-session-btn fx-glow" (click)="newSession()">
+            Нова сесія
+          </button>
+          <!-- Patient name now sits BELOW the CTA. Still h1 for
+               document semantics, just visually de-emphasised in the
+               hierarchy by being smaller. -->
           <h1 class="hero-title">{{ patient()!.displayName }}</h1>
+          <!-- Diagnosis caption lifts up to the slot the old CTA
+               occupied — it's the contextual "what is this person
+               about" line, placed right beneath the name so the eye
+               flows action → who → why. -->
           @if (patient()!.diagnosis) {
             <p class="hero-caption" [title]="diagnosisTooltip()">
               {{ patient()!.diagnosis }}
@@ -83,8 +96,10 @@ const SPOILER_PATTERNS: RegExp[] = [
               }
             </p>
           }
-          <div class="hero-actions">
-            @if (patient()!.isMine) {
+          <!-- Edit / share / delete icons collapse into a small trailing
+               row, kept on hand without competing with the CTA. -->
+          @if (patient()!.isMine) {
+            <div class="hero-actions">
               <a [routerLink]="['/patient', patient()!.id, 'edit']"
                  class="ghost icon small"
                  title="Редагувати профіль"
@@ -97,11 +112,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                       title="Видалити профіль"
                       [disabled]="deleting()"
                       (click)="confirmDelete()">🗑</button>
-            }
-            <button class="primary new-session-btn fx-glow" (click)="newSession()">
-              Нова сесія
-            </button>
-          </div>
+            </div>
+          }
         </div>
 
         <!-- Vertical stack of vital rows, anchored to the right of the
@@ -1155,16 +1167,24 @@ const SPOILER_PATTERNS: RegExp[] = [
         animation: fx-pulse 1.8s ease-in-out infinite;
       }
     }
+    /* The CTA now owns the top slot of the info column, so the name
+       comes down a notch in scale — still the largest text but no
+       longer competing with the button for "first thing you see".
+       Adding a top margin pushes the name below the CTA with breathing
+       room. */
     .hero-title {
-      margin: 0;
-      font-size: clamp(36px, 5vw, 56px);
+      margin: 16px 0 0;
+      font-size: clamp(28px, 4vw, 42px);
       font-weight: 300;
       letter-spacing: -0.025em;
-      line-height: 1.02;
+      line-height: 1.05;
       color: var(--fg);
     }
+    /* Diagnosis caption sits right under the name — no top margin to
+       keep the title/caption pair feeling like one unit, and a
+       trailing margin to separate them from the edit/share icon row. */
     .hero-caption {
-      margin: 14px 0 22px;
+      margin: 6px 0 18px;
       font-size: 14px;
       line-height: 1.5;
       color: var(--accent);
@@ -1197,10 +1217,15 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--danger);
       border-color: var(--danger);
     }
-    /* .new-session-btn just sets its padding — the translucent
-       Synapse-glass styling now lives globally on button.primary in
-       styles.scss, so every CTA across the app reads the same. */
-    .new-session-btn { padding: 10px 22px; }
+    /* The translucent glass styling lives globally on button.primary
+       in styles.scss; here we just size it and prevent the flex column
+       parent from stretching it to full width. align-self:flex-start
+       keeps the CTA hugging its label width on the left edge. */
+    .new-session-btn {
+      align-self: flex-start;
+      padding: 12px 26px;
+      font-size: 14px;
+    }
 
     /* Vital tiles — Synapse-style data strip across the bottom of the
        hero. Always one horizontal row on desktop; gracefully reflows
