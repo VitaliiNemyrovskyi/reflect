@@ -62,15 +62,17 @@ const SPOILER_PATTERNS: RegExp[] = [
       <section class="hero dot-grid-bg fx-fade-up"
                (mouseleave)="activeSector.set(null)">
 
-        <!-- Rectangular portrait. object-fit:cover with object-position
-             top so DiceBear avatars (heads near top of viewBox) don't
-             get cropped at the face. -->
-        <div class="hero-photo">
-          @if (patient()!.avatarUrl) {
-            <img [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
-          } @else {
-            <div class="hero-photo-fallback">{{ patient()!.displayName.charAt(0) }}</div>
-          }
+        <!-- Rectangular portrait, wrapped in a Synapse-style accent
+             backplate with a notched top-right corner. Frame colour
+             follows the active theme (lavender / blue / Synapse-orange). -->
+        <div class="photo-frame">
+          <div class="hero-photo">
+            @if (patient()!.avatarUrl) {
+              <img [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
+            } @else {
+              <div class="hero-photo-fallback">{{ patient()!.displayName.charAt(0) }}</div>
+            }
+          </div>
         </div>
 
         <div class="hero-info">
@@ -564,7 +566,33 @@ const SPOILER_PATTERNS: RegExp[] = [
       gap: 22px 28px;
       align-items: start;
     }
-    /* Photo lives in row 1, column 1. Same row as identity + vitals,
+    /* Accent backplate — sits behind the photo, slightly larger, with
+       a clipped diagonal corner at top-right. Synapse-style frame.
+       Colour follows the theme accent, opacity tuned so a coloured
+       border (~6-8px) is visible around the photo edges.
+       The whole thing also has a soft outer accent glow.
+       Notched corner is identical on the frame AND the photo so the
+       cut reads cleanly even when both layers are visible. */
+    .photo-frame {
+      grid-column: 1;
+      grid-row: 1;
+      width: 100%;
+      padding: 8px;
+      background: color-mix(in srgb, var(--accent) 78%, var(--bg));
+      border-radius: 14px;
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+        0 12px 48px -16px color-mix(in srgb, var(--accent) 60%, transparent);
+      clip-path: polygon(
+        0 0,
+        calc(100% - 28px) 0,
+        100% 28px,
+        100% 100%,
+        0 100%
+      );
+      isolation: isolate;
+    }
+    /* Photo lives inside the frame. Same row as identity + vitals,
        so the hero "head" is one tidy band. Detail panel sits in row 2
        below, full width.
        Photo gets a theme-locked duotone treatment so DiceBear's pastel
@@ -576,16 +604,24 @@ const SPOILER_PATTERNS: RegExp[] = [
          3. A subtle vertical gradient on top adds depth and helps the
             name on the right read against the photo edge. */
     .hero-photo {
-      grid-column: 1;
-      grid-row: 1;
       width: 100%;
-      height: 300px;
-      border-radius: 10px;
+      height: 284px;
+      border-radius: 8px;
       overflow: hidden;
-      border: 1px solid var(--border);
       background: var(--user-bg);
       position: relative;
-      isolation: isolate; /* keep blend mode scoped to this stacking context */
+      isolation: isolate;
+      /* Mirror the frame's notch so the photo edge stays flush
+         with the inside of the cut corner. Cut is 20px on the photo
+         (vs 28px on the frame), leaving an 8px accent triangle in
+         the corner gap — same as the all-around 8px padding. */
+      clip-path: polygon(
+        0 0,
+        calc(100% - 20px) 0,
+        100% 20px,
+        100% 100%,
+        0 100%
+      );
     }
     .hero-photo img {
       width: 100%;
@@ -1123,11 +1159,11 @@ const SPOILER_PATTERNS: RegExp[] = [
         gap: 18px 22px;
         padding: 22px 20px;
       }
-      .hero-photo {
+      .photo-frame {
         grid-column: 1;
         grid-row: 1 / span 2;
-        height: 260px;
       }
+      .hero-photo { height: 244px; }
       .hero-info {
         grid-column: 2;
         grid-row: 1;
@@ -1154,11 +1190,11 @@ const SPOILER_PATTERNS: RegExp[] = [
         padding: 18px 16px 18px;
         margin: 12px -16px 20px;
       }
-      .hero-photo {
+      .photo-frame {
         grid-column: 1;
         grid-row: 1;
-        height: 240px;
       }
+      .hero-photo { height: 224px; }
       .hero-info {
         grid-column: 1;
         grid-row: 2;
