@@ -56,132 +56,169 @@ const SPOILER_PATTERNS: RegExp[] = [
       <a routerLink="/" class="back">← Усі пацієнти</a>
 
       <!-- ╔═══ SYNAPSE HERO ═══╗
-           Radial composition: avatar centered, 4 vital sectors arranged
-           at corners around it. Hovering a sector reveals an expanded
-           detail row at the bottom. On mobile, layout collapses to
-           avatar on top + 4 stacked tiles + always-open detail. -->
+           Avatar centered with 4 vital arcs literally curling around it
+           (top/right/bottom/left). Each arc is an SVG <path> that's
+           hoverable: the arc fills, scales, and glows; the value text
+           sitting on top of the arc highlights; and a detail panel
+           expands below with extended context. -->
       <section class="hero dot-grid-bg fx-fade-up">
-        <div class="hero-grid" (mouseleave)="activeSector.set(null)">
+        <div class="orbit-wrap"
+             (mouseleave)="activeSector.set(null)">
 
-          <button type="button"
-                  class="sector sector-tl"
-                  [class.active]="activeSector() === 'sessions'"
-                  (mouseenter)="activeSector.set('sessions')"
-                  (click)="toggleSector('sessions')">
-            <span class="sector-label">SESSIONS</span>
-            <span class="sector-value">{{ patient()!.sessionCount }}</span>
-            <span class="sector-meta">{{ patient()!.completedCount }} завершено</span>
-          </button>
+          <!-- The 4 arcs + their value labels live in a single SVG so
+               their geometry stays in sync. The arc <path>s are
+               <g.arc-group>s with the path + text inside, both react
+               to the same .active state. -->
+          <svg class="orbit-svg" viewBox="0 0 280 280" aria-hidden="true">
+            <!-- Background trace ring — soft dotted circle behind the
+                 arcs so empty space doesn't feel like a vacuum. -->
+            <circle class="orbit-trace" cx="140" cy="140" r="75" />
 
-          <button type="button"
-                  class="sector sector-tr"
-                  [class.active]="activeSector() === 'state'"
-                  [class.sector-warn]="patient()!.progressBadge === 'worsening'"
-                  (mouseenter)="activeSector.set('state')"
-                  (click)="toggleSector('state')">
-            <span class="sector-label">STATE</span>
-            <span class="sector-value">{{ stateGlyph(patient()!.progressBadge) }}</span>
-            <span class="sector-meta">{{ badgeText(patient()!.progressBadge) }}</span>
-          </button>
+            <!-- TOP arc (SESSIONS): 75° centered on -90° -->
+            <g class="arc-group"
+               [class.active]="activeSector() === 'sessions'"
+               (mouseenter)="activeSector.set('sessions')"
+               (click)="toggleSector('sessions')">
+              <path class="arc-trace-bg"
+                    d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
+              <path class="arc-fill"
+                    d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
+              <text class="arc-text" x="140" y="68" text-anchor="middle">
+                {{ patient()!.sessionCount }}
+              </text>
+              <text class="arc-text-label" x="140" y="46" text-anchor="middle">
+                SESSIONS
+              </text>
+            </g>
 
-          <div class="hero-center">
-            <div class="hero-avatar-frame">
-              <svg class="state-ring" viewBox="0 0 220 220" aria-hidden="true">
-                <circle class="ring-trace" cx="110" cy="110" r="102" />
-                <circle class="ring-arc" cx="110" cy="110" r="102"
-                        [attr.stroke-dasharray]="ringDasharray()"
-                        [attr.stroke]="ringColor()" />
-                <circle class="ring-dot" cx="110" cy="8" r="5"
-                        [attr.fill]="ringColor()" />
-              </svg>
-              @if (patient()!.avatarUrl) {
-                <img class="hero-avatar" [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
-              } @else {
-                <div class="hero-avatar fallback">{{ patient()!.displayName.charAt(0) }}</div>
-              }
-            </div>
-            <div class="hero-eyebrow">
-              <span class="eyebrow-dot" [style.background]="ringColor()"></span>
-              REFLECT · {{ patient()!.slug.toUpperCase() }}
-            </div>
-            <h1 class="hero-title">{{ patient()!.displayName }}</h1>
-            @if (patient()!.diagnosis) {
-              <p class="hero-caption" [title]="diagnosisTooltip()">
-                {{ patient()!.diagnosis }}
-                @if (patient()!.diagnosisCode) {
-                  <span class="hero-caption-code"> · {{ patient()!.diagnosisCode }}</span>
-                }
-              </p>
+            <!-- RIGHT arc (STATE): 75° centered on 0° -->
+            <g class="arc-group"
+               [class.active]="activeSector() === 'state'"
+               [class.arc-warn]="patient()!.progressBadge === 'worsening'"
+               (mouseenter)="activeSector.set('state')"
+               (click)="toggleSector('state')">
+              <path class="arc-trace-bg"
+                    d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
+              <path class="arc-fill"
+                    d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
+              <text class="arc-text arc-text-glyph" x="218" y="148"
+                    text-anchor="middle">
+                {{ stateGlyph(patient()!.progressBadge) }}
+              </text>
+              <text class="arc-text-label" x="252" y="148"
+                    text-anchor="start">
+                STATE
+              </text>
+            </g>
+
+            <!-- BOTTOM arc (BEHAVIOR): 75° centered on 90° -->
+            @if (patient()!.difficulty != null) {
+              <g class="arc-group"
+                 [class.active]="activeSector() === 'behavior'"
+                 (mouseenter)="activeSector.set('behavior')"
+                 (click)="toggleSector('behavior')">
+                <path class="arc-trace-bg"
+                      d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
+                <path class="arc-fill"
+                      d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
+                <text class="arc-text" x="140" y="218" text-anchor="middle">
+                  {{ patient()!.difficulty }}<tspan class="arc-text-sub">/5</tspan>
+                </text>
+                <text class="arc-text-label" x="140" y="246" text-anchor="middle">
+                  BEHAVIOR
+                </text>
+              </g>
             }
-            <div class="hero-actions">
-              @if (patient()!.isMine) {
-                <a [routerLink]="['/patient', patient()!.id, 'edit']"
-                   class="ghost icon small"
-                   title="Редагувати профіль"
-                   aria-label="Редагувати">✎</a>
-                <button class="ghost icon small"
-                        title="Поділитися доступом"
-                        aria-label="Доступ"
-                        (click)="openShareModal()">👥</button>
-                <button class="ghost icon small danger-icon"
-                        title="Видалити профіль"
-                        [disabled]="deleting()"
-                        (click)="confirmDelete()">🗑</button>
-              }
-              <button class="primary new-session-btn fx-glow" (click)="newSession()">
-                Нова сесія
-              </button>
-            </div>
-          </div>
 
-          @if (patient()!.difficulty != null) {
-            <button type="button"
-                    class="sector sector-bl"
-                    [class.active]="activeSector() === 'behavior'"
-                    (mouseenter)="activeSector.set('behavior')"
-                    (click)="toggleSector('behavior')">
-              <span class="sector-label">BEHAVIOR</span>
-              <span class="sector-value">{{ patient()!.difficulty }}<small>/5</small></span>
-              <span class="sector-meta">{{ stars(patient()!.difficulty!) }}</span>
-            </button>
-          }
+            <!-- LEFT arc (SEVERITY): 75° centered on 180° -->
+            @if (patient()!.complexity != null) {
+              <g class="arc-group"
+                 [class.active]="activeSector() === 'severity'"
+                 (mouseenter)="activeSector.set('severity')"
+                 (click)="toggleSector('severity')">
+                <path class="arc-trace-bg"
+                      d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
+                <path class="arc-fill"
+                      d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
+                <text class="arc-text arc-text-r" x="62" y="148"
+                      text-anchor="middle">
+                  {{ patient()!.complexity }}<tspan class="arc-text-sub">/5</tspan>
+                </text>
+                <text class="arc-text-label" x="28" y="148" text-anchor="end">
+                  SEVERITY
+                </text>
+              </g>
+            }
+          </svg>
 
-          @if (patient()!.complexity != null) {
-            <button type="button"
-                    class="sector sector-br"
-                    [class.active]="activeSector() === 'severity'"
-                    (mouseenter)="activeSector.set('severity')"
-                    (click)="toggleSector('severity')">
-              <span class="sector-label">SEVERITY</span>
-              <span class="sector-value">{{ patient()!.complexity }}<small>/5</small></span>
-              <span class="sector-meta">{{ dots(patient()!.complexity!) }}</span>
-            </button>
-          }
-
-          <!-- Detail row: stays empty unless a sector is hovered/tapped.
-               Min-height keeps the layout stable so other sectors don't
-               jump when content appears. -->
-          @if (sectorDetail(); as d) {
-            <article class="sector-detail">
-              <header class="sector-detail-head">
-                <span class="sector-detail-title">{{ d.title }}</span>
-                <span class="sector-detail-meta">{{ d.meta }}</span>
-              </header>
-              <div class="sector-detail-body">
-                @for (row of d.rows; track row.label) {
-                  <div class="sector-detail-row">
-                    <span class="sector-detail-row-label">{{ row.label }}</span>
-                    <span class="sector-detail-row-value">{{ row.value }}</span>
-                  </div>
-                }
-              </div>
-            </article>
+          <!-- Avatar dead-center over the orbit. Pointer-events:none on
+               the SVG was the original plan, but we want arcs hoverable;
+               so the avatar gets pointer-events:none instead so cursor
+               can pass through to whatever arc is behind it. -->
+          @if (patient()!.avatarUrl) {
+            <img class="orbit-avatar" [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
           } @else {
-            <div class="sector-detail empty">
-              <span>Наведи курсор на сектор — побачиш деталі. На мобайлі — тапни сектор.</span>
-            </div>
+            <div class="orbit-avatar fallback">{{ patient()!.displayName.charAt(0) }}</div>
           }
         </div>
+
+        <!-- Title + caption + actions below the orbit, centered. -->
+        <div class="hero-content">
+          <div class="hero-eyebrow">
+            <span class="eyebrow-dot" [style.background]="ringColor()"></span>
+            REFLECT · {{ patient()!.slug.toUpperCase() }}
+          </div>
+          <h1 class="hero-title">{{ patient()!.displayName }}</h1>
+          @if (patient()!.diagnosis) {
+            <p class="hero-caption" [title]="diagnosisTooltip()">
+              {{ patient()!.diagnosis }}
+              @if (patient()!.diagnosisCode) {
+                <span class="hero-caption-code"> · {{ patient()!.diagnosisCode }}</span>
+              }
+            </p>
+          }
+          <div class="hero-actions">
+            @if (patient()!.isMine) {
+              <a [routerLink]="['/patient', patient()!.id, 'edit']"
+                 class="ghost icon small"
+                 title="Редагувати профіль"
+                 aria-label="Редагувати">✎</a>
+              <button class="ghost icon small"
+                      title="Поділитися доступом"
+                      aria-label="Доступ"
+                      (click)="openShareModal()">👥</button>
+              <button class="ghost icon small danger-icon"
+                      title="Видалити профіль"
+                      [disabled]="deleting()"
+                      (click)="confirmDelete()">🗑</button>
+            }
+            <button class="primary new-session-btn fx-glow" (click)="newSession()">
+              Нова сесія
+            </button>
+          </div>
+        </div>
+
+        <!-- Detail panel below — same content/logic as before. -->
+        @if (sectorDetail(); as d) {
+          <article class="sector-detail">
+            <header class="sector-detail-head">
+              <span class="sector-detail-title">{{ d.title }}</span>
+              <span class="sector-detail-meta">{{ d.meta }}</span>
+            </header>
+            <div class="sector-detail-body">
+              @for (row of d.rows; track row.label) {
+                <div class="sector-detail-row">
+                  <span class="sector-detail-row-label">{{ row.label }}</span>
+                  <span class="sector-detail-row-value">{{ row.value }}</span>
+                </div>
+              }
+            </div>
+          </article>
+        } @else {
+          <div class="sector-detail empty">
+            <span>Наведи курсор на одну з арок навколо фото — побачиш деталі. На мобайлі — тапни.</span>
+          </div>
+        }
       </section>
 
       <nav class="tabs" role="tablist">
@@ -559,101 +596,162 @@ const SPOILER_PATTERNS: RegExp[] = [
 
     .hero {
       position: relative;
-      padding: 36px 32px 28px;
+      padding: 32px 32px 28px;
       margin: 16px -20px 28px;
       border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
-    }
-    /* Radial 4-sector grid: avatar centered, sectors at four corners,
-       detail strip across the bottom. */
-    .hero-grid {
-      display: grid;
-      grid-template-columns: minmax(160px, 1fr) minmax(280px, 360px) minmax(160px, 1fr);
-      grid-template-rows: auto auto auto;
-      gap: 24px 32px;
+      display: flex;
+      flex-direction: column;
       align-items: center;
+      gap: 24px;
     }
-    .hero-center {
-      grid-column: 2;
-      grid-row: 1 / 3;
+
+    /* ─── Vital orbit (4 SVG arcs around the avatar) ─── */
+    .orbit-wrap {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      flex-shrink: 0;
+    }
+    .orbit-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible; /* labels at y=46 / x=252 sit outside the box */
+    }
+    .orbit-trace {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 0.5;
+      opacity: 0.6;
+    }
+
+    /* Each arc is a <g class="arc-group">: a dim trace path under
+       the active fill path, plus value + label text. Hover lights up
+       the fill, scales the group, and colours the text. */
+    .arc-group {
+      cursor: pointer;
+      transform-origin: 140px 140px;
+      transition: transform .25s cubic-bezier(.16, 1, .3, 1);
+    }
+    .arc-trace-bg {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 18;
+      stroke-linecap: round;
+      opacity: 0.55;
+      transition: opacity .2s ease, stroke .2s ease;
+    }
+    .arc-fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 18;
+      stroke-linecap: round;
+      stroke-dasharray: 0 1000;
+      filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 55%, transparent));
+      transition: stroke-dasharray .35s cubic-bezier(.65, 0, .35, 1),
+                  opacity .2s ease,
+                  stroke .2s ease;
+      opacity: 0;
+    }
+    .arc-text {
+      fill: var(--fg);
+      font-size: 22px;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      transition: fill .2s ease;
+      pointer-events: none;
+    }
+    .arc-text-sub {
+      font-size: 12px;
+      fill: var(--fg-dim);
+    }
+    .arc-text-label {
+      fill: var(--fg-dim);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      transition: fill .2s ease;
+      pointer-events: none;
+    }
+    /* Hover / active: fill the arc, scale up, recolour text. */
+    .arc-group:hover, .arc-group.active {
+      transform: scale(1.06);
+    }
+    .arc-group:hover .arc-trace-bg,
+    .arc-group.active .arc-trace-bg {
+      opacity: 0.25;
+    }
+    .arc-group:hover .arc-fill,
+    .arc-group.active .arc-fill {
+      stroke-dasharray: 200 0;
+      opacity: 1;
+    }
+    .arc-group:hover .arc-text,
+    .arc-group.active .arc-text {
+      fill: var(--accent);
+    }
+    .arc-group:hover .arc-text-label,
+    .arc-group.active .arc-text-label {
+      fill: var(--accent);
+    }
+    /* Worsening-state arc uses the danger palette instead. */
+    .arc-group.arc-warn:hover .arc-fill,
+    .arc-group.arc-warn.active .arc-fill {
+      stroke: var(--danger);
+      filter: drop-shadow(0 0 8px color-mix(in srgb, var(--danger) 55%, transparent));
+    }
+    .arc-group.arc-warn:hover .arc-text,
+    .arc-group.arc-warn.active .arc-text,
+    .arc-group.arc-warn:hover .arc-text-label,
+    .arc-group.arc-warn.active .arc-text-label {
+      fill: var(--danger);
+    }
+
+    /* Avatar sits dead-center inside the orbit (the 100px hole inside
+       the arcs). pointer-events:none on the img so we don't block
+       hover events meant for the arc <g>s when cursor passes over the
+       avatar pixel area. */
+    .orbit-avatar {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 116px;
+      height: 116px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--user-bg);
+      border: 1px solid var(--border);
+      pointer-events: none;
+    }
+    .orbit-avatar.fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      font-weight: 300;
+      color: var(--accent);
+    }
+
+    /* Title row under the orbit. */
+    .hero-content {
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 10px;
     }
-    .sector-tl { grid-column: 1; grid-row: 1; align-self: end; text-align: right; }
-    .sector-tr { grid-column: 3; grid-row: 1; align-self: end; text-align: left; }
-    .sector-bl { grid-column: 1; grid-row: 2; align-self: start; text-align: right; }
-    .sector-br { grid-column: 3; grid-row: 2; align-self: start; text-align: left; }
-    .sector-detail, .sector-detail.empty { grid-column: 1 / -1; grid-row: 3; }
-
-    /* Sectors are buttons (a11y + native focus) but visually look like
-       radiating vital readouts. Animate scale + accent shadow on hover. */
-    .sector {
-      appearance: none;
-      background: transparent;
-      border: 0;
-      padding: 14px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      cursor: pointer;
-      color: var(--fg);
-      min-height: auto;
-      border-radius: 10px;
-      transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
-      font: inherit;
-      text-align: inherit;
-    }
-    .sector .sector-label {
-      font-size: 10px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      font-weight: 500;
-      color: var(--fg-dim);
-    }
-    .sector .sector-value {
-      font-size: 32px;
-      font-weight: 300;
-      line-height: 1;
-      letter-spacing: -0.025em;
-      font-variant-numeric: tabular-nums;
-      color: var(--fg);
-    }
-    .sector .sector-value small {
-      font-size: 14px;
-      color: var(--fg-dim);
-      margin-left: 2px;
-    }
-    .sector .sector-meta {
-      font-size: 11px;
-      color: var(--fg-dim);
-      letter-spacing: 0.02em;
-    }
-    .sector:hover, .sector.active {
-      background: color-mix(in srgb, var(--accent) 8%, transparent);
-      transform: scale(1.04);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
-                  0 6px 22px -8px color-mix(in srgb, var(--accent) 45%, transparent);
-    }
-    .sector.active .sector-value { color: var(--accent); }
-    .sector.sector-warn .sector-value { color: var(--danger); }
-    .sector.sector-warn:hover, .sector.sector-warn.active {
-      background: color-mix(in srgb, var(--danger) 8%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent),
-                  0 6px 22px -8px color-mix(in srgb, var(--danger) 45%, transparent);
-    }
-    /* Right-column sectors should still flush-left their content. The
-       align-self / text-align trick handles container; this flips the
-       inline alignment of the value+label cluster. */
-    .sector-tl, .sector-bl { align-items: flex-end; }
-    .sector-tr, .sector-br { align-items: flex-start; }
 
     /* Sector detail row — fixed min-height so the layout doesn't jump
        between idle and hovered states. */
     .sector-detail {
-      margin-top: 8px;
+      align-self: stretch;
+      margin-top: 4px;
       padding: 16px 20px;
       background: color-mix(in srgb, var(--accent) 5%, var(--assistant-bg));
       border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
@@ -669,6 +767,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       display: flex;
       align-items: center;
       justify-content: center;
+      text-align: center;
       animation: none;
     }
     .sector-detail-head {
@@ -877,43 +976,23 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
 
     @media (max-width: 900px) {
-      .hero { padding: 28px 20px 22px; }
-      .hero-grid { gap: 18px 22px; grid-template-columns: 1fr 240px 1fr; }
-      .sector .sector-value { font-size: 28px; }
+      .hero { padding: 24px 20px 22px; }
     }
-    /* Mobile: avatar on top, sectors in a 2x2 grid below, detail bar
-       at the bottom is always shown (sticky to whichever sector was
-       last tapped; on first paint nothing is active so the placeholder
-       hint reads naturally). */
-    @media (max-width: 720px) {
+    @media (max-width: 540px) {
       .hero {
-        padding: 22px 16px 18px;
+        padding: 20px 16px 18px;
         margin: 12px -16px 20px;
       }
-      .hero-grid {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto auto auto;
-        gap: 14px;
+      .orbit-wrap {
+        width: 240px;
+        height: 240px;
+        transform: scale(0.86);
       }
-      .hero-center {
-        grid-column: 1 / -1;
-        grid-row: 1;
-        text-align: center;
-      }
-      .sector-tl { grid-column: 1; grid-row: 2; text-align: left; align-items: flex-start; }
-      .sector-tr { grid-column: 2; grid-row: 2; text-align: left; align-items: flex-start; }
-      .sector-bl { grid-column: 1; grid-row: 3; text-align: left; align-items: flex-start; }
-      .sector-br { grid-column: 3; grid-row: 3; text-align: left; align-items: flex-start; }
-      .sector-tr, .sector-br { grid-column: 2; }
-      .sector-detail, .sector-detail.empty { grid-row: 4; }
-      .hero-avatar-frame {
-        width: 132px;
-        height: 132px;
-      }
-      .hero-actions { justify-content: center; }
-      /* Hover doesn't fire on touch; rely on click toggle to set
-         activeSector, no special tap state needed. */
-      .sector:hover { transform: none; }
+      .orbit-avatar { width: 100px; height: 100px; }
+      /* Hover doesn't trigger on touch; click-to-toggle stays in
+         control. Suppress the scale-on-hover so a stray finger drag
+         doesn't visually nudge unactive arcs. */
+      .arc-group:hover { transform: none; }
     }
 
     /* ═══════════════════ PANELS ═══════════════════ */
