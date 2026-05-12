@@ -516,10 +516,11 @@ const SPOILER_PATTERNS: RegExp[] = [
     .hero {
       position: relative;
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 36px;
+      grid-template-columns: auto 1fr;
+      grid-template-rows: auto auto;
+      gap: 32px 36px;
       align-items: center;
-      padding: 36px 32px;
+      padding: 32px 32px 24px;
       margin: 16px -20px 28px;
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -639,12 +640,17 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .new-session-btn { padding: 12px 22px; }
 
-    /* Vital tiles — Synapse data-density */
+    /* Vital tiles — Synapse-style data strip across the bottom of the
+       hero. Always one horizontal row on desktop; gracefully reflows
+       to two rows on narrow tablets and a 2x2 stack on phones. */
     .hero-vitals {
+      grid-column: 1 / -1;
       display: grid;
-      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
-      align-self: stretch;
+      padding-top: 24px;
+      margin-top: 8px;
+      border-top: 1px dashed var(--border);
     }
     .vital-tile {
       padding: 14px 16px;
@@ -687,11 +693,8 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
 
     @media (max-width: 900px) {
-      .hero { grid-template-columns: auto 1fr; gap: 24px; padding: 24px 20px; }
-      .hero-vitals {
-        grid-column: 1 / -1;
-        grid-template-columns: repeat(2, 1fr);
-      }
+      .hero { gap: 22px 28px; padding: 24px 20px; }
+      .hero-vitals { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 540px) {
       .hero {
@@ -706,7 +709,11 @@ const SPOILER_PATTERNS: RegExp[] = [
         width: 132px; height: 132px;
       }
       .hero-actions { justify-content: center; }
-      .hero-vitals { grid-template-columns: 1fr 1fr; }
+      .hero-vitals {
+        grid-template-columns: 1fr 1fr;
+        padding-top: 18px;
+        margin-top: 0;
+      }
     }
 
     /* ═══════════════════ PANELS ═══════════════════ */
