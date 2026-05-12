@@ -146,6 +146,35 @@ body {
   padding-top: var(--safe-top);
 }
 
+// Global dot-grid texture — Synapse-style sprinkled accents on top of the
+// animated radial wash. Lives on body::before (NOT another background
+// layer on body itself) because we want the dots to stay STATIC while the
+// gradient wash beneath them morphs via background-position animation.
+// Stacking: body bg → this ::before (z:0, fixed) → .ambient-blobs (z:0,
+// later in source order, paints over) → .shell content (z:1).
+//
+// Sizing: 18×18 tile, circle radius ~0.7px fading to transparent at 1.2px.
+// At lower device densities the dot may collapse to a single pixel — that's
+// still readable as texture rather than aliasing into a moiré. Colour is
+// 22% accent on transparent so theme switching repaints the whole grid.
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(circle,
+    color-mix(in srgb, var(--accent) 22%, transparent) 0.7px,
+    transparent 1.2px);
+  background-size: 18px 18px;
+  // Mobile: bump density a little so the texture stays readable at small
+  // viewport widths where the radial dot would otherwise feel sparse.
+  @media (max-width: 480px) {
+    background-size: 14px 14px;
+  }
+  // Reduced motion: keep texture, gradients beneath have already paused.
+}
+
 button {
   font: inherit;
   padding: 10px 18px;

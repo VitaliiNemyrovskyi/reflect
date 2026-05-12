@@ -539,10 +539,11 @@ const SPOILER_PATTERNS: RegExp[] = [
     .back:hover { color: var(--accent); }
 
     /* ═══════════════════ SYNAPSE HERO ═══════════════════ */
-    /* Multi-zone ambient lighting + dot pattern. Compared to the body
-       background which is fixed for the whole viewport, the hero gets
-       its own layered glow centred on the photo area (left third) so
-       the photo backdrop feels lit. */
+    /* Multi-zone ambient lighting centred on the photo area (left third)
+       so the photo backdrop feels lit. The dot-grid texture used to live
+       here too, but it now ships globally via body::before in styles.scss
+       so every page (not just the hero) gets the same Synapse texture —
+       see styles.scss for the global layer. */
     .dot-grid-bg {
       background-image:
         /* big bottom-left glow (under the photo) */
@@ -561,13 +562,7 @@ const SPOILER_PATTERNS: RegExp[] = [
            the glows above */
         radial-gradient(ellipse 80% 80% at 50% 50%,
           transparent 0%,
-          color-mix(in srgb, var(--bg) 35%, transparent) 100%),
-        /* dot grid pattern on top of all the glows */
-        radial-gradient(circle,
-          color-mix(in srgb, var(--accent) 22%, transparent) 0.7px,
-          transparent 1.2px);
-      background-size: auto, auto, auto, auto, 18px 18px;
-      background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+          color-mix(in srgb, var(--bg) 35%, transparent) 100%);
     }
 
     .hero {
