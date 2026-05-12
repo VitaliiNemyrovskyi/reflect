@@ -85,13 +85,13 @@ const SPOILER_PATTERNS: RegExp[] = [
                  walker direction aligns with natural reading. -->
             <defs>
               <path id="arc-top-text"
-                    d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
+                    d="M 89.3 84.7 A 75 75 0 0 1 190.7 84.7" />
               <path id="arc-right-text"
-                    d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
+                    d="M 195.3 89.3 A 75 75 0 0 1 195.3 190.7" />
               <path id="arc-bottom-text"
-                    d="M 94.3 199.5 A 75 75 0 0 0 185.7 199.5" />
+                    d="M 89.3 195.3 A 75 75 0 0 0 190.7 195.3" />
               <path id="arc-left-text"
-                    d="M 80.5 94.3 A 75 75 0 0 0 80.5 185.7" />
+                    d="M 84.7 89.3 A 75 75 0 0 0 84.7 190.7" />
             </defs>
 
             <!-- Background trace ring — soft dotted circle behind the
@@ -104,9 +104,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                (mouseenter)="activeSector.set('sessions')"
                (click)="toggleSector('sessions')">
               <path class="arc-trace-bg"
-                    d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
+                    d="M 89.3 84.7 A 75 75 0 0 1 190.7 84.7" />
               <path class="arc-fill"
-                    d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
+                    d="M 89.3 84.7 A 75 75 0 0 1 190.7 84.7" />
               <text class="arc-curved-label" text-anchor="middle">
                 <textPath href="#arc-top-text" startOffset="50%">
                   СЕСІЇ · {{ patient()!.sessionCount }}
@@ -121,9 +121,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                (mouseenter)="activeSector.set('state')"
                (click)="toggleSector('state')">
               <path class="arc-trace-bg"
-                    d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
+                    d="M 195.3 89.3 A 75 75 0 0 1 195.3 190.7" />
               <path class="arc-fill"
-                    d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
+                    d="M 195.3 89.3 A 75 75 0 0 1 195.3 190.7" />
               <text class="arc-curved-label" text-anchor="middle">
                 <textPath href="#arc-right-text" startOffset="50%">
                   СТАН · {{ stateGlyph(patient()!.progressBadge) }}
@@ -138,9 +138,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                  (mouseenter)="activeSector.set('behavior')"
                  (click)="toggleSector('behavior')">
                 <path class="arc-trace-bg"
-                      d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
+                      d="M 190.7 195.3 A 75 75 0 0 1 89.3 195.3" />
                 <path class="arc-fill"
-                      d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
+                      d="M 190.7 195.3 A 75 75 0 0 1 89.3 195.3" />
                 <text class="arc-curved-label" text-anchor="middle">
                   <textPath href="#arc-bottom-text" startOffset="50%">
                     ПОВЕДІНКА · {{ patient()!.difficulty }}/5
@@ -156,9 +156,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                  (mouseenter)="activeSector.set('severity')"
                  (click)="toggleSector('severity')">
                 <path class="arc-trace-bg"
-                      d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
+                      d="M 84.7 190.7 A 75 75 0 0 1 84.7 89.3" />
                 <path class="arc-fill"
-                      d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
+                      d="M 84.7 190.7 A 75 75 0 0 1 84.7 89.3" />
                 <text class="arc-curved-label" text-anchor="middle">
                   <textPath href="#arc-left-text" startOffset="50%">
                     ТЯЖКІСТЬ · {{ patient()!.complexity }}/5
