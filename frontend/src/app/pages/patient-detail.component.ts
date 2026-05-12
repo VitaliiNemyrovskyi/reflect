@@ -53,56 +53,44 @@ const SPOILER_PATTERNS: RegExp[] = [
     } @else if (!patient()) {
       <p class="hint danger">Картку пацієнта не знайдено.</p>
     } @else {
-      <header class="patient-header">
-        <a routerLink="/" class="back">← Усі пацієнти</a>
-        <div class="header-row">
-          <div class="header-identity">
-            @if (patient()!.avatarUrl) {
-              <img class="header-avatar" [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
-            } @else {
-              <div class="header-avatar fallback">{{ patient()!.displayName.charAt(0) }}</div>
-            }
-            <div class="header-text">
-              <h1>{{ patient()!.displayName }}</h1>
-              @if (patient()!.diagnosis) {
-                <p class="diagnosis-line" [title]="diagnosisTooltip()">
-                  <span class="diagnosis-icon">⊕</span>
-                  {{ patient()!.diagnosis }}
-                  @if (patient()!.diagnosisCode) {
-                    <span class="diagnosis-code-hint" aria-hidden="true">ⓘ</span>
-                  }
-                </p>
-              }
-              <div class="header-chips">
-                <span class="chip-meta">
-                  {{ patient()!.sessionCount }} {{ sessionsWord(patient()!.sessionCount) }}
-                </span>
-                @if (patient()!.sessions[0]; as last) {
-                  <span class="chip-meta dim">
-                    остання {{ last.startedAt | date: 'dd.MM.yyyy' }}
-                  </span>
-                }
-                <span class="badge" [class]="'badge-' + patient()!.progressBadge">
-                  {{ badgeText(patient()!.progressBadge) }}
-                </span>
-                @if (patient()!.difficulty != null) {
-                  <span class="chip-rating"
-                        [title]="'Поведінка ' + patient()!.difficulty + '/5 — наскільки складно встановити контакт'">
-                    Поведінка
-                    <span class="stars">{{ stars(patient()!.difficulty!) }}</span>
-                  </span>
-                }
-                @if (patient()!.complexity != null) {
-                  <span class="chip-rating"
-                        [title]="'Тяжкість ' + patient()!.complexity + '/5 — клінічна серйозність випадку'">
-                    Тяжкість
-                    <span class="dots">{{ dots(patient()!.complexity!) }}</span>
-                  </span>
-                }
-              </div>
-            </div>
+      <a routerLink="/" class="back">← Усі пацієнти</a>
+
+      <!-- ╔═══ SYNAPSE-STYLE HERO ═══╗
+           Big editorial layout: avatar with orbital state-ring on the
+           left, display name + diagnosis caption + CTA in the middle,
+           three vital tiles on the right. Dot-grid background pattern. -->
+      <section class="hero dot-grid-bg fx-fade-up">
+        <div class="hero-avatar-frame">
+          <svg class="state-ring" viewBox="0 0 220 220" aria-hidden="true">
+            <circle class="ring-trace" cx="110" cy="110" r="102" />
+            <circle class="ring-arc" cx="110" cy="110" r="102"
+                    [attr.stroke-dasharray]="ringDasharray()"
+                    [attr.stroke]="ringColor()" />
+            <circle class="ring-dot" cx="110" cy="8" r="5"
+                    [attr.fill]="ringColor()" />
+          </svg>
+          @if (patient()!.avatarUrl) {
+            <img class="hero-avatar" [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
+          } @else {
+            <div class="hero-avatar fallback">{{ patient()!.displayName.charAt(0) }}</div>
+          }
+        </div>
+
+        <div class="hero-body">
+          <div class="hero-eyebrow">
+            <span class="eyebrow-dot" [style.background]="ringColor()"></span>
+            REFLECT · {{ patient()!.slug.toUpperCase() }}
           </div>
-          <div class="header-cta">
+          <h1 class="hero-title">{{ patient()!.displayName }}</h1>
+          @if (patient()!.diagnosis) {
+            <p class="hero-caption" [title]="diagnosisTooltip()">
+              {{ patient()!.diagnosis }}
+              @if (patient()!.diagnosisCode) {
+                <span class="hero-caption-code"> · {{ patient()!.diagnosisCode }}</span>
+              }
+            </p>
+          }
+          <div class="hero-actions">
             @if (patient()!.isMine) {
               <a [routerLink]="['/patient', patient()!.id, 'edit']"
                  class="ghost icon small"
@@ -117,10 +105,40 @@ const SPOILER_PATTERNS: RegExp[] = [
                       [disabled]="deleting()"
                       (click)="confirmDelete()">🗑</button>
             }
-            <button class="primary new-session-btn" (click)="newSession()">Нова сесія</button>
+            <button class="primary new-session-btn fx-glow" (click)="newSession()">
+              Нова сесія
+            </button>
           </div>
         </div>
-      </header>
+
+        <!-- 3 vital tiles, Synapse-style stat boxes. -->
+        <aside class="hero-vitals fx-stagger">
+          <div class="vital-tile">
+            <div class="vital-label">SESSIONS</div>
+            <div class="vital-value">{{ patient()!.sessionCount }}</div>
+            <div class="vital-meta">{{ patient()!.completedCount }} завершено</div>
+          </div>
+          <div class="vital-tile" [class.tile-warn]="patient()!.progressBadge === 'worsening'">
+            <div class="vital-label">STATE</div>
+            <div class="vital-value">{{ stateGlyph(patient()!.progressBadge) }}</div>
+            <div class="vital-meta">{{ badgeText(patient()!.progressBadge) }}</div>
+          </div>
+          @if (patient()!.difficulty != null) {
+            <div class="vital-tile">
+              <div class="vital-label">BEHAVIOR</div>
+              <div class="vital-value">{{ patient()!.difficulty }}<small>/5</small></div>
+              <div class="vital-meta">{{ stars(patient()!.difficulty!) }}</div>
+            </div>
+          }
+          @if (patient()!.complexity != null) {
+            <div class="vital-tile">
+              <div class="vital-label">SEVERITY</div>
+              <div class="vital-value">{{ patient()!.complexity }}<small>/5</small></div>
+              <div class="vital-meta">{{ dots(patient()!.complexity!) }}</div>
+            </div>
+          }
+        </aside>
+      </section>
 
       <nav class="tabs" role="tablist">
         @for (t of tabs; track t.key) {
@@ -139,10 +157,73 @@ const SPOILER_PATTERNS: RegExp[] = [
 
       <section class="tab-content">
         @if (tab() === 'overview') {
-          <div class="overview-grid fx-stagger">
+          <!-- Synapse-style overview: editorial quote block on top, then
+               a row of "stat tile" cards, then a metrics panel.
+               No more uniform grid of feature-equal cards — instead a
+               hierarchy that mimics the Synapse dashboard composition. -->
+
+          @if (presentingComplaint()) {
+            <article class="quote-block fx-fade-up">
+              <span class="quote-mark">"</span>
+              <p class="quote-body">{{ presentingComplaint() }}</p>
+              <footer class="quote-foot">
+                <span class="quote-bar"></span>
+                @if (feminine()) {
+                  Як пацієнтка озвучила б це сама на першій сесії
+                } @else {
+                  Як пацієнт озвучив би це сам на першій сесії
+                }
+              </footer>
+            </article>
+          }
+
+          @if (latestAssessment() || quickFacts().length) {
+            <section class="panel">
+              <header class="panel-head">
+                <h3 class="panel-title">PATIENT STATE</h3>
+                <span class="panel-meta">
+                  @if (patient()!.sessions[0]; as last) {
+                    Останнє оновлення: {{ last.startedAt | date: 'dd.MM.yyyy' }}
+                  } @else {
+                    Чекає на першу сесію
+                  }
+                </span>
+              </header>
+
+              <div class="metrics-grid fx-stagger">
+                @for (m of patientMetricsList; track m.key) {
+                  @let val = latestAssessment()?.patient?.[m.key] ?? null;
+                  <article class="metric-card">
+                    <div class="metric-card-label">{{ m.label }}</div>
+                    <div class="metric-card-value">
+                      @if (val != null) {
+                        {{ val }}<small>/10</small>
+                      } @else {
+                        <span class="dim">—</span>
+                      }
+                    </div>
+                    <div class="metric-card-bar">
+                      <div class="metric-card-fill"
+                           [style.width.%]="(val ?? 0) * 10"
+                           [class.warn]="val != null && m.warnHigh && val >= 7"
+                           [class.good]="val != null && !m.warnHigh && val >= 7">
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            </section>
+          }
+
+          <div class="overview-split fx-stagger">
             @if (quickFacts().length) {
-              <article class="card">
-                <h3>👤 Коротко</h3>
+              <article class="panel panel-soft">
+                <header class="panel-head">
+                  <h3 class="panel-title">DEMOGRAPHICS</h3>
+                  <span class="panel-meta">
+                    <a (click)="tab.set('profile')" class="link-btn">Повний профіль →</a>
+                  </span>
+                </header>
                 <dl class="facts">
                   @for (f of quickFacts(); track f.label) {
                     <div class="facts-row">
@@ -151,48 +232,19 @@ const SPOILER_PATTERNS: RegExp[] = [
                     </div>
                   }
                 </dl>
-                <p class="facts-link">
-                  Повний контекст у вкладці <a (click)="tab.set('profile')" class="link-btn">Профіль →</a>
-                </p>
-              </article>
-            }
-
-            @if (presentingComplaint()) {
-              <article class="card">
-                <h3>🎯 Запит на терапію</h3>
-                <p class="presenting-line">«{{ presentingComplaint() }}»</p>
-                <p class="presenting-meta">
-                  @if (feminine()) {
-                    Як пацієнтка озвучила б це сама на першій сесії.
-                  } @else {
-                    Як пацієнт озвучив би це сам на першій сесії.
-                  }
-                </p>
-              </article>
-            }
-
-            @if (latestAssessment()) {
-              <article class="card">
-                <h3>📊 Остання оцінка стану</h3>
-                <div class="metrics-mini">
-                  @for (m of patientMetricsList; track m.key) {
-                    <div class="metric-row">
-                      <span class="metric-label">{{ m.label }}</span>
-                      <div class="metric-bar">
-                        <div class="metric-bar-fill"
-                             [style.width.%]="(latestAssessment()?.patient?.[m.key] ?? 0) * 10">
-                        </div>
-                      </div>
-                      <span class="metric-value">{{ latestAssessment()?.patient?.[m.key] ?? '—' }}/10</span>
-                    </div>
-                  }
-                </div>
               </article>
             }
 
             @if (patient()!.recentFeedback) {
-              <article class="card card-wide">
-                <h3>📝 Останній фідбек супервізора</h3>
+              <article class="panel panel-soft callout">
+                <header class="panel-head">
+                  <h3 class="panel-title">MENTOR AI · LAST FEEDBACK</h3>
+                  <span class="panel-meta">
+                    @if (patient()!.sessions[0]; as last) {
+                      Сесія #{{ last.id }}
+                    }
+                  </span>
+                </header>
                 <pre class="feedback-preview">{{ recentFeedbackPreview() }}</pre>
                 @if (patient()!.sessions[0]) {
                   <a [routerLink]="['/session', patient()!.sessions[0].id, 'feedback']" class="link-btn">
@@ -442,6 +494,404 @@ const SPOILER_PATTERNS: RegExp[] = [
     .hint { color: var(--fg-dim); }
     .hint.danger { color: var(--danger); }
 
+    .back {
+      color: var(--fg-dim);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .back:hover { color: var(--accent); }
+
+    /* ═══════════════════ SYNAPSE HERO ═══════════════════ */
+    .dot-grid-bg {
+      background-image:
+        radial-gradient(circle at 50% 0%,
+          color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+          transparent 60%),
+        radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0.6px, transparent 1px);
+      background-size: auto, 18px 18px;
+      background-position: 0 0, 0 0;
+      background-attachment: local;
+    }
+
+    .hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 36px;
+      align-items: center;
+      padding: 36px 32px;
+      margin: 16px -20px 28px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    /* Avatar with orbital state-ring */
+    .hero-avatar-frame {
+      position: relative;
+      width: 168px;
+      height: 168px;
+      flex-shrink: 0;
+    }
+    .hero-avatar {
+      position: absolute;
+      inset: 18px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--user-bg);
+      border: 1px solid var(--border);
+    }
+    .hero-avatar.fallback {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 56px; font-weight: 300; color: var(--accent);
+    }
+    .state-ring {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+      pointer-events: none;
+    }
+    .state-ring .ring-trace {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 1.5;
+      opacity: 0.7;
+    }
+    .state-ring .ring-arc {
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 50%, transparent));
+      transition: stroke-dasharray .8s cubic-bezier(.65, 0, .35, 1);
+    }
+    .state-ring .ring-dot {
+      transform-origin: 110px 110px;
+      @media (prefers-reduced-motion: no-preference) {
+        animation: ring-orbit 8s linear infinite;
+      }
+    }
+    @keyframes ring-orbit {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    .hero-body { min-width: 0; }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .eyebrow-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      box-shadow: 0 0 8px currentColor;
+      @media (prefers-reduced-motion: no-preference) {
+        animation: fx-pulse 1.8s ease-in-out infinite;
+      }
+    }
+    .hero-title {
+      margin: 0;
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 300;
+      letter-spacing: -0.025em;
+      line-height: 1.02;
+      color: var(--fg);
+    }
+    .hero-caption {
+      margin: 14px 0 22px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--accent);
+      letter-spacing: 0.01em;
+    }
+    .hero-caption-code { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+
+    .hero-actions {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .hero-actions .icon.small {
+      width: 36px; height: 36px;
+      padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      text-decoration: none;
+      color: var(--fg-dim);
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 6px;
+    }
+    .hero-actions .icon.small:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .hero-actions .icon.danger-icon:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .new-session-btn { padding: 12px 22px; }
+
+    /* Vital tiles — Synapse data-density */
+    .hero-vitals {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 10px;
+      align-self: stretch;
+    }
+    .vital-tile {
+      padding: 14px 16px;
+      background: color-mix(in srgb, var(--accent) 5%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 120px;
+    }
+    .vital-tile.tile-warn {
+      background: color-mix(in srgb, var(--danger) 8%, transparent);
+      border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+    }
+    .vital-label {
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      color: var(--fg-dim);
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    .vital-value {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--fg);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    .vital-value small {
+      font-size: 14px;
+      color: var(--fg-dim);
+      font-weight: 400;
+    }
+    .vital-meta {
+      font-size: 11px;
+      color: var(--fg-dim);
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: auto 1fr; gap: 24px; padding: 24px 20px; }
+      .hero-vitals {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 540px) {
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding: 20px 16px;
+        margin: 12px -16px 20px;
+        text-align: center;
+      }
+      .hero-avatar-frame {
+        margin: 0 auto;
+        width: 132px; height: 132px;
+      }
+      .hero-actions { justify-content: center; }
+      .hero-vitals { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ═══════════════════ PANELS ═══════════════════ */
+    .panel {
+      margin: 0 0 22px;
+      padding: 22px 26px 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--assistant-bg);
+    }
+    .panel-soft {
+      background: color-mix(in srgb, var(--accent) 3%, var(--assistant-bg));
+    }
+    .panel.callout {
+      position: relative;
+    }
+    .panel.callout::before {
+      content: '';
+      position: absolute;
+      left: -1px; top: 16px;
+      width: 3px; height: 32px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .panel-title {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+    }
+    .panel-meta {
+      font-size: 11px;
+      color: var(--fg-dim);
+      letter-spacing: 0.04em;
+    }
+
+    /* Metrics grid (PATIENT STATE panel) */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .metric-card {
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .metric-card-label {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .metric-card-value {
+      font-size: 26px;
+      font-weight: 300;
+      color: var(--fg);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    .metric-card-value small {
+      font-size: 13px;
+      color: var(--fg-dim);
+      margin-left: 1px;
+    }
+    .metric-card-value .dim { color: var(--fg-dim); font-size: 18px; }
+    .metric-card-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .metric-card-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width .8s cubic-bezier(.65, 0, .35, 1);
+    }
+    .metric-card-fill.warn { background: var(--danger); }
+    .metric-card-fill.good { background: var(--success); }
+
+    /* ═══════════════════ QUOTE BLOCK ═══════════════════ */
+    .quote-block {
+      position: relative;
+      padding: 28px 32px 28px 64px;
+      margin: 0 0 22px;
+      background: color-mix(in srgb, var(--accent) 4%, var(--assistant-bg));
+      border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+      border-radius: 12px;
+    }
+    .quote-mark {
+      position: absolute;
+      top: 8px; left: 18px;
+      font-family: 'Georgia', 'Cambria', serif;
+      font-size: 72px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--accent);
+      opacity: 0.65;
+    }
+    .quote-body {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.55;
+      font-style: italic;
+      color: var(--fg);
+      letter-spacing: -0.005em;
+    }
+    .quote-foot {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0 0;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+    }
+    .quote-bar {
+      display: inline-block;
+      width: 22px; height: 1px;
+      background: var(--accent);
+    }
+
+    /* Two-column split for Demographics + Mentor feedback */
+    .overview-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 720px) {
+      .overview-split { grid-template-columns: 1fr; gap: 14px; }
+    }
+
+    /* Facts list inside Demographics panel */
+    .facts {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .facts-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 12px;
+      align-items: baseline;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .facts-row dt {
+      color: var(--fg-dim);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 500;
+      margin: 0;
+    }
+    .facts-row dd { margin: 0; color: var(--fg); }
+
+    .feedback-preview {
+      white-space: pre-wrap;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--fg-dim);
+      margin: 0 0 12px;
+    }
+
+    /* Legacy class — keep for now; remaining tabs still reference it */
     .patient-header {
       border-bottom: 1px solid var(--border);
       padding-bottom: 18px;
@@ -1159,12 +1609,19 @@ export class PatientDetailComponent implements OnInit {
    *  to closed; non-spoilers default to open. */
   private sectionOpen = signal<Record<number, boolean>>({});
 
+  /**
+   * Each metric carries a `warnHigh` flag: true if a HIGH score means
+   * "bad" (e.g. symptom severity 9/10 is a problem), false if HIGH is
+   * "good" (e.g. insight 9/10 is excellent). Used to colour the bar
+   * fill — warn-coloured when crossing the threshold in the bad
+   * direction, good-coloured otherwise.
+   */
   patientMetricsList = [
-    { key: 'symptomSeverity' as const, label: 'Симптомна тяжкість' },
-    { key: 'insight' as const, label: 'Інсайт' },
-    { key: 'alliance' as const, label: 'Альянс' },
-    { key: 'defensiveness' as const, label: 'Захисність' },
-    { key: 'hopefulness' as const, label: 'Надія' },
+    { key: 'symptomSeverity' as const, label: 'Симптомна тяжкість', warnHigh: true },
+    { key: 'insight' as const, label: 'Інсайт', warnHigh: false },
+    { key: 'alliance' as const, label: 'Альянс', warnHigh: false },
+    { key: 'defensiveness' as const, label: 'Захисність', warnHigh: true },
+    { key: 'hopefulness' as const, label: 'Надія', warnHigh: false },
   ];
 
   // ─── Derived data ────────────────────────────────────────────────────────
@@ -1314,6 +1771,50 @@ export class PatientDetailComponent implements OnInit {
       stable: '→ стабільно',
       worsening: '↓ погіршення',
       unknown: 'нема даних',
+    }[b];
+  }
+
+  /**
+   * Short glyph for the STATE vital tile — single character that
+   * captures the trajectory at a glance.
+   */
+  stateGlyph(b: ProgressBadge): string {
+    return { improving: '↑', stable: '→', worsening: '↓', unknown: '∙' }[b];
+  }
+
+  /**
+   * The orbital "state ring" around the hero avatar.
+   * Returns an SVG stroke-dasharray that fills a portion of the
+   * circumference proportional to (completedCount / sessionCount).
+   * No sessions → mostly empty trace; lots of completed sessions →
+   * mostly filled ring.
+   *
+   * Circumference at r=102 is roughly 640.6 — keep dash + gap totals
+   * matching that so the gap eats whatever the dash doesn't cover.
+   */
+  ringDasharray(): string {
+    const p = this.patient();
+    const total = p?.sessionCount ?? 0;
+    const done = p?.completedCount ?? 0;
+    if (!total) return '4 12'; // dashed trace when there are no sessions yet
+    const fraction = Math.max(0.05, Math.min(1, done / Math.max(total, 4)));
+    const C = 640.6;
+    const fill = C * fraction;
+    return `${fill.toFixed(1)} ${(C - fill).toFixed(1)}`;
+  }
+
+  /**
+   * Tint the ring + eyebrow dot by the patient's overall trajectory.
+   * Falls back to accent when state is unknown so the ring is still
+   * visible (just neutral).
+   */
+  ringColor(): string {
+    const b = this.patient()?.progressBadge ?? 'unknown';
+    return {
+      improving: '#6ee7b7',
+      stable: 'var(--accent)',
+      worsening: 'var(--danger)',
+      unknown: 'var(--fg-dim)',
     }[b];
   }
 
