@@ -214,44 +214,6 @@ const SPOILER_PATTERNS: RegExp[] = [
             </article>
           }
 
-          @if (latestAssessment() || quickFacts().length) {
-            <section class="panel">
-              <header class="panel-head">
-                <h3 class="panel-title">PATIENT STATE</h3>
-                <span class="panel-meta">
-                  @if (patient()!.sessions[0]; as last) {
-                    Останнє оновлення: {{ last.startedAt | date: 'dd.MM.yyyy' }}
-                  } @else {
-                    Чекає на першу сесію
-                  }
-                </span>
-              </header>
-
-              <div class="metrics-grid fx-stagger">
-                @for (m of patientMetricsList; track m.key) {
-                  @let val = latestAssessment()?.patient?.[m.key] ?? null;
-                  <article class="metric-card">
-                    <div class="metric-card-label">{{ m.label }}</div>
-                    <div class="metric-card-value">
-                      @if (val != null) {
-                        {{ val }}<small>/10</small>
-                      } @else {
-                        <span class="dim">—</span>
-                      }
-                    </div>
-                    <div class="metric-card-bar">
-                      <div class="metric-card-fill"
-                           [style.width.%]="(val ?? 0) * 10"
-                           [class.warn]="val != null && m.warnHigh && val >= 7"
-                           [class.good]="val != null && !m.warnHigh && val >= 7">
-                      </div>
-                    </div>
-                  </article>
-                }
-              </div>
-            </section>
-          }
-
           <div class="overview-split fx-stagger">
             @if (quickFacts().length) {
               <article class="panel panel-soft">
@@ -1389,56 +1351,6 @@ const SPOILER_PATTERNS: RegExp[] = [
       letter-spacing: 0.04em;
     }
 
-    /* Metrics grid (PATIENT STATE panel) */
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
-    }
-    .metric-card {
-      padding: 12px 14px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .metric-card-label {
-      font-size: 10px;
-      letter-spacing: 0.12em;
-      color: var(--fg-dim);
-      text-transform: uppercase;
-      font-weight: 500;
-    }
-    .metric-card-value {
-      font-size: 26px;
-      font-weight: 300;
-      color: var(--fg);
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -0.02em;
-    }
-    .metric-card-value small {
-      font-size: 13px;
-      color: var(--fg-dim);
-      margin-left: 1px;
-    }
-    .metric-card-value .dim { color: var(--fg-dim); font-size: 18px; }
-    .metric-card-bar {
-      height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .metric-card-fill {
-      height: 100%;
-      background: var(--accent);
-      transition: width .8s cubic-bezier(.65, 0, .35, 1);
-    }
-    .metric-card-fill.warn { background: var(--danger); }
-    .metric-card-fill.good { background: var(--success); }
-
     /* ═══════════════════ QUOTE BLOCK ═══════════════════ */
     .quote-block {
       position: relative;
@@ -2257,21 +2169,6 @@ export class PatientDetailComponent implements OnInit {
   /** Tracks which collapsible sections are open. Spoiler sections default
    *  to closed; non-spoilers default to open. */
   private sectionOpen = signal<Record<number, boolean>>({});
-
-  /**
-   * Each metric carries a `warnHigh` flag: true if a HIGH score means
-   * "bad" (e.g. symptom severity 9/10 is a problem), false if HIGH is
-   * "good" (e.g. insight 9/10 is excellent). Used to colour the bar
-   * fill — warn-coloured when crossing the threshold in the bad
-   * direction, good-coloured otherwise.
-   */
-  patientMetricsList = [
-    { key: 'symptomSeverity' as const, label: 'Симптомна тяжкість', warnHigh: true },
-    { key: 'insight' as const, label: 'Інсайт', warnHigh: false },
-    { key: 'alliance' as const, label: 'Альянс', warnHigh: false },
-    { key: 'defensiveness' as const, label: 'Захисність', warnHigh: true },
-    { key: 'hopefulness' as const, label: 'Надія', warnHigh: false },
-  ];
 
   // ─── Derived data ────────────────────────────────────────────────────────
 
