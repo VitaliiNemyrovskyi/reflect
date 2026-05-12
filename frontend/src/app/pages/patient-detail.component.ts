@@ -566,7 +566,15 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     /* Photo lives in row 1, column 1. Same row as identity + vitals,
        so the hero "head" is one tidy band. Detail panel sits in row 2
-       below, full width. */
+       below, full width.
+       Photo gets a theme-locked duotone treatment so DiceBear's pastel
+       backgrounds (peach, lavender, mint…) don't clash with whatever
+       --accent the user picked in Settings:
+         1. The <img> itself is desaturated + slightly darkened.
+         2. An accent-tinted gradient is overlaid via mix-blend-mode,
+            recolouring the photo to match the theme.
+         3. A subtle vertical gradient on top adds depth and helps the
+            name on the right read against the photo edge. */
     .hero-photo {
       grid-column: 1;
       grid-row: 1;
@@ -577,6 +585,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       border: 1px solid var(--border);
       background: var(--user-bg);
       position: relative;
+      isolation: isolate; /* keep blend mode scoped to this stacking context */
     }
     .hero-photo img {
       width: 100%;
@@ -584,6 +593,42 @@ const SPOILER_PATTERNS: RegExp[] = [
       object-fit: cover;
       object-position: center top; /* keep faces, crop chin/torso */
       display: block;
+      filter: grayscale(0.55) saturate(0.7) brightness(0.85) contrast(1.05);
+      transition: filter .3s ease;
+    }
+    .hero-photo::before {
+      /* Accent tint — colour-mixes with the desaturated photo. */
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: color-mix(in srgb, var(--accent) 38%, transparent);
+      mix-blend-mode: color;
+      pointer-events: none;
+      z-index: 1;
+      transition: opacity .3s ease;
+    }
+    .hero-photo::after {
+      /* Vertical depth gradient — darkens the bottom edge so the
+         photo doesn't fight the dark hero background. */
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        transparent 0%,
+        transparent 55%,
+        color-mix(in srgb, var(--bg) 50%, transparent) 100%
+      );
+      pointer-events: none;
+      z-index: 2;
+    }
+    .hero-photo:hover img {
+      /* On hover, dial the duotone down so the original photo shows
+         through — a small detail that signals interactivity. */
+      filter: grayscale(0.2) saturate(0.95) brightness(0.95);
+    }
+    .hero-photo:hover::before {
+      opacity: 0.55;
     }
     .hero-photo-fallback {
       width: 100%;
@@ -594,6 +639,8 @@ const SPOILER_PATTERNS: RegExp[] = [
       font-size: 72px;
       font-weight: 300;
       color: var(--accent);
+      position: relative;
+      z-index: 0;
     }
 
     /* ─── Vital orbit (4 SVG arcs around the avatar) ─── */
