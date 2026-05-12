@@ -184,7 +184,6 @@ const SPOILER_PATTERNS: RegExp[] = [
                   (click)="tab.set(t.key)"
                   [attr.role]="'tab'"
                   [attr.aria-selected]="tab() === t.key">
-            <span class="tab-icon" aria-hidden="true">{{ t.icon }}</span>
             <span class="tab-label">{{ t.label }}</span>
             @if (t.count != null && t.count(patient()!) > 0) {
               <span class="tab-count">{{ t.count(patient()!) }}</span>
@@ -1684,20 +1683,26 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .tabs::-webkit-scrollbar { display: none; }
     .tabs button {
-      /* Gradient border via the two-layer background trick, then
-         clipped to a polygon for the diagonal top-right cut. The
-         clip-path means the visible "edge" of the tab follows the
-         polygon, so the border-box gradient appears along the cut
-         instead of stopping at a hard rectangle. */
+      /* Conic-gradient border driven by the inherited --frame-angle
+         (animated globally on body). All four sides + the diagonal
+         cut get visible border because the gradient is radial-symmetric
+         around the centre — no "dim corner" issue. clip-path cuts the
+         top-right notch; padding-box vs border-box clipping keeps the
+         border ring 1px wide all the way around (including along the
+         diagonal). */
       border: 1px solid transparent;
       background:
         radial-gradient(ellipse 100% 200% at 50% 100%,
           color-mix(in srgb, var(--accent) 6%, transparent) 0%,
           transparent 70%) padding-box,
         linear-gradient(var(--assistant-bg), var(--assistant-bg)) padding-box,
-        linear-gradient(135deg,
-          color-mix(in srgb, var(--accent) 28%, var(--border)) 0%,
-          color-mix(in srgb, var(--accent) 12%, var(--border)) 100%
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--accent) 60%, var(--border)) 0deg,
+          color-mix(in srgb, var(--accent) 25%, var(--border)) 90deg,
+          color-mix(in srgb, var(--accent) 55%, var(--border)) 180deg,
+          color-mix(in srgb, var(--accent) 25%, var(--border)) 270deg,
+          color-mix(in srgb, var(--accent) 60%, var(--border)) 360deg
         ) border-box;
       color: var(--fg-dim);
       padding: 12px 22px;
@@ -1731,14 +1736,17 @@ const SPOILER_PATTERNS: RegExp[] = [
           color-mix(in srgb, var(--accent) 22%, transparent) 0%,
           transparent 75%) padding-box,
         linear-gradient(var(--user-bg), var(--user-bg)) padding-box,
-        linear-gradient(135deg,
-          color-mix(in srgb, var(--accent) 95%, transparent) 0%,
-          color-mix(in srgb, var(--accent) 50%, transparent) 100%
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
+          color-mix(in srgb, var(--accent) 55%, transparent) 90deg,
+          color-mix(in srgb, var(--accent) 95%, transparent) 180deg,
+          color-mix(in srgb, var(--accent) 55%, transparent) 270deg,
+          color-mix(in srgb, var(--accent) 100%, transparent) 360deg
         ) border-box;
       /* drop-shadow can pass through clip-path (box-shadow can't). */
       filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 40%, transparent));
     }
-    .tab-icon { font-size: 14px; opacity: 0.85; }
     .tab-label { font-weight: 500; }
     .tab-count {
       background: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -1754,9 +1762,7 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     @media (max-width: 480px) {
       .tabs { gap: 6px; }
-      .tab-label { display: none; }
-      .tabs button { padding: 11px 14px; }
-      .tab-icon { font-size: 18px; }
+      .tabs button { padding: 11px 14px; font-size: 12px; }
     }
 
     .tab-content { padding-bottom: 40px; }
