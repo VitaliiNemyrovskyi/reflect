@@ -1669,61 +1669,93 @@ const SPOILER_PATTERNS: RegExp[] = [
       .new-session-btn { width: 100%; }
     }
 
+    /* Synapse-style tabs: individual pill cards with a notched
+       top-right corner. Each tab is its own bordered chip; active
+       chip glows with the accent. */
     .tabs {
       display: flex;
-      gap: 4px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 18px;
+      gap: 10px;
+      margin-bottom: 22px;
       overflow-x: auto;
       overflow-y: hidden;
       scrollbar-width: none;
       -ms-overflow-style: none;
-      padding: 0 0 0;
+      padding: 6px 2px;
     }
     .tabs::-webkit-scrollbar { display: none; }
     .tabs button {
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
+      /* Gradient border via the two-layer background trick, then
+         clipped to a polygon for the diagonal top-right cut. The
+         clip-path means the visible "edge" of the tab follows the
+         polygon, so the border-box gradient appears along the cut
+         instead of stopping at a hard rectangle. */
+      border: 1px solid transparent;
+      background:
+        radial-gradient(ellipse 100% 200% at 50% 100%,
+          color-mix(in srgb, var(--accent) 6%, transparent) 0%,
+          transparent 70%) padding-box,
+        linear-gradient(var(--assistant-bg), var(--assistant-bg)) padding-box,
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--accent) 28%, var(--border)) 0%,
+          color-mix(in srgb, var(--accent) 12%, var(--border)) 100%
+        ) border-box;
       color: var(--fg-dim);
-      padding: 10px 14px 12px;
-      font-size: 14px;
+      padding: 12px 22px;
+      font-size: 13px;
+      letter-spacing: 0.02em;
       cursor: pointer;
       white-space: nowrap;
       flex-shrink: 0;
       min-height: auto;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      border-radius: 6px 6px 0 0;
-      transition: color .15s ease, background .15s ease, border-color .15s ease;
+      gap: 8px;
+      border-radius: 10px;
+      clip-path: polygon(
+        0 0,
+        calc(100% - 14px) 0,
+        100% 14px,
+        100% 100%,
+        0 100%
+      );
+      transition: color .15s ease, filter .2s ease, transform .12s ease;
     }
     .tabs button:hover {
       color: var(--fg);
-      background: var(--user-bg);
+      filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 18%, transparent));
     }
     .tabs button.active {
       color: var(--accent);
-      border-bottom-color: var(--accent);
-      background: rgba(216, 201, 255, 0.06);
+      background:
+        radial-gradient(ellipse 100% 200% at 50% 100%,
+          color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+          transparent 75%) padding-box,
+        linear-gradient(var(--user-bg), var(--user-bg)) padding-box,
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--accent) 95%, transparent) 0%,
+          color-mix(in srgb, var(--accent) 50%, transparent) 100%
+        ) border-box;
+      /* drop-shadow can pass through clip-path (box-shadow can't). */
+      filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 40%, transparent));
     }
-    .tab-icon { font-size: 14px; }
+    .tab-icon { font-size: 14px; opacity: 0.85; }
     .tab-label { font-weight: 500; }
     .tab-count {
-      background: var(--user-bg);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
       color: var(--fg-dim);
       font-size: 11px;
-      padding: 1px 7px;
+      padding: 1px 8px;
       border-radius: 999px;
       margin-left: 2px;
     }
     .tabs button.active .tab-count {
-      background: rgba(216, 201, 255, 0.15);
+      background: color-mix(in srgb, var(--accent) 28%, transparent);
       color: var(--accent);
     }
     @media (max-width: 480px) {
+      .tabs { gap: 6px; }
       .tab-label { display: none; }
-      .tabs button { padding: 10px 12px 12px; }
+      .tabs button { padding: 11px 14px; }
       .tab-icon { font-size: 18px; }
     }
 
