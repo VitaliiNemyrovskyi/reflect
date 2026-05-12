@@ -261,7 +261,11 @@ import { LogoComponent } from '../logo.component';
       position: relative;
       display: flex;
       gap: 14px;
-      align-items: center;
+      /* Top-align so the avatar hugs the top edge of the card and the
+         card-body flows downward from the same baseline — keeps the
+         portrait from floating in the vertical centre when the body
+         content is taller than the avatar. */
+      align-items: flex-start;
       background: transparent;
       border: none;
       padding: 16px;
