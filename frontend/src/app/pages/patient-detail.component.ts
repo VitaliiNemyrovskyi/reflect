@@ -561,18 +561,17 @@ const SPOILER_PATTERNS: RegExp[] = [
       border-radius: 14px;
       overflow: hidden;
       display: grid;
-      /* Wider photo column so the accent backplate has room to read
-         as a real backdrop, not just a hairline border. */
-      grid-template-columns: 300px 1fr 220px;
+      grid-template-columns: 220px 1fr 220px;
       grid-template-rows: auto auto;
       gap: 22px 28px;
       align-items: start;
     }
-    /* Accent backplate — Synapse-style frame behind the photo, with
-       a clipped diagonal corner at top-right and an ANIMATED conic
-       gradient that rotates slowly through the accent colour. Read
-       it as a "spotlight" sweeping around the frame.
-       Colour follows the active theme accent automatically. */
+    /* 1px gradient border around the photo. Trick: .photo-frame has
+       a conic-gradient as its background AND padding: 1px. The
+       child .hero-photo has its own opaque background, so only the
+       outermost 1px ring shows through — that's our gradient border.
+       The conic-gradient angle animates so the bright spot of the
+       gradient travels around the perimeter. */
     @property --frame-angle {
       syntax: "<angle>";
       initial-value: 0deg;
@@ -582,46 +581,20 @@ const SPOILER_PATTERNS: RegExp[] = [
       grid-column: 1;
       grid-row: 1;
       width: 100%;
-      /* Big accent backdrop, like the Behance reference — the frame
-         IS the visual centerpiece, photo is a smaller element inside.
-         Asymmetric padding so the photo sits upper-centered, with
-         extra accent area visible below. */
-      padding: 36px 44px 80px;
-      border-radius: 18px;
+      padding: 1px;
+      border-radius: 11px;
       position: relative;
-      clip-path: polygon(
-        0 0,
-        calc(100% - 56px) 0,
-        100% 56px,
-        100% 100%,
-        0 100%
-      );
-      isolation: isolate;
-      /* Base layer: solid muted accent so there's always something
-         visible behind the spotlight even at low-opacity stops. */
-      background: color-mix(in srgb, var(--accent) 32%, var(--bg));
-      box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
-        0 14px 56px -18px color-mix(in srgb, var(--accent) 50%, transparent);
-    }
-    /* Conic-gradient spotlight layer — rotates via @property animation.
-       The bright accent peaks alternate with darker mid-tone, so as it
-       turns it looks like a soft light traveling around the frame. */
-    .photo-frame::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      z-index: -1;
       background: conic-gradient(
         from var(--frame-angle),
-        color-mix(in srgb, var(--accent) 95%, transparent) 0deg,
-        color-mix(in srgb, var(--accent) 35%, var(--bg)) 90deg,
-        color-mix(in srgb, var(--accent) 80%, transparent) 180deg,
-        color-mix(in srgb, var(--accent) 40%, var(--bg)) 270deg,
-        color-mix(in srgb, var(--accent) 95%, transparent) 360deg
+        color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
+        color-mix(in srgb, var(--accent) 10%, transparent) 80deg,
+        color-mix(in srgb, var(--accent) 100%, transparent) 180deg,
+        color-mix(in srgb, var(--accent) 10%, transparent) 280deg,
+        color-mix(in srgb, var(--accent) 100%, transparent) 360deg
       );
+      isolation: isolate;
       @media (prefers-reduced-motion: no-preference) {
-        animation: frame-rotate 8s linear infinite;
+        animation: frame-rotate 6s linear infinite;
       }
     }
     @keyframes frame-rotate {
@@ -640,9 +613,9 @@ const SPOILER_PATTERNS: RegExp[] = [
             name on the right read against the photo edge. */
     .hero-photo {
       width: 100%;
-      /* Smaller photo so the surrounding accent backdrop is what
-         the eye reads first. */
-      height: 280px;
+      height: 300px;
+      /* Slightly smaller radius so it sits cleanly inside the 1px
+         gradient border on .photo-frame. */
       border-radius: 10px;
       overflow: hidden;
       background: var(--user-bg);
@@ -1180,7 +1153,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 
     @media (max-width: 1000px) {
       .hero {
-        grid-template-columns: 240px 1fr;
+        grid-template-columns: 180px 1fr;
         grid-template-rows: auto auto auto;
         gap: 18px 22px;
         padding: 22px 20px;
@@ -1188,9 +1161,8 @@ const SPOILER_PATTERNS: RegExp[] = [
       .photo-frame {
         grid-column: 1;
         grid-row: 1 / span 2;
-        padding: 28px 32px 56px;
       }
-      .hero-photo { height: 220px; }
+      .hero-photo { height: 260px; }
       .hero-info {
         grid-column: 2;
         grid-row: 1;
