@@ -1682,11 +1682,16 @@ const SPOILER_PATTERNS: RegExp[] = [
       padding: 6px 2px;
     }
     .tabs::-webkit-scrollbar { display: none; }
-    /* Two-pseudo trick: ::before is the OUTER notched shape carrying
-       the gradient (the visible "border"). ::after is a 1px-smaller
-       notched shape with the inner fill, sitting ON TOP of ::before,
-       hiding all but the outer 1px ring — including along the
-       diagonal cut. The label spans then sit on top of both pseudos. */
+    /* The pseudo-element rules (::before / ::after for the gradient
+       ring + inner fill on the notched tab pills) live in global
+       styles.scss under "app-patient-detail .tabs button::*".
+       Why: Angular's emulated view encapsulation rewrites
+       "button::before" into "button:before[_ngcontent-XYZ]" — and
+       attribute selectors can't follow a pseudo-element, so the
+       whole rule is invalid CSS and gets dropped silently. Hosting
+       these rules globally sidesteps the encapsulation rewriter
+       while keeping them scoped by descendant from the component
+       host. */
     .tabs button {
       position: relative;
       border: none;
@@ -1704,51 +1709,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       gap: 8px;
       transition: color .15s ease, filter .2s ease, transform .12s ease;
     }
-    /* Outer gradient layer */
-    .tabs button::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      background: conic-gradient(
-        from var(--frame-angle),
-        color-mix(in srgb, var(--accent) 60%, var(--border)) 0deg,
-        color-mix(in srgb, var(--accent) 25%, var(--border)) 90deg,
-        color-mix(in srgb, var(--accent) 55%, var(--border)) 180deg,
-        color-mix(in srgb, var(--accent) 25%, var(--border)) 270deg,
-        color-mix(in srgb, var(--accent) 60%, var(--border)) 360deg
-      );
-      clip-path: polygon(
-        0 0,
-        calc(100% - 14px) 0,
-        100% 14px,
-        100% 100%,
-        0 100%
-      );
-      border-radius: 10px;
-    }
-    /* Inner fill layer — sits on top of ::before everywhere except
-       the 1px outer ring. */
-    .tabs button::after {
-      content: '';
-      position: absolute;
-      inset: 1px;
-      z-index: 1;
-      background:
-        radial-gradient(ellipse 100% 200% at 50% 100%,
-          color-mix(in srgb, var(--accent) 6%, transparent) 0%,
-          transparent 70%),
-        var(--assistant-bg);
-      clip-path: polygon(
-        0 0,
-        calc(100% - 14px) 0,
-        100% 14px,
-        100% 100%,
-        0 100%
-      );
-      border-radius: 9px;
-    }
-    /* Hoist the actual text content above both pseudos. */
+    /* Hoist the actual text content above the global pseudos. */
     .tabs button > * { position: relative; z-index: 2; }
 
     .tabs button:hover {
@@ -1756,23 +1717,6 @@ const SPOILER_PATTERNS: RegExp[] = [
       filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 18%, transparent));
     }
     .tabs button.active { color: var(--accent); }
-    .tabs button.active::before {
-      background: conic-gradient(
-        from var(--frame-angle),
-        color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
-        color-mix(in srgb, var(--accent) 55%, transparent) 90deg,
-        color-mix(in srgb, var(--accent) 95%, transparent) 180deg,
-        color-mix(in srgb, var(--accent) 55%, transparent) 270deg,
-        color-mix(in srgb, var(--accent) 100%, transparent) 360deg
-      );
-    }
-    .tabs button.active::after {
-      background:
-        radial-gradient(ellipse 100% 200% at 50% 100%,
-          color-mix(in srgb, var(--accent) 22%, transparent) 0%,
-          transparent 75%),
-        var(--user-bg);
-    }
     .tabs button.active {
       filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 40%, transparent));
     }

@@ -410,3 +410,84 @@ textarea, input {
     stroke-dashoffset: 0;
   }
 }
+
+// ---------------------------------------------------------------------------
+// patient-detail tab pills — pseudo-element layers (Synapse-style gradient
+// ring + notched top-right corner).
+//
+// These rules CAN'T live in the component's `styles` array: Angular's
+// emulated view encapsulation rewrites `.tabs button::before` to something
+// like `.tabs button:before[_ngcontent-XYZ]`. Attribute selectors after a
+// pseudo-element are invalid CSS, so the entire rule is dropped and the
+// border never paints. Hosting them globally (scoped by `app-patient-detail`)
+// sidesteps the encapsulation rewriter while keeping the rules from leaking
+// to other pages.
+//
+// Layering:
+//   • ::before — outer notched shape, painted with the rotating conic
+//     gradient. This is the "border".
+//   • ::after  — same notched shape, inset by 1px on all sides. Solid
+//     inner fill. Sits on top of ::before, hiding all but a 1px ring.
+//     The 1px inset + same clip-path coords (relative to the smaller
+//     box) shifts the diagonal cut by ~√2px perpendicular, so the
+//     gradient strip is visible along the notch too.
+//   • text spans — hoisted with `z-index: 2` in the component styles.
+// ---------------------------------------------------------------------------
+app-patient-detail .tabs button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: conic-gradient(
+    from var(--frame-angle),
+    color-mix(in srgb, var(--accent) 60%, var(--border)) 0deg,
+    color-mix(in srgb, var(--accent) 25%, var(--border)) 90deg,
+    color-mix(in srgb, var(--accent) 55%, var(--border)) 180deg,
+    color-mix(in srgb, var(--accent) 25%, var(--border)) 270deg,
+    color-mix(in srgb, var(--accent) 60%, var(--border)) 360deg
+  );
+  clip-path: polygon(
+    0 0,
+    calc(100% - 14px) 0,
+    100% 14px,
+    100% 100%,
+    0 100%
+  );
+  border-radius: 10px;
+}
+app-patient-detail .tabs button::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 100% 200% at 50% 100%,
+      color-mix(in srgb, var(--accent) 6%, transparent) 0%,
+      transparent 70%),
+    var(--assistant-bg);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 14px) 0,
+    100% 14px,
+    100% 100%,
+    0 100%
+  );
+  border-radius: 9px;
+}
+app-patient-detail .tabs button.active::before {
+  background: conic-gradient(
+    from var(--frame-angle),
+    color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
+    color-mix(in srgb, var(--accent)  55%, transparent) 90deg,
+    color-mix(in srgb, var(--accent)  95%, transparent) 180deg,
+    color-mix(in srgb, var(--accent)  55%, transparent) 270deg,
+    color-mix(in srgb, var(--accent) 100%, transparent) 360deg
+  );
+}
+app-patient-detail .tabs button.active::after {
+  background:
+    radial-gradient(ellipse 100% 200% at 50% 100%,
+      color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+      transparent 75%),
+    var(--user-bg);
+}
