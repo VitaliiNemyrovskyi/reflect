@@ -580,13 +580,15 @@ const SPOILER_PATTERNS: RegExp[] = [
       grid-column: 1;
       grid-row: 1;
       width: 100%;
-      padding: 8px;
-      border-radius: 14px;
+      /* Thicker frame so the rotating conic gradient is actually
+         visible — at 8px it was just a hairline. */
+      padding: 18px;
+      border-radius: 16px;
       position: relative;
       clip-path: polygon(
         0 0,
-        calc(100% - 28px) 0,
-        100% 28px,
+        calc(100% - 40px) 0,
+        100% 40px,
         100% 100%,
         0 100%
       );
@@ -634,20 +636,19 @@ const SPOILER_PATTERNS: RegExp[] = [
             name on the right read against the photo edge. */
     .hero-photo {
       width: 100%;
-      height: 284px;
+      height: 264px;
       border-radius: 8px;
       overflow: hidden;
       background: var(--user-bg);
       position: relative;
       isolation: isolate;
-      /* Mirror the frame's notch so the photo edge stays flush
-         with the inside of the cut corner. Cut is 20px on the photo
-         (vs 28px on the frame), leaving an 8px accent triangle in
-         the corner gap — same as the all-around 8px padding. */
+      /* Mirror the frame's notch but smaller, so the accent triangle
+         in the corner gap stays visible. Frame notch is 40px and
+         photo padding is 18px, so photo notch ≈ 40 - 18 = 22px. */
       clip-path: polygon(
         0 0,
-        calc(100% - 20px) 0,
-        100% 20px,
+        calc(100% - 22px) 0,
+        100% 22px,
         100% 100%,
         0 100%
       );
