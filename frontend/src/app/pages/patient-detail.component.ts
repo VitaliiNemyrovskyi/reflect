@@ -163,13 +163,19 @@ const SPOILER_PATTERNS: RegExp[] = [
               <span class="sector-detail-meta">{{ d.meta }}</span>
             </header>
             <table class="sector-detail-table">
+              <thead>
+                <tr>
+                  @for (row of d.rows; track row.label) {
+                    <th scope="col">{{ row.label }}</th>
+                  }
+                </tr>
+              </thead>
               <tbody>
-                @for (row of d.rows; track row.label) {
-                  <tr>
-                    <th scope="row">{{ row.label }}</th>
+                <tr>
+                  @for (row of d.rows; track row.label) {
                     <td>{{ row.value }}</td>
-                  </tr>
-                }
+                  }
+                </tr>
               </tbody>
             </table>
           </article>
@@ -1035,49 +1041,49 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--fg-dim);
       letter-spacing: 0.04em;
     }
-    /* Two-column table: dim label / accent-toned divider / value.
-       Border-collapse keeps the dividing rule a single hairline. The
-       last row drops its bottom border so the table doesn't fight the
-       parent panel's own border below. */
+    /* Horizontal layout: labels in a thead row, values below in a
+       single tbody row. table-layout:fixed + 1fr-equivalent columns
+       (table cells inherit auto width but the table itself is full-
+       width so each cell takes 1/N) gives evenly distributed columns
+       regardless of label length. A single accent-toned hairline
+       separates header from body — no per-row borders needed. */
     .sector-detail-table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
       font-size: 13px;
       line-height: 1.45;
     }
-    .sector-detail-table th,
-    .sector-detail-table td {
-      padding: 10px 14px 10px 0;
-      vertical-align: top;
-      border-bottom: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
-    }
-    .sector-detail-table th {
-      width: 140px;
+    .sector-detail-table thead th {
       text-align: left;
       font-weight: 500;
       color: var(--fg-dim);
       font-size: 10px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
+      padding: 0 14px 10px 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+      vertical-align: bottom;
     }
-    .sector-detail-table td {
+    .sector-detail-table tbody td {
       color: var(--fg);
+      padding: 12px 14px 0 0;
+      vertical-align: top;
+      /* Long values shouldn't overflow the cell; allow wrapping. */
+      word-break: break-word;
+    }
+    .sector-detail-table thead th:last-child,
+    .sector-detail-table tbody td:last-child {
       padding-right: 0;
     }
-    .sector-detail-table tr:last-child th,
-    .sector-detail-table tr:last-child td {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-    .sector-detail-table tr:first-child th,
-    .sector-detail-table tr:first-child td {
-      padding-top: 0;
-    }
     @media (max-width: 480px) {
-      /* On narrow phones drop the label column to ~90px so long
-         values aren't squeezed into a 1fr that's only ~60% of the
-         visible area. */
-      .sector-detail-table th { width: 90px; }
+      /* Tighten column padding on phones so 4 columns still fit a
+         narrow viewport. Values wrap (word-break above) when needed. */
+      .sector-detail-table thead th,
+      .sector-detail-table tbody td {
+        padding-right: 8px;
+        font-size: 12px;
+      }
     }
 
     /* Avatar with orbital state-ring */
