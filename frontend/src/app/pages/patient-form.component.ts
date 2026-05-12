@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
+import { Component, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -26,7 +26,7 @@ const THEME_OPTIONS = [
 @Component({
   selector: 'app-patient-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, DatePipe],
   template: `
     <header class="page-header">
       <a routerLink="/" class="back">← На головну</a>
@@ -48,6 +48,29 @@ const THEME_OPTIONS = [
 
     @if (loadError()) {
       <p class="hint danger">{{ loadError() }}</p>
+    }
+
+    @if (pendingDraft(); as d) {
+      <div class="draft-banner">
+        <div class="draft-banner-body">
+          <strong>Знайдено незбережену чернетку</strong>
+          <span class="draft-banner-meta">
+            від {{ d.ts | date: 'dd.MM.yyyy HH:mm' }}@if (d.form.displayName) {, «{{ d.form.displayName }}»}
+          </span>
+        </div>
+        <div class="draft-banner-actions">
+          <button type="button" class="primary tight" (click)="restoreDraft()">Відновити</button>
+          <button type="button" class="ghost tight" (click)="discardDraft()">Почати з нуля</button>
+        </div>
+      </div>
+    } @else if (draftSavedAt()) {
+      <p class="draft-status">
+        💾 Чернетка зберігається автоматично · останнє збереження
+        {{ draftSavedAt() | date: 'HH:mm:ss' }}
+        @if (mode() === 'create') {
+          <button type="button" class="link-btn" (click)="discardDraft()">скинути</button>
+        }
+      </p>
     }
 
     <section class="form-section">
@@ -509,9 +532,67 @@ const THEME_OPTIONS = [
       font-size: 13px;
     }
     .ghost-link:hover { color: var(--fg); }
+
+    /* Restore-draft banner (shown when localStorage has a pending draft). */
+    .draft-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      background: rgba(216, 201, 255, 0.08);
+      border: 1px solid rgba(216, 201, 255, 0.3);
+      border-radius: 8px;
+      flex-wrap: wrap;
+    }
+    .draft-banner-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 220px;
+    }
+    .draft-banner-body strong {
+      color: var(--accent);
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .draft-banner-meta {
+      font-size: 12px;
+      color: var(--fg-dim);
+    }
+    .draft-banner-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .tight {
+      padding: 6px 12px;
+      font-size: 13px;
+      min-height: auto;
+    }
+    .draft-status {
+      font-size: 11px;
+      color: var(--fg-dim);
+      margin: 0 0 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .draft-status .link-btn { font-size: 11px; margin: 0; }
+    .link-btn {
+      color: var(--accent);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+      min-height: auto;
+    }
   `],
 })
-export class PatientFormComponent implements OnInit {
+export class PatientFormComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -520,6 +601,24 @@ export class PatientFormComponent implements OnInit {
   private editingId = signal<number | null>(null);
 
   themeOptions = THEME_OPTIONS;
+
+  /**
+   * Auto-saved form draft, kept in localStorage so a user can close the
+   * tab mid-way through filling fields (or after a couple expensive
+   * AI-generation clicks) and pick up exactly where they left off.
+   *
+   * - `pendingDraft` is set on init if we found a stored draft that
+   *   matches the current route mode/id. We render a banner asking
+   *   "Restore? / Start fresh?" — only fill the form after user confirms.
+   * - `draftSavedAt` is the wall-clock of the last successful save,
+   *   shown as a subtle "saved at 12:34:56" status under the banner.
+   * - Cleared on successful Save (created Character) or explicit
+   *   "Скинути" click.
+   */
+  pendingDraft = signal<{ ts: number; form: CharacterDraftBrief & { profileText: string } } | null>(null);
+  draftSavedAt = signal<number | null>(null);
+  private draftTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly DRAFT_DEBOUNCE_MS = 600;
 
   form: CharacterDraftBrief & { profileText: string } = {
     displayName: '',
@@ -588,6 +687,126 @@ export class PatientFormComponent implements OnInit {
     this.form.themes = list.includes(t)
       ? list.filter((x) => x !== t)
       : [...list, t];
+    this.scheduleSaveDraft();
+  }
+
+  // ─── Draft persistence ────────────────────────────────────────────────
+
+  /**
+   * localStorage key for the current draft. Per-mode so a draft for
+   * /patient/new doesn't collide with an in-progress edit of an
+   * existing patient (and vice-versa).
+   */
+  private get draftKey(): string {
+    return this.mode() === 'edit'
+      ? `reflect.draft.patient.edit.${this.editingId() ?? 'unknown'}`
+      : 'reflect.draft.patient.new';
+  }
+
+  /**
+   * Catch-all listener: any keystroke / change inside the form's host
+   * triggers a debounced save. Cheaper than wiring (ngModelChange) on
+   * every input. Misses programmatic mutations (AI fills, theme
+   * toggles, slider drags) — those call scheduleSaveDraft directly.
+   */
+  @HostListener('input')
+  onAnyInput() {
+    this.scheduleSaveDraft();
+  }
+  @HostListener('change')
+  onAnyChange() {
+    this.scheduleSaveDraft();
+  }
+
+  scheduleSaveDraft() {
+    // Drafts only for create mode — edit mode persists to server on
+    // explicit Save, doesn't need a localStorage shadow.
+    if (this.mode() !== 'create') return;
+    if (this.draftTimer) clearTimeout(this.draftTimer);
+    this.draftTimer = setTimeout(() => {
+      this.draftTimer = null;
+      this.saveDraftNow();
+    }, PatientFormComponent.DRAFT_DEBOUNCE_MS);
+  }
+
+  private saveDraftNow() {
+    if (this.mode() !== 'create') return;
+    // Don't persist totally-empty drafts — they're noise on next open.
+    if (!this.formHasContent()) return;
+    try {
+      const payload = { ts: Date.now(), form: this.form };
+      localStorage.setItem(this.draftKey, JSON.stringify(payload));
+      this.draftSavedAt.set(payload.ts);
+    } catch {
+      // localStorage full / disabled / blocked — silently skip.
+    }
+  }
+
+  private loadDraft(): { ts: number; form: CharacterDraftBrief & { profileText: string } } | null {
+    try {
+      const raw = localStorage.getItem(this.draftKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { ts?: number; form?: CharacterDraftBrief & { profileText: string } };
+      if (!parsed?.form || typeof parsed.ts !== 'number') return null;
+      return { ts: parsed.ts, form: parsed.form };
+    } catch {
+      return null;
+    }
+  }
+
+  private clearDraft() {
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    try {
+      localStorage.removeItem(this.draftKey);
+    } catch {}
+    this.draftSavedAt.set(null);
+  }
+
+  /** Has the user (or AI) put any non-default content into the form? */
+  private formHasContent(): boolean {
+    return !!(
+      this.form.displayName.trim() ||
+      this.form.age ||
+      this.form.city?.trim() ||
+      this.form.profession?.trim() ||
+      this.form.diagnosis?.trim() ||
+      this.form.diagnosisCode?.trim() ||
+      this.form.brief?.trim() ||
+      this.form.hiddenLayerHint?.trim() ||
+      this.form.voiceNotes?.trim() ||
+      this.form.themes?.length ||
+      this.form.profileText.trim()
+    );
+  }
+
+  /** "Restore" button on the draft banner — pour the saved form back in. */
+  restoreDraft() {
+    const draft = this.pendingDraft();
+    if (!draft) return;
+    // Shallow-merge so we preserve any defaults that might be missing
+    // from older drafts (e.g. if we later add new fields).
+    Object.assign(this.form, draft.form);
+    this.pendingDraft.set(null);
+    this.draftSavedAt.set(draft.ts);
+  }
+
+  /** "Start fresh" / "Скинути" — drop the draft and stay with defaults. */
+  discardDraft() {
+    this.clearDraft();
+    this.pendingDraft.set(null);
+  }
+
+  ngOnDestroy() {
+    // If a debounced save was pending, flush it synchronously so we
+    // don't lose the user's last few keystrokes when they navigate away.
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+      this.saveDraftNow();
+    }
   }
 
   /**
@@ -617,6 +836,11 @@ export class PatientFormComponent implements OnInit {
     const idParam = this.route.snapshot.paramMap.get('id');
     if (!idParam) {
       this.mode.set('create');
+      // Look for a previously-saved draft in localStorage; if found,
+      // surface the banner (we don't auto-restore — silent overwrites
+      // are creepy and the timestamp helps the user decide).
+      const draft = this.loadDraft();
+      if (draft) this.pendingDraft.set(draft);
       return;
     }
     const id = Number(idParam);
@@ -652,6 +876,9 @@ export class PatientFormComponent implements OnInit {
     try {
       const res = await this.api.draftCharacter(this.briefPayload());
       this.form.profileText = res.markdown;
+      // Snap a draft to disk so an expensive generated markdown survives
+      // an accidental tab close before the user hits "Save".
+      this.saveDraftNow();
     } catch (e: unknown) {
       const httpErr = e as { error?: { message?: string }; status?: number };
       this.generateError.set(
@@ -676,6 +903,8 @@ export class PatientFormComponent implements OnInit {
     try {
       const res = await this.api.draftField(field, this.briefPayload());
       this.applyAiValue(field, res.value);
+      // Persist immediately — every ✨ click costs tokens, must not lose.
+      this.saveDraftNow();
     } catch (e: unknown) {
       const httpErr = e as { error?: { message?: string }; status?: number };
       // Reuse the global generateError surface — per-field error UI would
@@ -774,6 +1003,9 @@ export class PatientFormComponent implements OnInit {
         this.mode() === 'create'
           ? await this.api.createCharacter(dto)
           : await this.api.updateCharacter(this.editingId()!, dto);
+      // Persistence succeeded — wipe the local draft so the next visit
+      // to /patient/new doesn't offer to restore stale data.
+      this.clearDraft();
       void this.router.navigate(['/patient', character.id]);
     } catch (e: unknown) {
       this.saveError.set(
