@@ -1684,10 +1684,9 @@ const SPOILER_PATTERNS: RegExp[] = [
     .tabs::-webkit-scrollbar { display: none; }
     /* Two-pseudo trick: ::before is the OUTER notched shape carrying
        the gradient (the visible "border"). ::after is a 1px-smaller
-       notched shape filled with the inner background, sitting on
-       top of ::before, hiding all but the outer 1px ring — including
-       along the diagonal cut where background-clip:border-box failed
-       to leave a visible gradient line. */
+       notched shape with the inner fill, sitting ON TOP of ::before,
+       hiding all but the outer 1px ring — including along the
+       diagonal cut. The label spans then sit on top of both pseudos. */
     .tabs button {
       position: relative;
       border: none;
@@ -1704,14 +1703,13 @@ const SPOILER_PATTERNS: RegExp[] = [
       align-items: center;
       gap: 8px;
       transition: color .15s ease, filter .2s ease, transform .12s ease;
-      isolation: isolate;
     }
+    /* Outer gradient layer */
     .tabs button::before {
-      /* Outer notched shape — paints the gradient that becomes the border. */
       content: '';
       position: absolute;
       inset: 0;
-      z-index: -2;
+      z-index: 0;
       background: conic-gradient(
         from var(--frame-angle),
         color-mix(in srgb, var(--accent) 60%, var(--border)) 0deg,
@@ -1729,15 +1727,13 @@ const SPOILER_PATTERNS: RegExp[] = [
       );
       border-radius: 10px;
     }
+    /* Inner fill layer — sits on top of ::before everywhere except
+       the 1px outer ring. */
     .tabs button::after {
-      /* Inner notched shape — solid fill that covers ::before except
-         the outer 1px ring. Inset by 1px on the axis-aligned edges
-         AND the notch corner pulls in by 1px both x and y so the
-         diagonal cut also reveals 1px of gradient. */
       content: '';
       position: absolute;
       inset: 1px;
-      z-index: -1;
+      z-index: 1;
       background:
         radial-gradient(ellipse 100% 200% at 50% 100%,
           color-mix(in srgb, var(--accent) 6%, transparent) 0%,
@@ -1752,6 +1748,9 @@ const SPOILER_PATTERNS: RegExp[] = [
       );
       border-radius: 9px;
     }
+    /* Hoist the actual text content above both pseudos. */
+    .tabs button > * { position: relative; z-index: 2; }
+
     .tabs button:hover {
       color: var(--fg);
       filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 18%, transparent));
