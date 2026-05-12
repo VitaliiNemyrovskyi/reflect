@@ -62,17 +62,15 @@ const SPOILER_PATTERNS: RegExp[] = [
       <section class="hero dot-grid-bg fx-fade-up"
                (mouseleave)="activeSector.set(null)">
 
-        <!-- Rectangular portrait, wrapped in a Synapse-style accent
-             backplate with a notched top-right corner. Frame colour
-             follows the active theme (lavender / blue / Synapse-orange). -->
-        <div class="photo-frame">
-          <div class="hero-photo">
-            @if (patient()!.avatarUrl) {
-              <img [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
-            } @else {
-              <div class="hero-photo-fallback">{{ patient()!.displayName.charAt(0) }}</div>
-            }
-          </div>
+        <!-- Rectangular portrait with a 1px animated-gradient border.
+             Frame colour follows the active theme (lavender / blue /
+             Synapse-orange). -->
+        <div class="hero-photo">
+          @if (patient()!.avatarUrl) {
+            <img [src]="patient()!.avatarUrl" [alt]="patient()!.displayName" />
+          } @else {
+            <div class="hero-photo-fallback">{{ patient()!.displayName.charAt(0) }}</div>
+          }
         </div>
 
         <div class="hero-info">
@@ -566,39 +564,16 @@ const SPOILER_PATTERNS: RegExp[] = [
       gap: 22px 28px;
       align-items: start;
     }
-    /* 1px gradient border around the photo. Trick: .photo-frame has
-       a conic-gradient as its background AND padding: 1px. The
-       child .hero-photo has its own opaque background, so only the
-       outermost 1px ring shows through — that's our gradient border.
-       The conic-gradient angle animates so the bright spot of the
-       gradient travels around the perimeter. */
+    /* 1px animated-gradient border directly on .hero-photo. Trick:
+       transparent border + two-layer background (solid clipped to
+       padding-box, gradient clipped to border-box) — the gradient
+       only shows in the 1px border ring. No wrapper, no padding.
+       Angle animates via @property so the bright spot of the
+       conic-gradient travels around the perimeter. */
     @property --frame-angle {
       syntax: "<angle>";
       initial-value: 0deg;
       inherits: false;
-    }
-    .photo-frame {
-      grid-column: 1;
-      grid-row: 1;
-      width: 100%;
-      padding: 1px;
-      border-radius: 11px;
-      position: relative;
-      background: conic-gradient(
-        from var(--frame-angle),
-        color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
-        color-mix(in srgb, var(--accent) 10%, transparent) 80deg,
-        color-mix(in srgb, var(--accent) 100%, transparent) 180deg,
-        color-mix(in srgb, var(--accent) 10%, transparent) 280deg,
-        color-mix(in srgb, var(--accent) 100%, transparent) 360deg
-      );
-      isolation: isolate;
-      @media (prefers-reduced-motion: no-preference) {
-        animation: frame-rotate 6s linear infinite;
-      }
-    }
-    @keyframes frame-rotate {
-      to { --frame-angle: 360deg; }
     }
     /* Photo lives inside the frame. Same row as identity + vitals,
        so the hero "head" is one tidy band. Detail panel sits in row 2
@@ -612,15 +587,35 @@ const SPOILER_PATTERNS: RegExp[] = [
          3. A subtle vertical gradient on top adds depth and helps the
             name on the right read against the photo edge. */
     .hero-photo {
+      grid-column: 1;
+      grid-row: 1;
       width: 100%;
       height: 300px;
-      /* Slightly smaller radius so it sits cleanly inside the 1px
-         gradient border on .photo-frame. */
       border-radius: 10px;
       overflow: hidden;
-      background: var(--user-bg);
       position: relative;
       isolation: isolate;
+      /* Two-layer background: solid bg in the padding-box (covers
+         everything except the 1px border ring), conic-gradient in
+         the border-box (only the border ring shows it). Border is
+         transparent so the gradient peeks through. */
+      border: 1px solid transparent;
+      background:
+        linear-gradient(var(--user-bg), var(--user-bg)) padding-box,
+        conic-gradient(
+          from var(--frame-angle),
+          color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
+          color-mix(in srgb, var(--accent) 12%, transparent) 80deg,
+          color-mix(in srgb, var(--accent) 100%, transparent) 180deg,
+          color-mix(in srgb, var(--accent) 12%, transparent) 280deg,
+          color-mix(in srgb, var(--accent) 100%, transparent) 360deg
+        ) border-box;
+      @media (prefers-reduced-motion: no-preference) {
+        animation: frame-rotate 6s linear infinite;
+      }
+    }
+    @keyframes frame-rotate {
+      to { --frame-angle: 360deg; }
     }
     .hero-photo img {
       width: 100%;
@@ -1158,11 +1153,11 @@ const SPOILER_PATTERNS: RegExp[] = [
         gap: 18px 22px;
         padding: 22px 20px;
       }
-      .photo-frame {
+      .hero-photo {
         grid-column: 1;
         grid-row: 1 / span 2;
+        height: 260px;
       }
-      .hero-photo { height: 260px; }
       .hero-info {
         grid-column: 2;
         grid-row: 1;
@@ -1189,11 +1184,11 @@ const SPOILER_PATTERNS: RegExp[] = [
         padding: 18px 16px 18px;
         margin: 12px -16px 20px;
       }
-      .photo-frame {
+      .hero-photo {
         grid-column: 1;
         grid-row: 1;
+        height: 224px;
       }
-      .hero-photo { height: 224px; }
       .hero-info {
         grid-column: 1;
         grid-row: 2;
