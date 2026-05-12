@@ -244,7 +244,7 @@ import { LogoComponent } from '../logo.component';
         padding: 14px;
         gap: 12px;
       }
-      .avatar { width: 56px; height: 56px; }
+      .avatar { width: 56px; height: 70px; }
     }
 
     /* Synapse card: accent-tinted bg, conic-gradient rotating border
@@ -305,13 +305,16 @@ import { LogoComponent } from '../logo.component';
       position: relative;
       flex-shrink: 0;
     }
+    /* Portrait-style 4:5 rectangle with rounded corners — matches the
+       patient-detail hero photo treatment. object-fit:cover keeps the
+       face roughly framed at any source aspect. */
     .avatar {
       width: 64px;
-      height: 64px;
-      border-radius: 50%;
+      height: 80px;
+      border-radius: 10px;
       object-fit: cover;
       background: var(--user-bg);
-      border: 1px solid var(--border);
+      border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
     }
     .avatar.fallback {
       display: flex;
@@ -323,12 +326,15 @@ import { LogoComponent } from '../logo.component';
       background: var(--user-bg);
     }
 
+    /* Progress dot now sits on the rounded-rect corner — keep it
+       circular (it's still a status dot, not a corner marker) and
+       nudge it inward so it doesn't get clipped by border-radius. */
     .progress-dot {
       position: absolute;
-      bottom: 0;
-      right: 0;
-      width: 16px;
-      height: 16px;
+      bottom: 4px;
+      right: 4px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       border: 2px solid var(--assistant-bg);
     }
