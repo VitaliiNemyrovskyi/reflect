@@ -10,6 +10,13 @@ import { LogoComponent } from '../logo.component';
   standalone: true,
   imports: [CommonModule, DatePipe, RouterLink, LogoComponent],
   template: `
+    <!-- Cinematic hero background. Empty by default — drops in once a
+         file lands at /hero-bg.webp (or .jpg/.png). The image is fixed,
+         dimmed, and fades to transparent at the edges so it lights the
+         page without competing with the patient cards.
+         On phones the layer is hidden entirely (perf + readability). -->
+    <div class="hero-bg" aria-hidden="true"></div>
+
     <header class="header">
       <div class="title-row">
         <div class="brand-block">
@@ -131,7 +138,40 @@ import { LogoComponent } from '../logo.component';
     }
   `,
   styles: [`
-    .header { margin-bottom: 24px; }
+    /* Hero-bg layer — drop a file at /hero-bg.webp (or .jpg/.png) in
+       frontend/public/ and the layer lights up automatically. No
+       file = silent no-op (background-image just resolves to nothing).
+       Positioning: fixed full-viewport, z-index:0 — sits ABOVE the
+       body's gradient wash + dot grid but BELOW the floating blobs
+       (z:0, later in source order) and the main content (z:1+).
+       Mobile: hidden — too much GPU work on small phones plus the
+       composition (wide cinematic) breaks at narrow widths. */
+    .hero-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url('/hero-bg.webp');
+      background-position: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      opacity: 0.32;
+      /* Fade edges + top/bottom so the image lights the centre without
+         creating a hard rectangle against the body wash. */
+      -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 45%, #000 0%, #000 50%, transparent 100%);
+              mask-image: radial-gradient(ellipse 90% 70% at 50% 45%, #000 0%, #000 50%, transparent 100%);
+      /* Tone the image toward the accent so it doesn't clash with
+         whichever theme is active (lavender / blue / Synapse orange). */
+      filter: saturate(85%) contrast(105%);
+    }
+    @media (max-width: 720px) {
+      .hero-bg { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      /* No motion reduction needed — the image itself is static. */
+    }
+
+    .header { margin-bottom: 24px; position: relative; z-index: 1; }
     .brand-block { display: flex; flex-direction: column; gap: 6px; }
     .subtitle { color: var(--fg-dim); margin: 0; font-size: 14px; }
     .title-row {
