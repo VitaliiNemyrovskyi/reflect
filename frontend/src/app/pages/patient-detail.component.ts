@@ -1672,16 +1672,17 @@ const SPOILER_PATTERNS: RegExp[] = [
        top-right corner. Each tab is its own bordered chip; active
        chip glows with the accent. */
     .tabs {
-      display: flex;
+      /* Equal-width pills: grid with auto-flow column + 1fr per tab
+         means every chip gets the same allocation regardless of label
+         length. minmax(0, 1fr) lets cells shrink below their content
+         box on narrow viewports instead of overflowing the row. */
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
       gap: 10px;
       margin-bottom: 22px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
       padding: 6px 2px;
     }
-    .tabs::-webkit-scrollbar { display: none; }
     /* The pseudo-element rules (::before / ::after for the gradient
        ring + inner fill on the notched tab pills) live in global
        styles.scss under "app-patient-detail .tabs button::*".
@@ -1697,15 +1698,16 @@ const SPOILER_PATTERNS: RegExp[] = [
       border: none;
       background: transparent;
       color: var(--fg-dim);
-      padding: 12px 22px;
+      padding: 12px 16px;
       font-size: 13px;
       letter-spacing: 0.02em;
       cursor: pointer;
       white-space: nowrap;
-      flex-shrink: 0;
+      min-width: 0; /* allow grid cell to shrink below content */
       min-height: auto;
-      display: inline-flex;
+      display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
       transition: color .15s ease, filter .2s ease, transform .12s ease;
     }
