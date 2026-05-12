@@ -70,6 +70,21 @@ const SPOILER_PATTERNS: RegExp[] = [
                <g.arc-group>s with the path + text inside, both react
                to the same .active state. -->
           <svg class="orbit-svg" viewBox="0 0 280 280" aria-hidden="true">
+            <!-- Hidden text-paths: arcs at r=95 used only as guides for
+                 <textPath>. Each pair of "top" / "bottom" variants picks
+                 the right path direction so the label glyphs end up
+                 right-side-up no matter which arc they're on. -->
+            <defs>
+              <path id="arc-top-text"
+                    d="M 82.2 64.6 A 95 95 0 0 1 197.8 64.6" />
+              <path id="arc-right-text"
+                    d="M 215.4 82.2 A 95 95 0 0 1 215.4 197.8" />
+              <path id="arc-bottom-text"
+                    d="M 82.2 215.4 A 95 95 0 0 1 197.8 215.4" />
+              <path id="arc-left-text"
+                    d="M 64.6 197.8 A 95 95 0 0 1 64.6 82.2" />
+            </defs>
+
             <!-- Background trace ring — soft dotted circle behind the
                  arcs so empty space doesn't feel like a vacuum. -->
             <circle class="orbit-trace" cx="140" cy="140" r="75" />
@@ -83,11 +98,13 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
               <path class="arc-fill"
                     d="M 94.3 80.5 A 75 75 0 0 1 185.7 80.5" />
-              <text class="arc-text" x="140" y="68" text-anchor="middle">
+              <text class="arc-text" x="140" y="120" text-anchor="middle">
                 {{ patient()!.sessionCount }}
               </text>
-              <text class="arc-text-label" x="140" y="46" text-anchor="middle">
-                SESSIONS
+              <text class="arc-curved-label">
+                <textPath href="#arc-top-text" startOffset="50%" text-anchor="middle">
+                  · SESSIONS ·
+                </textPath>
               </text>
             </g>
 
@@ -101,13 +118,14 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
               <path class="arc-fill"
                     d="M 199.5 94.3 A 75 75 0 0 1 199.5 185.7" />
-              <text class="arc-text arc-text-glyph" x="218" y="148"
+              <text class="arc-text arc-text-glyph" x="170" y="155"
                     text-anchor="middle">
                 {{ stateGlyph(patient()!.progressBadge) }}
               </text>
-              <text class="arc-text-label" x="252" y="148"
-                    text-anchor="start">
-                STATE
+              <text class="arc-curved-label">
+                <textPath href="#arc-right-text" startOffset="50%" text-anchor="middle">
+                  · STATE ·
+                </textPath>
               </text>
             </g>
 
@@ -121,11 +139,13 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
                 <path class="arc-fill"
                       d="M 185.7 199.5 A 75 75 0 0 1 94.3 199.5" />
-                <text class="arc-text" x="140" y="218" text-anchor="middle">
+                <text class="arc-text" x="140" y="170" text-anchor="middle">
                   {{ patient()!.difficulty }}<tspan class="arc-text-sub">/5</tspan>
                 </text>
-                <text class="arc-text-label" x="140" y="246" text-anchor="middle">
-                  BEHAVIOR
+                <text class="arc-curved-label">
+                  <textPath href="#arc-bottom-text" side="right" startOffset="50%" text-anchor="middle">
+                    · BEHAVIOR ·
+                  </textPath>
                 </text>
               </g>
             }
@@ -140,12 +160,13 @@ const SPOILER_PATTERNS: RegExp[] = [
                       d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
                 <path class="arc-fill"
                       d="M 80.5 185.7 A 75 75 0 0 1 80.5 94.3" />
-                <text class="arc-text arc-text-r" x="62" y="148"
-                      text-anchor="middle">
+                <text class="arc-text" x="110" y="155" text-anchor="middle">
                   {{ patient()!.complexity }}<tspan class="arc-text-sub">/5</tspan>
                 </text>
-                <text class="arc-text-label" x="28" y="148" text-anchor="end">
-                  SEVERITY
+                <text class="arc-curved-label">
+                  <textPath href="#arc-left-text" startOffset="50%" text-anchor="middle">
+                    · SEVERITY ·
+                  </textPath>
                 </text>
               </g>
             }
@@ -658,22 +679,28 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .arc-text {
       fill: var(--fg);
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 300;
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.02em;
       transition: fill .2s ease;
       pointer-events: none;
+      dominant-baseline: middle;
     }
     .arc-text-sub {
-      font-size: 12px;
+      font-size: 11px;
       fill: var(--fg-dim);
     }
-    .arc-text-label {
+    .arc-text-glyph { font-size: 22px; }
+    /* Curved label following the arc — uses textPath. Stretched
+       letter-spacing makes the curve readable; tracking is also bigger
+       than the straight labels because along a curve glyphs collide
+       at default kerning. */
+    .arc-curved-label {
       fill: var(--fg-dim);
       font-size: 9px;
-      font-weight: 500;
-      letter-spacing: 0.18em;
+      font-weight: 600;
+      letter-spacing: 0.32em;
       text-transform: uppercase;
       transition: fill .2s ease;
       pointer-events: none;
@@ -695,8 +722,8 @@ const SPOILER_PATTERNS: RegExp[] = [
     .arc-group.active .arc-text {
       fill: var(--accent);
     }
-    .arc-group:hover .arc-text-label,
-    .arc-group.active .arc-text-label {
+    .arc-group:hover .arc-curved-label,
+    .arc-group.active .arc-curved-label {
       fill: var(--accent);
     }
     /* Worsening-state arc uses the danger palette instead. */
@@ -707,8 +734,8 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .arc-group.arc-warn:hover .arc-text,
     .arc-group.arc-warn.active .arc-text,
-    .arc-group.arc-warn:hover .arc-text-label,
-    .arc-group.arc-warn.active .arc-text-label {
+    .arc-group.arc-warn:hover .arc-curved-label,
+    .arc-group.arc-warn.active .arc-curved-label {
       fill: var(--danger);
     }
 
