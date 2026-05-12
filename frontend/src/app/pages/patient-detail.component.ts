@@ -564,10 +564,12 @@ const SPOILER_PATTERNS: RegExp[] = [
       gap: 22px 28px;
       align-items: start;
     }
-    /* Photo (column 1) spans both rows so it forms the visual anchor. */
+    /* Photo lives in row 1, column 1. Same row as identity + vitals,
+       so the hero "head" is one tidy band. Detail panel sits in row 2
+       below, full width. */
     .hero-photo {
       grid-column: 1;
-      grid-row: 1 / span 2;
+      grid-row: 1;
       width: 100%;
       height: 300px;
       border-radius: 10px;
@@ -754,7 +756,7 @@ const SPOILER_PATTERNS: RegExp[] = [
        data rows. Each row is a button (keyboard-focusable, hoverable). */
     .vitals-stack {
       grid-column: 3;
-      grid-row: 1 / span 2;
+      grid-row: 1;
       display: flex;
       flex-direction: column;
       gap: 8px;
