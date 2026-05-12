@@ -247,33 +247,32 @@ import { LogoComponent } from '../logo.component';
       .avatar { width: 56px; height: 70px; }
     }
 
-    /* Synapse card: accent-tinted bg, conic-gradient rotating border
-       (via the global --frame-angle), inner radial wash from the top.
-       Hover deepens the tint and lifts the card slightly. */
+    /* Synapse card with a notched top-right corner — same dual-pseudo
+       construction as the patient-detail tabs:
+         ::before paints the rotating conic gradient + clip-path notch
+                  (visible "border" along all edges including the cut)
+         ::after  paints the inner fill (1px inset, same clip-path so
+                  the gradient strip is visible along the diagonal too)
+         children are hoisted to z-index 2 above both pseudos.
+       The parent itself has no bg / border / clip — the pseudos are
+       the visible card surface. Hover uses filter:drop-shadow so the
+       glow follows the notched shape (box-shadow would be clipped). */
     .patient-card {
       position: relative;
       display: flex;
       gap: 14px;
       align-items: center;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 0%,
-          color-mix(in srgb, var(--accent) 12%, transparent) 0%,
-          transparent 60%),
-        color-mix(in srgb, var(--accent) 4%, var(--assistant-bg));
-      border: 1px solid transparent;
-      border-radius: 14px;
+      background: transparent;
+      border: none;
       padding: 16px;
       cursor: pointer;
-      transition: transform .12s ease, background .2s ease, box-shadow .25s ease;
+      transition: transform .12s ease, filter .25s ease;
     }
-    /* Gradient border via padding-trick pseudo (avoids the
-       background-clip path Angular's encapsulation rewriter mangles). */
     .patient-card::before {
       content: '';
       position: absolute;
-      inset: -1px;
-      border-radius: inherit;
-      padding: 1px;
+      inset: 0;
+      z-index: 0;
       background: conic-gradient(
         from var(--frame-angle),
         color-mix(in srgb, var(--accent) 42%, var(--border)) 0deg,
@@ -282,23 +281,46 @@ import { LogoComponent } from '../logo.component';
         color-mix(in srgb, var(--accent) 16%, var(--border)) 270deg,
         color-mix(in srgb, var(--accent) 42%, var(--border)) 360deg
       );
-      -webkit-mask:
-        linear-gradient(#fff 0 0) content-box,
-        linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-              mask-composite: exclude;
-      pointer-events: none;
-      z-index: 0;
+      clip-path: polygon(
+        0 0,
+        calc(100% - 18px) 0,
+        100% 18px,
+        100% 100%,
+        0 100%
+      );
+      border-radius: 14px;
     }
-    .patient-card > * { position: relative; z-index: 1; }
+    .patient-card::after {
+      content: '';
+      position: absolute;
+      inset: 1px;
+      z-index: 1;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,
+          color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+          transparent 60%),
+        color-mix(in srgb, var(--accent) 4%, var(--assistant-bg));
+      clip-path: polygon(
+        0 0,
+        calc(100% - 18px) 0,
+        100% 18px,
+        100% 100%,
+        0 100%
+      );
+      border-radius: 13px;
+      transition: background .2s ease;
+    }
+    .patient-card > * { position: relative; z-index: 2; }
     .patient-card:hover {
       transform: translateY(-2px);
+      filter: drop-shadow(0 14px 22px color-mix(in srgb, var(--accent) 32%, transparent));
+    }
+    .patient-card:hover::after {
       background:
         radial-gradient(ellipse 80% 60% at 50% 0%,
           color-mix(in srgb, var(--accent) 18%, transparent) 0%,
           transparent 60%),
         color-mix(in srgb, var(--accent) 7%, var(--assistant-bg));
-      box-shadow: 0 14px 32px -16px color-mix(in srgb, var(--accent) 40%, transparent);
     }
 
     .avatar-wrap {
