@@ -69,9 +69,9 @@ import { AuthService } from '../auth.service';
         і перезапусти сервер.
       </div>
     } @else {
-      <ul class="patient-grid">
+      <ul class="patient-grid fx-stagger">
         @for (c of filteredCharacters(); track c.id) {
-          <li class="patient-card" (click)="open(c)">
+          <li class="patient-card fx-glow" (click)="open(c)">
             <div class="avatar-wrap">
               @if (c.avatarUrl) {
                 <img class="avatar" [src]="c.avatarUrl" [alt]="c.displayName" />

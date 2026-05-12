@@ -68,7 +68,8 @@ interface SelectionAnchor {
       <section class="chat-main">
         <div #scroll class="messages" aria-live="polite">
           @for (b of state.bubbles(); track $index) {
-            <div class="bubble" [class.user]="b.role === 'user'"
+            <div class="bubble fx-fade-up"
+                 [class.user]="b.role === 'user'"
                  [class.assistant]="b.role === 'assistant'"
                  [class.typing]="b.pending">
               {{ b.content }}

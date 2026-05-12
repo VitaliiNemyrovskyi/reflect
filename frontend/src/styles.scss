@@ -101,8 +101,15 @@ button {
     color: var(--accent-ink);
     border-color: var(--accent);
     font-weight: 500;
+    transition: filter .15s ease, transform .12s ease, box-shadow .25s ease;
 
-    &:hover { filter: brightness(1.05); }
+    &:hover {
+      filter: brightness(1.05);
+      // Theme-aware accent glow on hover. color-mix gives a translucent
+      // ring that flexes with whatever --accent is currently set to —
+      // lavender, sky-blue, or Synapse orange all read correctly.
+      box-shadow: 0 0 22px -4px color-mix(in srgb, var(--accent) 50%, transparent);
+    }
     &:active { transform: scale(0.98); }
   }
   &.ghost { border-color: var(--border); color: var(--fg-dim); }
@@ -193,5 +200,151 @@ textarea, input {
   &.visible {
     opacity: 1;
     pointer-events: auto;
+  }
+}
+
+// ─── Animations ──────────────────────────────────────────────────────────
+//
+// Theme-aware fx utilities. Keep all of these CSS-only (no JS reflows,
+// no IntersectionObserver) so they're cheap and predictable on mobile.
+// Honour `prefers-reduced-motion` — anyone with the OS-level switch on
+// gets zero animation, full content. Nothing here moves the layout
+// after first paint, so we won't trigger CLS.
+@media (prefers-reduced-motion: no-preference) {
+
+  // Soft pulse — used for "live" status indicators (in-session dot,
+  // worsening badge, critical-severity chip).
+  @keyframes fx-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.95); }
+  }
+  .fx-pulse { animation: fx-pulse 1.8s ease-in-out infinite; }
+
+  // Breathe — slower, gentler. For digital-twin-style state badges
+  // ("стабільно", "покращення" — the persistent meta indicators).
+  @keyframes fx-breathe {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+    50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent); }
+  }
+  .fx-breathe { animation: fx-breathe 3.2s ease-in-out infinite; }
+
+  // Glow — paired with hover/focus. The transition is on box-shadow
+  // alone (no transform), so it doesn't re-flow neighbours.
+  .fx-glow {
+    transition: box-shadow .25s ease, border-color .25s ease;
+    &:hover, &:focus-visible {
+      box-shadow: 0 0 0 1px var(--accent),
+                  0 0 18px -2px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+  }
+
+  // Fade + lift on mount. Combine with `.fx-stagger > *` for a list
+  // that flows in left-to-right.
+  @keyframes fx-fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fx-fade-up {
+    animation: fx-fade-up .35s cubic-bezier(.16, 1, .3, 1) both;
+  }
+
+  // Children stagger — each child fades in ~80ms after the previous.
+  // Use nth-child up to 12 since past that the effect is invisible.
+  .fx-stagger > * {
+    animation: fx-fade-up .42s cubic-bezier(.16, 1, .3, 1) both;
+    @for $i from 1 through 12 {
+      &:nth-child(#{$i}) { animation-delay: #{$i * 60}ms; }
+    }
+  }
+
+  // Sparkline draw-in. Put it on the <polyline> in an SVG progress
+  // chart; the stroke is invisible until the dash-offset slides to 0.
+  // pathLength="100" should be set on the <polyline> so the dash
+  // values work regardless of the actual path length.
+  @keyframes fx-draw {
+    from { stroke-dashoffset: 100; }
+    to   { stroke-dashoffset: 0; }
+  }
+  .fx-draw {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: fx-draw 1.4s cubic-bezier(.65, 0, .35, 1) .15s forwards;
+  }
+
+  // Shimmer — for loading placeholders (LLM is thinking, etc.). A
+  // diagonal gradient slides across the surface; the surface itself
+  // stays in place so layout doesn't shift.
+  @keyframes fx-shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+  .fx-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 12%, transparent) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: fx-shimmer 1.6s linear infinite;
+  }
+
+  // Tab indicator slide. When the .active tab moves, the ::after pseudo
+  // grows in width with an ease-out — feels like a sliding underline.
+  // (Used inside .tabs nav in patient-detail.)
+  @keyframes fx-underline {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+  .fx-underline {
+    position: relative;
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -1px;
+      height: 2px;
+      background: var(--accent);
+      transform-origin: left center;
+      animation: fx-underline .3s cubic-bezier(.4, 0, .2, 1) both;
+    }
+  }
+
+  // Count-up — used for big stat numbers. We use CSS custom-property
+  // counters because Angular doesn't need a directive. Set
+  // `--n: <target>` on the element; the @property animation
+  // interpolates a counter that's rendered by content: counter(...).
+  // Safari 16.4+ / Chrome 86+ / FF 128+ support this.
+  @property --fx-count {
+    syntax: '<integer>';
+    inherits: false;
+    initial-value: 0;
+  }
+  @keyframes fx-count {
+    to { --fx-count: var(--n); }
+  }
+  .fx-count {
+    animation: fx-count 1.1s ease-out forwards;
+    counter-reset: c var(--fx-count);
+    &::after { content: counter(c); }
+  }
+
+  // Accent ring — used on the new-session button to draw attention
+  // to the primary action when entering a patient page.
+  @keyframes fx-ring {
+    0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--accent) 55%, transparent); }
+    100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent)  0%, transparent); }
+  }
+  .fx-ring { animation: fx-ring 1.8s ease-out infinite; }
+}
+
+// Reduced-motion fallback: still apply the END state so initially-hidden
+// elements (fade-up, draw-in) appear normally instead of staying invisible.
+@media (prefers-reduced-motion: reduce) {
+  .fx-fade-up, .fx-stagger > * {
+    opacity: 1;
+    transform: none;
+  }
+  .fx-draw {
+    stroke-dashoffset: 0;
   }
 }

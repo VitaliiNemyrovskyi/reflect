@@ -139,7 +139,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 
       <section class="tab-content">
         @if (tab() === 'overview') {
-          <div class="overview-grid">
+          <div class="overview-grid fx-stagger">
             @if (quickFacts().length) {
               <article class="card">
                 <h3>👤 Коротко</h3>
@@ -261,7 +261,7 @@ const SPOILER_PATTERNS: RegExp[] = [
               <button class="link-btn" (click)="newSession()">Почати першу</button>
             </p>
           } @else {
-            <ul class="sessions-list">
+            <ul class="sessions-list fx-stagger">
               @for (s of patient()!.sessions; track s.id) {
                 <li class="session-item">
                   <header class="session-head">
@@ -304,7 +304,7 @@ const SPOILER_PATTERNS: RegExp[] = [
           @if (patient()!.notes.length === 0) {
             <p class="hint">Жодної нотатки. Виділяй текст під час сесії — нотатки потраплять сюди.</p>
           } @else {
-            <ul class="notes-aggregated">
+            <ul class="notes-aggregated fx-stagger">
               @for (n of patient()!.notes; track n.id) {
                 <li class="note-item">
                   @if (n.anchorText) {
@@ -331,8 +331,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                   <article class="chart-card">
                     <h4>{{ trendLabel(t.metric) }}</h4>
                     <svg class="chart-svg" viewBox="0 0 200 80" preserveAspectRatio="none">
-                      <polyline
+                      <polyline class="fx-draw"
                         [attr.points]="trendPolyline(t)"
+                        pathLength="100"
                         fill="none"
                         stroke="var(--accent)"
                         stroke-width="2" />
@@ -355,8 +356,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                   <article class="chart-card">
                     <h4>{{ trendLabel(t.metric) }}</h4>
                     <svg class="chart-svg" viewBox="0 0 200 80" preserveAspectRatio="none">
-                      <polyline
+                      <polyline class="fx-draw"
                         [attr.points]="trendPolyline(t, 6)"
+                        pathLength="100"
                         fill="none"
                         stroke="var(--accent)"
                         stroke-width="2" />
@@ -582,7 +584,14 @@ const SPOILER_PATTERNS: RegExp[] = [
     }
     .badge-improving { background: #143c2c; color: #6ee7b7; border: 1px solid #2a6f4d; }
     .badge-stable { background: #2a2a32; color: var(--fg-dim); border: 1px solid var(--border); }
-    .badge-worsening { background: #3c1a1a; color: var(--danger); border: 1px solid #6f2a2a; }
+    .badge-worsening {
+      background: #3c1a1a; color: var(--danger); border: 1px solid #6f2a2a;
+      // Persistent gentle pulse — this is a flag, it should keep tugging
+      // at the supervisor's attention. Honour reduced-motion globally.
+      @media (prefers-reduced-motion: no-preference) {
+        animation: fx-pulse 1.8s ease-in-out infinite;
+      }
+    }
     .badge-unknown { background: var(--user-bg); color: var(--fg-dim); border: 1px dashed var(--border); }
 
     @media (max-width: 720px) {
@@ -935,7 +944,13 @@ const SPOILER_PATTERNS: RegExp[] = [
     .session-preview { color: var(--fg-dim); font-size: 13px; line-height: 1.5; margin: 8px 0 0; }
     .session-status { font-size: 12px; padding: 2px 8px; border-radius: 999px; }
     .session-status.done { background: #143c2c; color: #6ee7b7; }
-    .session-status.open { background: #3c2c14; color: #fbbf6e; }
+    .session-status.open {
+      background: #3c2c14; color: #fbbf6e;
+      // "In progress" — gentle breathe to signal it's a live state.
+      @media (prefers-reduced-motion: no-preference) {
+        animation: fx-pulse 2.2s ease-in-out infinite;
+      }
+    }
     .session-actions { margin-top: 8px; display: flex; gap: 14px; }
 
     .notes-aggregated { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
