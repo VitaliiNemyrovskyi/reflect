@@ -3,16 +3,17 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, Character, ProgressBadge } from '../api.service';
 import { AuthService } from '../auth.service';
+import { LogoComponent } from '../logo.component';
 
 @Component({
   selector: 'app-characters-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink],
+  imports: [CommonModule, DatePipe, RouterLink, LogoComponent],
   template: `
     <header class="header">
       <div class="title-row">
-        <div>
-          <h1>Reflect</h1>
+        <div class="brand-block">
+          <app-logo />
           <p class="subtitle">Картотека пацієнтів</p>
         </div>
         @if (auth.user(); as u) {
@@ -131,8 +132,8 @@ import { AuthService } from '../auth.service';
   `,
   styles: [`
     .header { margin-bottom: 24px; }
-    .header h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
-    .subtitle { color: var(--fg-dim); margin: 4px 0 0; font-size: 14px; }
+    .brand-block { display: flex; flex-direction: column; gap: 6px; }
+    .subtitle { color: var(--fg-dim); margin: 0; font-size: 14px; }
     .title-row {
       display: flex;
       justify-content: space-between;
@@ -235,7 +236,6 @@ import { AuthService } from '../auth.service';
         grid-template-columns: 1fr;
       }
       .user-name-link { max-width: 120px; font-size: 12px; }
-      .header h1 { font-size: 22px; }
       .filters { gap: 4px; }
       .chip { padding: 5px 10px; font-size: 11px; }
     }

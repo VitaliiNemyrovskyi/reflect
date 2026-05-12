@@ -2,15 +2,16 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
+import { LogoComponent } from '../logo.component';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, LogoComponent],
   template: `
     <section class="auth-panel synapse-panel">
       <header class="auth-header">
-        <span class="section-label">REFLECT</span>
+        <app-logo />
         <h1>Створити акаунт</h1>
       </header>
 
