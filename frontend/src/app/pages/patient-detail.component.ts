@@ -79,8 +79,17 @@ const SPOILER_PATTERNS: RegExp[] = [
                     d="M 82.2 64.6 A 95 95 0 0 1 197.8 64.6" />
               <path id="arc-right-text"
                     d="M 215.4 82.2 A 95 95 0 0 1 215.4 197.8" />
+              <!-- Bottom text path: shallower arc (radius 130, slight
+                   bulge of 10px through the bottom) placed below the
+                   visible bottom arc. Walker goes left-to-right; the
+                   default "left side of walker" puts glyphs ABOVE the
+                   path, which lands them between path Y≈245 and the
+                   visible arc bottom Y≈215. Reads naturally without
+                   needing side="right" (which Chrome renders by
+                   180°-flipping glyphs and reversing the string —
+                   not what we want here). -->
               <path id="arc-bottom-text"
-                    d="M 82.2 215.4 A 95 95 0 0 1 197.8 215.4" />
+                    d="M 88 232 A 130 130 0 0 1 192 232" />
               <path id="arc-left-text"
                     d="M 64.6 197.8 A 95 95 0 0 1 64.6 82.2" />
             </defs>
@@ -143,7 +152,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                   {{ patient()!.difficulty }}<tspan class="arc-text-sub">/5</tspan>
                 </text>
                 <text class="arc-curved-label">
-                  <textPath href="#arc-bottom-text" side="right" startOffset="50%" text-anchor="middle">
+                  <textPath href="#arc-bottom-text" startOffset="50%" text-anchor="middle">
                     · BEHAVIOR ·
                   </textPath>
                 </text>
