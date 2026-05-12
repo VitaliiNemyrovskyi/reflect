@@ -183,10 +183,6 @@ const SPOILER_PATTERNS: RegExp[] = [
              aligned text, actions sit below the diagnosis. Falls back
              to centered-below-orbit on mobile. -->
         <div class="hero-info">
-          <div class="hero-eyebrow">
-            <span class="eyebrow-dot" [style.background]="ringColor()"></span>
-            REFLECT · {{ patient()!.slug.toUpperCase() }}
-          </div>
           <h1 class="hero-title">{{ patient()!.displayName }}</h1>
           @if (patient()!.diagnosis) {
             <p class="hero-caption" [title]="diagnosisTooltip()">
