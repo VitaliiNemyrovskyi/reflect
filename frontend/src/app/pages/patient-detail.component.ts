@@ -162,14 +162,16 @@ const SPOILER_PATTERNS: RegExp[] = [
               <span class="sector-detail-title">{{ d.title }}</span>
               <span class="sector-detail-meta">{{ d.meta }}</span>
             </header>
-            <div class="sector-detail-body">
-              @for (row of d.rows; track row.label) {
-                <div class="sector-detail-row">
-                  <span class="sector-detail-row-label">{{ row.label }}</span>
-                  <span class="sector-detail-row-value">{{ row.value }}</span>
-                </div>
-              }
-            </div>
+            <table class="sector-detail-table">
+              <tbody>
+                @for (row of d.rows; track row.label) {
+                  <tr>
+                    <th scope="row">{{ row.label }}</th>
+                    <td>{{ row.value }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </article>
         } @else {
           <div class="sector-detail empty">
@@ -1033,26 +1035,50 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--fg-dim);
       letter-spacing: 0.04em;
     }
-    .sector-detail-body {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .sector-detail-row {
-      display: grid;
-      grid-template-columns: 140px 1fr;
-      gap: 14px;
+    /* Two-column table: dim label / accent-toned divider / value.
+       Border-collapse keeps the dividing rule a single hairline. The
+       last row drops its bottom border so the table doesn't fight the
+       parent panel's own border below. */
+    .sector-detail-table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 13px;
       line-height: 1.45;
     }
-    .sector-detail-row-label {
+    .sector-detail-table th,
+    .sector-detail-table td {
+      padding: 10px 14px 10px 0;
+      vertical-align: top;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
+    }
+    .sector-detail-table th {
+      width: 140px;
+      text-align: left;
+      font-weight: 500;
       color: var(--fg-dim);
       font-size: 10px;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      padding-top: 2px;
     }
-    .sector-detail-row-value { color: var(--fg); }
+    .sector-detail-table td {
+      color: var(--fg);
+      padding-right: 0;
+    }
+    .sector-detail-table tr:last-child th,
+    .sector-detail-table tr:last-child td {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .sector-detail-table tr:first-child th,
+    .sector-detail-table tr:first-child td {
+      padding-top: 0;
+    }
+    @media (max-width: 480px) {
+      /* On narrow phones drop the label column to ~90px so long
+         values aren't squeezed into a 1fr that's only ~60% of the
+         visible area. */
+      .sector-detail-table th { width: 90px; }
+    }
 
     /* Avatar with orbital state-ring */
     .hero-avatar-frame {
