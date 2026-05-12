@@ -66,7 +66,23 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  // Multi-radial ambient lighting on the body so the app feels lit
+  // from corners rather than flat. Synapse uses the same trick — soft
+  // accent glows from a few off-screen positions create depth without
+  // being noisy. Colours follow --accent so theme switching repaints
+  // the whole atmosphere.
+  background:
+    radial-gradient(ellipse 80% 60% at 20% -10%,
+      color-mix(in srgb, var(--accent) 11%, transparent) 0%,
+      transparent 70%),
+    radial-gradient(ellipse 60% 60% at 100% 50%,
+      color-mix(in srgb, var(--accent) 7%, transparent) 0%,
+      transparent 70%),
+    radial-gradient(ellipse 90% 50% at 10% 110%,
+      color-mix(in srgb, var(--accent) 9%, transparent) 0%,
+      transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--fg);
   font: var(--font-base) / var(--line-height) -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   height: 100%;

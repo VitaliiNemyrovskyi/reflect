@@ -540,15 +540,35 @@ const SPOILER_PATTERNS: RegExp[] = [
     .back:hover { color: var(--accent); }
 
     /* ═══════════════════ SYNAPSE HERO ═══════════════════ */
+    /* Multi-zone ambient lighting + dot pattern. Compared to the body
+       background which is fixed for the whole viewport, the hero gets
+       its own layered glow centred on the photo area (left third) so
+       the photo backdrop feels lit. */
     .dot-grid-bg {
       background-image:
-        radial-gradient(circle at 50% 0%,
+        /* big bottom-left glow (under the photo) */
+        radial-gradient(ellipse 70% 80% at 15% 110%,
+          color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+          transparent 65%),
+        /* top edge wash */
+        radial-gradient(ellipse 100% 60% at 50% -20%,
+          color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+          transparent 55%),
+        /* right-side dim accent glow */
+        radial-gradient(ellipse 50% 80% at 105% 50%,
           color-mix(in srgb, var(--accent) 10%, transparent) 0%,
-          transparent 60%),
-        radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0.6px, transparent 1px);
-      background-size: auto, 18px 18px;
-      background-position: 0 0, 0 0;
-      background-attachment: local;
+          transparent 65%),
+        /* central darken so foreground content has contrast against
+           the glows above */
+        radial-gradient(ellipse 80% 80% at 50% 50%,
+          transparent 0%,
+          color-mix(in srgb, var(--bg) 35%, transparent) 100%),
+        /* dot grid pattern on top of all the glows */
+        radial-gradient(circle,
+          color-mix(in srgb, var(--accent) 22%, transparent) 0.7px,
+          transparent 1.2px);
+      background-size: auto, auto, auto, auto, 18px 18px;
+      background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
     }
 
     .hero {
