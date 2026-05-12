@@ -561,7 +561,9 @@ const SPOILER_PATTERNS: RegExp[] = [
       border-radius: 14px;
       overflow: hidden;
       display: grid;
-      grid-template-columns: 220px 1fr 220px;
+      /* Wider photo column so the accent backplate has room to read
+         as a real backdrop, not just a hairline border. */
+      grid-template-columns: 300px 1fr 220px;
       grid-template-rows: auto auto;
       gap: 22px 28px;
       align-items: start;
@@ -580,15 +582,17 @@ const SPOILER_PATTERNS: RegExp[] = [
       grid-column: 1;
       grid-row: 1;
       width: 100%;
-      /* Thicker frame so the rotating conic gradient is actually
-         visible — at 8px it was just a hairline. */
-      padding: 18px;
-      border-radius: 16px;
+      /* Big accent backdrop, like the Behance reference — the frame
+         IS the visual centerpiece, photo is a smaller element inside.
+         Asymmetric padding so the photo sits upper-centered, with
+         extra accent area visible below. */
+      padding: 36px 44px 80px;
+      border-radius: 18px;
       position: relative;
       clip-path: polygon(
         0 0,
-        calc(100% - 40px) 0,
-        100% 40px,
+        calc(100% - 56px) 0,
+        100% 56px,
         100% 100%,
         0 100%
       );
@@ -636,22 +640,14 @@ const SPOILER_PATTERNS: RegExp[] = [
             name on the right read against the photo edge. */
     .hero-photo {
       width: 100%;
-      height: 264px;
-      border-radius: 8px;
+      /* Smaller photo so the surrounding accent backdrop is what
+         the eye reads first. */
+      height: 280px;
+      border-radius: 10px;
       overflow: hidden;
       background: var(--user-bg);
       position: relative;
       isolation: isolate;
-      /* Mirror the frame's notch but smaller, so the accent triangle
-         in the corner gap stays visible. Frame notch is 40px and
-         photo padding is 18px, so photo notch ≈ 40 - 18 = 22px. */
-      clip-path: polygon(
-        0 0,
-        calc(100% - 22px) 0,
-        100% 22px,
-        100% 100%,
-        0 100%
-      );
     }
     .hero-photo img {
       width: 100%;
@@ -1184,7 +1180,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 
     @media (max-width: 1000px) {
       .hero {
-        grid-template-columns: 180px 1fr;
+        grid-template-columns: 240px 1fr;
         grid-template-rows: auto auto auto;
         gap: 18px 22px;
         padding: 22px 20px;
@@ -1192,8 +1188,9 @@ const SPOILER_PATTERNS: RegExp[] = [
       .photo-frame {
         grid-column: 1;
         grid-row: 1 / span 2;
+        padding: 28px 32px 56px;
       }
-      .hero-photo { height: 244px; }
+      .hero-photo { height: 220px; }
       .hero-info {
         grid-column: 2;
         grid-row: 1;
