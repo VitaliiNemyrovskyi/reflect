@@ -11,6 +11,7 @@ interface ProfileFile {
   diagnosisCode: string | null; // English/DSM-5 code, shown as tooltip
   difficulty: number | null;    // behavioral (Поведінка:) — modulates LLM
   complexity: number | null;    // clinical (Тяжкість:) — informational
+  modality: string | null;      // therapy modality (Модальність:) — couples/family/etc.
   avatarUrl: string | null;
 }
 
@@ -283,10 +284,20 @@ export class PromptsService implements OnModuleInit {
     return files.map((file) => {
       const slug = file.replace(/\.md$/, '').toLowerCase();
       const profileText = this.read(this.profilesDir, file).trim();
+      // displayName resolution order, in priority:
+      //   1. `Назва:` field in the metadata comment — explicit override.
+      //      Use this for non-singular cases (couples, families) where
+      //      "Ім'я" doesn't apply.
+      //   2. First word of `Ім'я:` line in the body — works for
+      //      individual patients (the legacy convention).
+      //   3. Capitalized slug — last-resort fallback.
+      const meta0 = profileText.match(/<!--([\s\S]*?)-->/);
+      const explicitName = meta0?.[1]?.match(/^\s*Назва:\s*(.+)$/m)?.[1]?.trim();
       const nameMatch = profileText.match(/^[\s-*]*Ім'я:\s*([^\n,]+)/m);
       const fullName = nameMatch?.[1]?.trim();
       const firstName = fullName?.split(/\s+/)[0];
-      const displayName = firstName ?? slug.charAt(0).toUpperCase() + slug.slice(1);
+      const displayName =
+        explicitName ?? firstName ?? slug.charAt(0).toUpperCase() + slug.slice(1);
 
       // Parse metadata block from HTML comment at top:
       // <!--
@@ -307,6 +318,13 @@ export class PromptsService implements OnModuleInit {
         meta.match(/^\s*Складність:\s*(\d)\b/m);
       const complexityMatch = meta.match(/^\s*Тяжкість:\s*(\d)\b/m);
       const avatarMatch = meta.match(/^\s*Avatar:\s*(\S+)/m);
+      // Optional modality key matching the catalog in modality.ts:
+      // individual | couples | family | adolescent | crisis. Unknown
+      // values are dropped (treated as 'individual' default).
+      const modalityMatch = meta.match(/^\s*Модальність:\s*(\w+)/m);
+      const rawModality = modalityMatch?.[1]?.trim().toLowerCase() ?? null;
+      const KNOWN = new Set(['individual', 'couples', 'family', 'adolescent', 'crisis']);
+      const modality = rawModality && KNOWN.has(rawModality) ? rawModality : null;
 
       return {
         slug,
@@ -316,6 +334,7 @@ export class PromptsService implements OnModuleInit {
         diagnosisCode: diagnosisCodeMatch?.[1]?.trim() ?? null,
         difficulty: difficultyMatch ? parseInt(difficultyMatch[1], 10) : null,
         complexity: complexityMatch ? parseInt(complexityMatch[1], 10) : null,
+        modality,
         avatarUrl: avatarMatch?.[1]?.trim() ?? null,
       };
     });
@@ -354,6 +373,9 @@ export class PromptsService implements OnModuleInit {
         diagnosisCode: p.diagnosisCode,
         difficulty: p.difficulty,
         complexity: p.complexity,
+        // Modality falls back to 'individual' for legacy profiles that
+        // don't declare one — keeps existing 1-on-1 cases unchanged.
+        modality: p.modality ?? 'individual',
         avatarUrl: p.avatarUrl,
       };
       const existing = await this.prisma.character.findUnique({ where: { slug: p.slug } });
