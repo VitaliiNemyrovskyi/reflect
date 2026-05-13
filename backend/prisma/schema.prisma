@@ -16,6 +16,12 @@ model Character {
   diagnosisCode  String?   // English DSM-5/ICD code shown as tooltip — for students who want to look up literature
   difficulty     Int?      // 1-5; behavioral difficulty (how hard to engage). Modulates LLM behavior.
   complexity     Int?      // 1-5; clinical severity (how serious the case is). Informational, doesn't change LLM.
+  // Therapy modality — drives the skill the trainee is practicing.
+  // SQLite has no native enum, so this is a String validated at the
+  // service layer (see backend/src/characters/modality.ts). Default
+  // 'individual' keeps existing rows in 1-on-1 mode without backfill.
+  // Allowed: individual | couples | family | adolescent | crisis.
+  modality       String    @default("individual")
   avatarUrl      String?   // Link to portrait
   // Creator of a user-defined patient. null for system patients (loaded
   // from prompts/profiles/*.md on startup) — these are visible to all

@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -7,6 +7,7 @@ import {
   CharacterDraftBrief,
   CreateCharacterDto,
   DraftFieldName,
+  ModalityInfo,
 } from '../api.service';
 
 type Mode = 'create' | 'edit';
@@ -152,6 +153,27 @@ const THEME_OPTIONS = [
 
     <section class="form-section">
       <h2>2. Клінічна рамка</h2>
+
+      <div class="field">
+        <label>Модальність терапії *</label>
+        <div class="modality-chips" role="radiogroup" aria-label="Модальність">
+          @for (m of modalities(); track m.key) {
+            <button type="button"
+                    class="modality-chip"
+                    role="radio"
+                    [attr.aria-checked]="form.modality === m.key"
+                    [class.active]="form.modality === m.key"
+                    [title]="m.description"
+                    (click)="form.modality = m.key">
+              <span class="modality-icon" aria-hidden="true">{{ m.icon }}</span>
+              <span class="modality-label">{{ m.label }}</span>
+            </button>
+          }
+        </div>
+        @if (selectedModalityDescription(); as desc) {
+          <p class="hint modality-hint">{{ desc }}</p>
+        }
+      </div>
 
       <div class="row">
         <div class="field">
@@ -480,6 +502,47 @@ const THEME_OPTIONS = [
     }
     .radio input { accent-color: var(--accent); }
 
+    /* Modality chip-row — bigger than theme chips because each option
+       carries an icon + label and represents a fundamental case type
+       (not a free-form theme tag). Active chip gets the Synapse glass
+       treatment. Wraps on narrow screens. */
+    .modality-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .modality-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      background: color-mix(in srgb, var(--accent) 3%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+      border-radius: 999px;
+      color: var(--fg-dim);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .modality-chip:hover {
+      color: var(--fg);
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      background: color-mix(in srgb, var(--accent) 7%, transparent);
+    }
+    .modality-chip.active {
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+      box-shadow: 0 0 18px -4px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .modality-icon { font-size: 16px; line-height: 1; }
+    .modality-label { letter-spacing: 0.01em; }
+    .modality-hint {
+      margin-top: 8px;
+      max-width: 600px;
+    }
+
     .theme-chips {
       display: flex;
       flex-wrap: wrap;
@@ -630,12 +693,27 @@ export class PatientFormComponent implements OnInit, OnDestroy {
     diagnosisCode: '',
     difficulty: 3,
     complexity: 3,
+    modality: 'individual',
     brief: '',
     hiddenLayerHint: '',
     voiceNotes: '',
     themes: [],
     profileText: '',
   };
+
+  /** Modality catalog fetched from the backend on init. Empty array
+   *  during load — chips render as soon as the response arrives, and
+   *  the default 'individual' stays selected (set in form above) the
+   *  whole time. */
+  modalities = signal<ModalityInfo[]>([]);
+
+  /** Long-form description of the currently selected modality. Shown
+   *  as a hint below the chips so the trainee understands what's
+   *  different about this modality without hovering for the tooltip. */
+  selectedModalityDescription = computed(() => {
+    const sel = this.form.modality;
+    return this.modalities().find((m) => m.key === sel)?.description ?? '';
+  });
 
   loadError = signal<string | null>(null);
   generating = signal(false);
@@ -833,6 +911,12 @@ export class PatientFormComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
+    // Modality catalog is shared across create + edit modes — kick off
+    // the fetch immediately, don't await (chips render once it lands).
+    void this.api.listModalities()
+      .then((ms) => this.modalities.set(ms))
+      .catch(() => { /* silent: form still works, just no descriptions */ });
+
     const idParam = this.route.snapshot.paramMap.get('id');
     if (!idParam) {
       this.mode.set('create');
@@ -858,6 +942,7 @@ export class PatientFormComponent implements OnInit, OnDestroy {
       this.form.diagnosisCode = card.diagnosisCode ?? '';
       this.form.difficulty = card.difficulty ?? 3;
       this.form.complexity = card.complexity ?? 3;
+      this.form.modality = card.modality ?? 'individual';
       this.form.profileText = card.profileText;
       // gender best-guess from avatar URL style
       this.form.gender = card.avatarUrl?.includes('/lorelei/') ? 'female' : 'male';
@@ -997,6 +1082,7 @@ export class PatientFormComponent implements OnInit, OnDestroy {
         diagnosisCode: this.form.diagnosisCode || undefined,
         difficulty: this.form.difficulty,
         complexity: this.form.complexity,
+        modality: this.form.modality,
         avatarUrl: this.buildAvatarUrl(),
       };
       const character =

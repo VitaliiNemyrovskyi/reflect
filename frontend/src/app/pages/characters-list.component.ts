@@ -1,7 +1,7 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { ApiService, Character, ProgressBadge } from '../api.service';
+import { ApiService, Character, ModalityInfo, ModalityKey, ProgressBadge } from '../api.service';
 import { AuthService } from '../auth.service';
 import { LogoComponent } from '../logo.component';
 
@@ -43,6 +43,31 @@ import { LogoComponent } from '../logo.component';
         }
       </div>
       @if (characters().length > 0) {
+        <!-- Modality filter row: pinned ABOVE the difficulty filter so
+             the trainee picks a therapy type first ("I want couples
+             work"), then narrows by difficulty within that pool.
+             Only shows chips for modalities that actually have at
+             least one patient — keeps the row tight on first-runs. -->
+        @if (visibleModalities().length > 1) {
+          <div class="filters filters-modality">
+            <button
+              class="chip"
+              [class.active]="modalityFilter() === null"
+              (click)="modalityFilter.set(null)">
+              Усі типи ({{ characters().length }})
+            </button>
+            @for (m of visibleModalities(); track m.key) {
+              <button
+                class="chip modality-chip"
+                [class.active]="modalityFilter() === m.key"
+                [title]="m.description"
+                (click)="toggleModality(m.key)">
+                <span class="modality-icon">{{ m.icon }}</span>
+                {{ m.label }} ({{ countByModality(m.key) }})
+              </button>
+            }
+          </div>
+        }
         <div class="filters">
           <button
             class="chip"
@@ -111,17 +136,24 @@ import { LogoComponent } from '../logo.component';
         </a>
       </section>
     } @else if (filteredCharacters().length === 0) {
-      <!-- Has patients but the active filter excluded all of them. Offer
-           a one-click way to drop the filter rather than leaving the
-           user to figure out where the chips reset. -->
+      <!-- Has patients but the active filters excluded all of them.
+           Offer a one-click reset of EVERY active filter (both
+           modality and difficulty) — easier than figuring out which
+           chip is at fault. -->
       <section class="empty-state synapse-panel filtered">
-        <h2>Під цей фільтр ніхто не підпадає</h2>
+        <h2>Під ці фільтри ніхто не підпадає</h2>
         <p>
-          За поточним фільтром «{{ stars(difficultyFilter()!) }}» ({{ difficultyFilter() }}/5)
-          у тебе немає жодного пацієнта.
+          Спробуй скинути активні фільтри —
+          @if (modalityFilter()) {
+            модальність ({{ modalityInfo(modalityFilter())?.label }})
+          }
+          @if (modalityFilter() && difficultyFilter() != null) { · }
+          @if (difficultyFilter() != null) {
+            складність {{ difficultyFilter() }}/5
+          }
         </p>
-        <button class="primary" type="button" (click)="difficultyFilter.set(null)">
-          Скинути фільтр
+        <button class="primary" type="button" (click)="resetAllFilters()">
+          Скинути фільтри
         </button>
       </section>
     } @else {
@@ -141,7 +173,23 @@ import { LogoComponent } from '../logo.component';
             </div>
 
             <div class="card-body">
-              <h3 class="name">{{ c.displayName }}</h3>
+              <div class="name-row">
+                <h3 class="name">{{ c.displayName }}</h3>
+                <!-- Modality badge — icon + label, only for non-default
+                     modalities (individual is implicit). Skip the badge
+                     when individual to avoid badge-noise on the majority
+                     of patients. -->
+                @if (modalityInfo(c.modality); as m) {
+                  @if (m.key !== 'individual') {
+                    <span class="modality-badge"
+                          [class]="'modality-' + m.key"
+                          [title]="m.description">
+                      <span class="modality-badge-icon">{{ m.icon }}</span>
+                      <span class="modality-badge-label">{{ m.label }}</span>
+                    </span>
+                  }
+                }
+              </div>
               @if (c.diagnosis) {
                 <p class="diagnosis"
                    [title]="diagnosisTooltip(c)">
@@ -376,6 +424,22 @@ import { LogoComponent } from '../logo.component';
       border-color: var(--accent);
       font-weight: 500;
     }
+    /* Modality filter row variant — sits above the difficulty filter,
+       gets its own bottom border to read as a separate filter group. */
+    .filters-modality {
+      border-top: none;
+      padding-top: 14px;
+      margin-bottom: 4px;
+    }
+    .chip.modality-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chip.modality-chip .modality-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
     a.chip {
       text-decoration: none;
       display: inline-flex;
@@ -539,6 +603,16 @@ import { LogoComponent } from '../logo.component';
       flex: 1;
       min-width: 0;
     }
+    /* Name + optional modality badge sit on one row. Badge is allowed
+       to shrink and ellipsize before the name does so a really long
+       label (sometimes happens for couples/family in narrow cards)
+       doesn't squeeze the name to a stub. */
+    .name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
     .name {
       margin: 0;
       font-size: 16px;
@@ -546,6 +620,43 @@ import { LogoComponent } from '../logo.component';
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    /* Modality badge — small accent pill with icon + label. The icon
+       carries most of the meaning so on narrow cards we let the label
+       text drop to "…" via overflow-ellipsis on .modality-badge-label. */
+    .modality-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+      color: var(--accent);
+      font-size: 10px;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+      max-width: 50%;
+    }
+    .modality-badge-icon { font-size: 11px; line-height: 1; }
+    .modality-badge-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* Crisis modality gets a danger-tinted variant so it stands out
+       from couples/family/adolescent — same shape, different colour. */
+    .modality-badge.modality-crisis {
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+      border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+      color: var(--danger);
+    }
+    @media (max-width: 480px) {
+      /* Hide the label on narrow phones — the icon alone is enough
+         once you know the icon→modality mapping. */
+      .modality-badge-label { display: none; }
     }
     .diagnosis {
       color: var(--accent);
@@ -621,11 +732,51 @@ export class CharactersListComponent implements OnInit {
   error = signal<string | null>(null);
   difficultyFilter = signal<number | null>(null);
 
+  /** Modality filter — null means "all types". Independent of the
+   *  difficulty filter; the two compose in filteredCharacters(). */
+  modalityFilter = signal<ModalityKey | null>(null);
+
+  /** Static modality catalog fetched from /api/characters/modalities
+   *  on init. Used by the filter row (icons + labels) and by the
+   *  card badge component. Empty until the fetch resolves. */
+  modalityCatalog = signal<ModalityInfo[]>([]);
+
+  /** Subset of the catalog that actually has at least 1 patient.
+   *  Hides chips like "крізова" when no one in the library is in
+   *  that modality yet — keeps the filter row from looking sparse. */
+  visibleModalities = computed(() =>
+    this.modalityCatalog().filter((m) => this.countByModality(m.key) > 0),
+  );
+
   filteredCharacters = computed(() => {
-    const filter = this.difficultyFilter();
-    if (filter === null) return this.characters();
-    return this.characters().filter((c) => c.difficulty === filter);
+    const dFilter = this.difficultyFilter();
+    const mFilter = this.modalityFilter();
+    let result = this.characters();
+    if (mFilter !== null) result = result.filter((c) => (c.modality ?? 'individual') === mFilter);
+    if (dFilter !== null) result = result.filter((c) => c.difficulty === dFilter);
+    return result;
   });
+
+  countByModality(key: ModalityKey): number {
+    return this.characters().filter((c) => (c.modality ?? 'individual') === key).length;
+  }
+
+  /** Lookup a modality info by key — used by templates that need the
+   *  icon/label for a single patient (badges on cards and hero). */
+  modalityInfo(key: ModalityKey | undefined | null): ModalityInfo | null {
+    return this.modalityCatalog().find((m) => m.key === (key ?? 'individual')) ?? null;
+  }
+
+  toggleModality(key: ModalityKey) {
+    this.modalityFilter.set(this.modalityFilter() === key ? null : key);
+  }
+
+  /** Clears every active filter at once — wired to the "Скинути
+   *  фільтри" button on the filtered-empty state. */
+  resetAllFilters() {
+    this.modalityFilter.set(null);
+    this.difficultyFilter.set(null);
+  }
 
   /**
    * Aggregate quick-stats for the strip above the list. Returns null
@@ -692,6 +843,12 @@ export class CharactersListComponent implements OnInit {
   }
 
   async ngOnInit() {
+    // Modality catalog kicks off in parallel — chips render as soon as
+    // the response arrives without blocking the main listing fetch.
+    void this.api.listModalities()
+      .then((ms) => this.modalityCatalog.set(ms))
+      .catch(() => { /* silent: filter row + badges fall back to "no labels" */ });
+
     try {
       this.characters.set(await this.api.listCharacters());
     } catch {

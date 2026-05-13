@@ -2,7 +2,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService, CharacterShare, PatientCard, ProgressBadge } from '../api.service';
+import { ApiService, CharacterShare, ModalityInfo, PatientCard, ProgressBadge } from '../api.service';
 
 /**
  * One section of the patient profile, extracted from `## N. Title` headings.
@@ -74,6 +74,20 @@ const SPOILER_PATTERNS: RegExp[] = [
         </div>
 
         <div class="hero-info">
+          <!-- Modality badge sits ABOVE the title so it reads first —
+               "this is a couples case" frames the patient name and
+               diagnosis below. Skipped for plain 'individual' since
+               that's the implicit default. -->
+          @if (modalityInfo(); as m) {
+            @if (m.key !== 'individual') {
+              <span class="hero-modality-badge"
+                    [class]="'modality-' + m.key"
+                    [title]="m.description">
+                <span class="hero-modality-icon">{{ m.icon }}</span>
+                <span class="hero-modality-label">{{ m.label }}</span>
+              </span>
+            }
+          }
           <h1 class="hero-title">{{ patient()!.displayName }}</h1>
           @if (patient()!.diagnosis) {
             <p class="hero-caption" [title]="diagnosisTooltip()">
@@ -1179,6 +1193,32 @@ const SPOILER_PATTERNS: RegExp[] = [
         animation: fx-pulse 1.8s ease-in-out infinite;
       }
     }
+    /* Modality badge above the title — icon + label on a tight pill.
+       Reads first, so the trainee knows "this is a couples case"
+       before parsing the name. Crisis variant gets danger tinting
+       to distinguish from the other accent-toned modalities. */
+    .hero-modality-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      margin-bottom: 12px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+      border-radius: 999px;
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .hero-modality-icon { font-size: 13px; line-height: 1; }
+    .hero-modality-badge.modality-crisis {
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+      border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+      color: var(--danger);
+    }
+
     .hero-title {
       margin: 0;
       font-size: clamp(36px, 5vw, 56px);
@@ -2233,6 +2273,22 @@ export class PatientDetailComponent implements OnInit {
   patient = signal<PatientCard | null>(null);
   tab = signal<TabKey>('overview');
 
+  /** Modality catalog from the backend — used to look up the icon +
+   *  label for the hero badge. Empty until the fetch resolves on init.
+   *  modalityInfo() resolves to null in that window which the template
+   *  guards against. */
+  modalityCatalog = signal<ModalityInfo[]>([]);
+
+  /** Resolved modality info for the currently-loaded patient — used by
+   *  the hero badge. Defaults to 'individual' when patient has no
+   *  modality (legacy / system characters before the field existed). */
+  modalityInfo = computed<ModalityInfo | null>(() => {
+    const p = this.patient();
+    if (!p) return null;
+    const key = p.modality ?? 'individual';
+    return this.modalityCatalog().find((m) => m.key === key) ?? null;
+  });
+
   /** Tabs config — drives the nav rendering with icons + counts. */
   tabs: { key: TabKey; label: string; icon: string; count?: (p: PatientCard) => number }[] = [
     { key: 'overview', label: 'Огляд', icon: '📋' },
@@ -2503,6 +2559,13 @@ export class PatientDetailComponent implements OnInit {
   // ─── Lifecycle ───────────────────────────────────────────────────────────
 
   async ngOnInit() {
+    // Modality catalog kicks off in parallel — hero badge renders as
+    // soon as both the patient AND the catalog land. Silent on failure
+    // since the hero still displays correctly without the badge.
+    void this.api.listModalities()
+      .then((ms) => this.modalityCatalog.set(ms))
+      .catch(() => { /* noop */ });
+
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (!id) {
       this.loading.set(false);

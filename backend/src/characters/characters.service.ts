@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PromptsService } from '../prompts/prompts.service';
 import { LlmService } from '../llm/llm.service';
+import { coerceModality } from './modality';
 
 /**
  * Brief input the user fills on the frontend form. The LLM uses these
@@ -25,6 +26,7 @@ export interface CharacterDraftBrief {
   diagnosisCode?: string;   // DSM-5 / ICD English label
   difficulty?: number;      // 1-5 behavioural difficulty
   complexity?: number;      // 1-5 clinical severity
+  modality?: string;        // therapy modality — see modality.ts
   brief?: string;           // 2-3 sentences about the case
   hiddenLayerHint?: string; // 1-2 sentences about what's really going on
   voiceNotes?: string;      // notes about how the patient speaks
@@ -142,6 +144,7 @@ export interface CreateCharacterDto {
   diagnosisCode?: string;
   difficulty?: number;
   complexity?: number;
+  modality?: string;        // see backend/src/characters/modality.ts
   avatarUrl?: string;
 }
 
@@ -282,6 +285,10 @@ export class CharactersService {
         diagnosisCode: dto.diagnosisCode ?? null,
         difficulty: dto.difficulty ?? null,
         complexity: dto.complexity ?? null,
+        // coerceModality silently falls back to 'individual' for any
+        // unrecognised value rather than rejecting the whole payload —
+        // an unknown modality should never block patient creation.
+        modality: coerceModality(dto.modality),
         avatarUrl: dto.avatarUrl ?? null,
         createdById: userId,
       },
@@ -306,6 +313,7 @@ export class CharactersService {
         ...(dto.diagnosisCode !== undefined ? { diagnosisCode: dto.diagnosisCode || null } : {}),
         ...(dto.difficulty !== undefined ? { difficulty: dto.difficulty } : {}),
         ...(dto.complexity !== undefined ? { complexity: dto.complexity } : {}),
+        ...(dto.modality !== undefined ? { modality: coerceModality(dto.modality) } : {}),
         ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl || null } : {}),
       },
     });

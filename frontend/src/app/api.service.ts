@@ -5,6 +5,26 @@ import { AuthService, type AuthResult, type AuthUser } from './auth.service';
 
 export type ProgressBadge = 'improving' | 'stable' | 'worsening' | 'unknown';
 
+/**
+ * Therapy modality — backend's `modality` enum (string). See
+ * backend/src/characters/modality.ts for the full catalog with labels +
+ * descriptions; frontend fetches it via api.listModalities().
+ */
+export type ModalityKey =
+  | 'individual'
+  | 'couples'
+  | 'family'
+  | 'adolescent'
+  | 'crisis';
+
+export interface ModalityInfo {
+  key: ModalityKey;
+  label: string;
+  short: string;
+  icon: string;
+  description: string;
+}
+
 export interface Character {
   id: number;
   slug: string;
@@ -13,6 +33,7 @@ export interface Character {
   diagnosisCode?: string | null; // English DSM-5 / ICD code, shown as tooltip
   difficulty?: number | null;    // behavioral (Поведінка) — modulates LLM
   complexity?: number | null;    // clinical (Тяжкість) — informational
+  modality?: ModalityKey;        // therapy modality — defaults to 'individual' server-side
   avatarUrl?: string | null;
   summary?: string;
   sessionCount?: number;
@@ -34,6 +55,7 @@ export interface CharacterDraftBrief {
   diagnosisCode?: string;
   difficulty?: number;
   complexity?: number;
+  modality?: ModalityKey;
   brief?: string;
   hiddenLayerHint?: string;
   voiceNotes?: string;
@@ -75,6 +97,7 @@ export interface CreateCharacterDto {
   diagnosisCode?: string;
   difficulty?: number;
   complexity?: number;
+  modality?: ModalityKey;
   avatarUrl?: string;
 }
 
@@ -137,6 +160,7 @@ export interface PatientCard {
   diagnosisCode: string | null;
   difficulty: number | null;
   complexity: number | null;
+  modality: ModalityKey;
   avatarUrl: string | null;
   profileText: string;
   createdById: number | null;
@@ -314,6 +338,18 @@ export class ApiService {
 
   listCharacters(): Promise<Character[]> {
     return firstValueFrom(this.http.get<Character[]>(`${this.base}/characters`));
+  }
+
+  /**
+   * Fetches the static modality catalog from the backend. The list is
+   * the single source of truth (label, icon, description) — fetched
+   * once at app boot or on patient-form open. Static so it's cheap to
+   * cache on the frontend side; backend just returns the constant.
+   */
+  listModalities(): Promise<ModalityInfo[]> {
+    return firstValueFrom(
+      this.http.get<ModalityInfo[]>(`${this.base}/characters/modalities`),
+    );
   }
 
   patientCard(characterId: number): Promise<PatientCard> {

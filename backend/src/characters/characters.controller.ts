@@ -19,6 +19,7 @@ import {
   type CreateCharacterDto,
   type DraftFieldName,
 } from './characters.service';
+import { MODALITIES } from './modality';
 
 interface AssessmentJson {
   patient?: Record<string, number | null>;
@@ -54,6 +55,18 @@ export class CharactersController {
     private readonly prisma: PrismaService,
     private readonly characters: CharactersService,
   ) {}
+
+  /**
+   * Therapy-modality catalog. Returns the static list of supported
+   * modalities (key + label + icon + long description). The frontend
+   * uses this for the form selector and the filter chips on the
+   * characters list, so adding a modality on the backend reaches the
+   * UI without a frontend code change.
+   */
+  @Get('modalities')
+  modalities() {
+    return MODALITIES;
+  }
 
   /**
    * Draft a full 8-section profile from a structured brief. Doesn't
@@ -167,6 +180,7 @@ export class CharactersController {
           diagnosisCode: c.diagnosisCode,
           difficulty: c.difficulty,
           complexity: c.complexity,
+          modality: c.modality,
           avatarUrl: c.avatarUrl,
           summary: this.briefSummary(c.profileText),
           sessionCount: sessions.length,
@@ -238,6 +252,7 @@ export class CharactersController {
       diagnosisCode: character.diagnosisCode,
       difficulty: character.difficulty,
       complexity: character.complexity,
+      modality: character.modality,
       avatarUrl: character.avatarUrl,
       profileText: character.profileText,
       createdById: character.createdById,
