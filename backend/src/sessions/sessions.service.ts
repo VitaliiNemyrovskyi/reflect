@@ -256,6 +256,10 @@ export class SessionsService {
         character: { select: { id: true, displayName: true, slug: true, avatarUrl: true } },
         messages: { orderBy: { id: 'asc' } },
         notes: { orderBy: { id: 'asc' } },
+        // Tests admin'd during this session — same shape as the
+        // active-chat fetch so the result card can render identically
+        // in past-session view.
+        tests: { orderBy: { id: 'asc' } },
       },
     });
     if (!session) throw new NotFoundException('session not found');
@@ -271,8 +275,16 @@ export class SessionsService {
       }
     }
 
+    // Parse answersJson on each test up-front so the frontend doesn't
+    // have to JSON.parse() in the template loop.
+    const tests = session.tests.map((t) => ({
+      ...t,
+      answers: t.answersJson ? this.safeParseJsonArray(t.answersJson) : null,
+    }));
+
     return {
       ...session,
+      tests,
       assessment: session.feedbackJson ? safeParseJson(session.feedbackJson) : null,
     };
   }
@@ -641,6 +653,30 @@ export class SessionsService {
           .join('\n')
       : '_(нотаток терапевта на цій сесії немає)_';
 
+    // Tests administered during this session — feed concise scores
+    // to the supervisor so the feedback can reference real numbers
+    // ("PHQ-9 = 9, легка депресія") rather than guess.
+    const tests = await this.prisma.sessionTest.findMany({
+      where: { sessionId, status: 'completed' },
+      orderBy: { id: 'asc' },
+    });
+    const testsSummary = tests.length
+      ? tests
+          .map((t) => {
+            const catalogEntry = this.tests
+              .list()
+              .find((c) => c.key === t.testKey);
+            const name = catalogEntry?.name ?? t.testKey;
+            const score = t.scaledScore ?? t.rawScore ?? '?';
+            const max =
+              catalogEntry?.scoreRange?.[1] !== undefined
+                ? `/${catalogEntry.scoreRange[1]}`
+                : '';
+            return `- **${name}** = ${score}${max} — ${t.severityLabel ?? '?'}`;
+          })
+          .join('\n')
+      : null;
+
     // Split the supervisor template at the placeholder boundaries so we
     // can layer prompt-cache breakpoints for maximum reuse:
     //
@@ -690,10 +726,18 @@ export class SessionsService {
       .substring(profileIdx, transcriptIdx)
       .replaceAll('{{PROFILE}}', session.character.profileText)
       + modalitySupervisor;
-    const sessionSpecific = tpl
-      .substring(transcriptIdx)
-      .replaceAll('{{TRANSCRIPT}}', transcript)
-      .replaceAll('{{NOTES}}', notesText);
+    // Append a brief tests block after the standard NOTES section so
+    // the supervisor can reference scores ("PHQ-9 був 9 — легка
+    // депресія") without us bolting test placeholders into the
+    // template file itself. Empty omitted entirely.
+    const testsBlock = testsSummary
+      ? `\n\n## Пройдені психологічні тести\n\n${testsSummary}\n\nТести проведено в процесі сесії за пропозицією терапевта. Згадай їх у відповідних розділах розбору — особливо якщо клініцист обрав правильно/неправильно вимір, не діяв за результатом, або проґавив сигнал.`
+      : '';
+    const sessionSpecific =
+      tpl
+        .substring(transcriptIdx)
+        .replaceAll('{{TRANSCRIPT}}', transcript)
+        .replaceAll('{{NOTES}}', notesText) + testsBlock;
 
     return {
       systemBlocks: [

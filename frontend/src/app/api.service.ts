@@ -205,6 +205,10 @@ export interface SessionView {
   character: { id: number; displayName: string; slug: string; avatarUrl: string | null };
   messages: SessionViewMessage[];
   notes: Note[];
+  /** Tests administered during this session — rendered inline as
+   *  result cards in /session/:id/view. Backend parses answersJson
+   *  ahead of time so the template loop stays simple. */
+  tests: SessionTest[];
   assessment: AssessmentJson | null;
 }
 

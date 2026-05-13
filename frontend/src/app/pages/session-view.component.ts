@@ -4,13 +4,14 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { marked } from 'marked';
 import { ApiService, SessionView } from '../api.service';
+import { TestResultCardComponent } from '../test-result-card.component';
 
 marked.setOptions({ gfm: true, breaks: true });
 
 @Component({
   selector: 'app-session-view',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink],
+  imports: [CommonModule, DatePipe, RouterLink, TestResultCardComponent],
   template: `
     @if (loading()) {
       <p class="hint">Завантаження…</p>
@@ -77,6 +78,19 @@ marked.setOptions({ gfm: true, breaks: true });
           </div>
         }
       </section>
+
+      <!-- Test result cards for any psychological tests administered
+           during the session. Rendered in administration order
+           (backend sorts by id ascending). Each card has its own
+           collapsible answer-by-answer breakdown. -->
+      @if (s.tests && s.tests.length > 0) {
+        <section class="session-tests">
+          <h3>📋 Пройдені тести</h3>
+          @for (t of s.tests; track t.id) {
+            <app-test-result-card [test]="t" />
+          }
+        </section>
+      }
 
       @if (orphanNotes().length > 0) {
         <section class="orphan-notes">
@@ -297,6 +311,20 @@ marked.setOptions({ gfm: true, breaks: true });
       line-height: 1.5;
     }
     .bubble-notes li { margin: 3px 0; }
+
+    .session-tests {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .session-tests h3 {
+      font-size: 13px;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 12px;
+      font-weight: 500;
+    }
 
     .orphan-notes {
       margin-top: 24px;
