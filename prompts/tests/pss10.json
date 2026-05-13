@@ -1,0 +1,41 @@
+{
+  "key": "pss10",
+  "name": "PSS-10",
+  "fullName": "Perceived Stress Scale (10 items)",
+  "fullNameUa": "Шкала сприйманого стресу (10 пунктів)",
+  "description": "Measures the degree to which life situations are appraised as stressful",
+  "descriptionUa": "Вимірює, наскільки повсякденні ситуації останнього місяця сприймаються як стресові.",
+  "domain": "stress",
+  "ageGroup": "adult",
+  "itemCount": 10,
+  "timeMinutes": 4,
+  "scoreRange": [0, 40],
+  "instructionUa": "Скільки разів за останній місяць ви відчували або думали так?",
+  "options": [
+    {"value": 0, "labelUa": "Ніколи"},
+    {"value": 1, "labelUa": "Майже ніколи"},
+    {"value": 2, "labelUa": "Інколи"},
+    {"value": 3, "labelUa": "Досить часто"},
+    {"value": 4, "labelUa": "Дуже часто"}
+  ],
+  "items": [
+    {"id": 1, "constructUa": "Засмучені через щось, що сталося неочікувано"},
+    {"id": 2, "constructUa": "Відчуття, що не можете контролювати важливі речі у житті"},
+    {"id": 3, "constructUa": "Нервова напруга, відчуття 'у стресі'"},
+    {"id": 4, "constructUa": "Впевненість у власній здатності справитись з особистими проблемами", "reverse": true},
+    {"id": 5, "constructUa": "Відчуття, що події йдуть саме як треба", "reverse": true},
+    {"id": 6, "constructUa": "Не справились з усім, що треба було зробити"},
+    {"id": 7, "constructUa": "Здатність контролювати власну дратівливість", "reverse": true},
+    {"id": 8, "constructUa": "Відчуття, що ви на висоті подій", "reverse": true},
+    {"id": 9, "constructUa": "Злість через ситуації поза вашим контролем"},
+    {"id": 10, "constructUa": "Труднощі накопичились настільки, що з ними не справитись"}
+  ],
+  "interpretation": [
+    {"min": 0, "max": 13, "level": "low", "labelUa": "Низький рівень стресу", "color": "good"},
+    {"min": 14, "max": 26, "level": "moderate", "labelUa": "Помірний рівень стресу", "color": "warn"},
+    {"min": 27, "max": 40, "level": "high", "labelUa": "Високий рівень стресу", "color": "danger"}
+  ],
+  "scoringNote": "Reverse-scored items (4, 5, 7, 8): 0→4, 1→3, 2→2, 3→1, 4→0 before summing.",
+  "source": "На основі PSS-10 (Cohen, Kamarck, Mermelstein, 1983). Широко використовується у дослідженнях у відкритому доступі. Українські формулювання — авторські, для тренувального тренажера.",
+  "tags": ["screening", "стрес", "self-report", "життєві-події"]
+}

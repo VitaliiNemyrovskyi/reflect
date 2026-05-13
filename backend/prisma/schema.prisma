@@ -120,9 +120,39 @@ model Session {
   patientMemory   String?           // Anna's first-person memory of this session for next time
   messages        Message[]
   notes           Note[]
+  tests           SessionTest[]
 
   @@index([characterId])
   @@index([userId])
+}
+
+/**
+ * Psychological test administered during a session. The therapist
+ * picks a test from the catalog (prompts/tests/*.json), backend asks
+ * the AI patient to "take" it staying in character, results are
+ * scored + interpreted server-side and surfaced inline in the chat.
+ *
+ * Status flow: pending → completed (or failed).
+ *  - pending: created, waiting for LLM to answer.
+ *  - completed: answers parsed, score + severity stored.
+ *  - failed: LLM returned unparseable output; row kept for debugging.
+ */
+model SessionTest {
+  id            Int       @id @default(autoincrement())
+  session       Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId     Int
+  testKey       String    // matches `key` in prompts/tests/<key>.json
+  status        String    @default("pending") // "pending" | "completed" | "failed"
+  answersJson   String?   // [{itemId, value, optionLabel}]
+  rawScore      Int?      // sum of item values (post reverse-scoring)
+  scaledScore   Int?      // optional scaled score (e.g. WHO-5 ×4)
+  severity      String?   // interpretation level key
+  severityLabel String?   // human-readable severity (Ukrainian)
+  aiAnalysis    String?   // optional supervisor-style interpretation
+  requestedAt   DateTime  @default(now())
+  completedAt   DateTime?
+
+  @@index([sessionId])
 }
 
 model Message {

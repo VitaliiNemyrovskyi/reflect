@@ -1,0 +1,38 @@
+{
+  "key": "gad7",
+  "name": "GAD-7",
+  "fullName": "Generalized Anxiety Disorder (7 items)",
+  "fullNameUa": "Скринінг генералізованої тривоги (7 пунктів)",
+  "description": "Brief anxiety screening tool covering DSM-5 GAD criteria",
+  "descriptionUa": "Короткий скринінг тривоги за критеріями DSM-5. Часове вікно: 2 тижні до моменту опитування.",
+  "domain": "anxiety",
+  "ageGroup": "adult",
+  "itemCount": 7,
+  "timeMinutes": 2,
+  "scoreRange": [0, 21],
+  "instructionUa": "За останні 2 тижні наскільки часто вас турбували наступні стани?",
+  "options": [
+    {"value": 0, "labelUa": "Зовсім не турбувало"},
+    {"value": 1, "labelUa": "Кілька днів"},
+    {"value": 2, "labelUa": "Більше половини днів"},
+    {"value": 3, "labelUa": "Майже щодня"}
+  ],
+  "items": [
+    {"id": 1, "constructUa": "Нервозність, тривожність або внутрішня напруженість"},
+    {"id": 2, "constructUa": "Неможливість зупинити чи контролювати тривогу"},
+    {"id": 3, "constructUa": "Надмірне хвилювання про різні щоденні речі"},
+    {"id": 4, "constructUa": "Труднощі розслабитись фізично та психічно"},
+    {"id": 5, "constructUa": "Непосидючість — важко всидіти спокійно"},
+    {"id": 6, "constructUa": "Швидке роздратування, нетерпимість"},
+    {"id": 7, "constructUa": "Страх, що станеться щось погане"}
+  ],
+  "interpretation": [
+    {"min": 0, "max": 4, "level": "minimal", "labelUa": "Мінімальна тривога", "color": "good"},
+    {"min": 5, "max": 9, "level": "mild", "labelUa": "Легка тривога", "color": "neutral"},
+    {"min": 10, "max": 14, "level": "moderate", "labelUa": "Помірна тривога", "color": "warn"},
+    {"min": 15, "max": 21, "level": "severe", "labelUa": "Тяжка тривога", "color": "danger"}
+  ],
+  "clinicalCutoff": 10,
+  "source": "На основі GAD-7 (Spitzer, Kroenke, Williams, Löwe, 2006). Оригінальний англомовний інструмент у вільному доступі через Pfizer Inc. Українські формулювання — авторські, для тренувального тренажера. НЕ для клінічної діагностики.",
+  "tags": ["screening", "тривога", "primary-care", "DSM-5", "first-line"]
+}

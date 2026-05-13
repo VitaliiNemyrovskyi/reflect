@@ -58,6 +58,35 @@ export class SessionsController {
   }
 
   /**
+   * Administer a psychological test mid-session. Body: { testKey }.
+   * AI patient "fills in" the test staying in character (profile +
+   * transcript context + difficulty + defenses all shape the
+   * answers). Returns the populated SessionTest row with score +
+   * severity + parsed answers for the result card to render inline.
+   */
+  @Post(':id/tests')
+  administerTest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { testKey: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.sessions.administerTest(user.id, id, body.testKey);
+  }
+
+  /**
+   * List every test administered during this session. Used by
+   * session-view to re-render past test results inline with the
+   * transcript.
+   */
+  @Get(':id/tests')
+  listTests(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.sessions.listSessionTests(user.id, id);
+  }
+
+  /**
    * Hard-delete a session ("як така що не розпочиналась") — therapist
    * decides this practice run shouldn't count. Removes session + cascades
    * to all messages and notes. Returns 204 No Content.

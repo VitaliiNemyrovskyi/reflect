@@ -12,11 +12,13 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService, HintSuggestion, Note } from '../api.service';
+import { ApiService, HintSuggestion, Note, PsychTestSummary, SessionTest } from '../api.service';
 import { SessionStateService } from '../session-state.service';
 import { VoiceService } from '../voice.service';
 import { RecognitionService } from '../recognition.service';
 import { PreferencesService } from '../preferences.service';
+import { TestModalComponent } from '../test-modal.component';
+import { TestResultCardComponent } from '../test-result-card.component';
 
 interface SelectionAnchor {
   text: string;
@@ -27,7 +29,7 @@ interface SelectionAnchor {
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, TestModalComponent, TestResultCardComponent],
   template: `
     <header class="chat-header">
       <div class="left">
@@ -81,7 +83,24 @@ interface SelectionAnchor {
               }
             </div>
           }
+
+          <!-- Test result cards appear inline at the bottom of the
+               message stream so they scroll with the chat. Order is
+               administration time (sessionTests is pushed-to, not
+               re-sorted). Pending cards show a loading state until
+               the LLM resolves. -->
+          @for (t of sessionTests(); track t.id) {
+            <app-test-result-card
+              [test]="t"
+              [summary]="summaryFor(t.testKey)" />
+          }
         </div>
+
+        @if (testModalOpen()) {
+          <app-test-modal
+            (picked)="onTestPicked($event)"
+            (close)="testModalOpen.set(false)" />
+        }
 
         @if (hintsOpen()) {
           <div class="hints-popover" (click)="$event.stopPropagation()">
@@ -135,6 +154,19 @@ interface SelectionAnchor {
               💡
             </button>
           }
+          <!-- Psychological test trigger — opens the catalog modal so
+               the therapist can pick a test for the AI patient to take
+               (PHQ-9, GAD-7, WHO-5, PSS-10). Disabled while a test is
+               already being administered. -->
+          <button type="button"
+                  class="ghost icon test-trigger"
+                  [class.loading]="loadingTestKey() !== null"
+                  [disabled]="sending() || loadingTestKey() !== null"
+                  aria-label="Запропонувати тест"
+                  title="Запропонувати психологічний тест"
+                  (click)="testModalOpen.set(true)">
+            📋
+          </button>
           @if (recognition.supported) {
             <button type="button"
                     class="ghost icon mic"
@@ -443,8 +475,23 @@ interface SelectionAnchor {
     .hint-trigger.loading {
       animation: pulse 1.2s ease-in-out infinite;
     }
+    /* Test trigger — mirror the hint button styling so they form a
+       coherent action group in the composer. Loading state pulses
+       while the AI patient is "filling in" the test. */
+    .test-trigger {
+      padding: 10px 14px;
+      font-size: 18px;
+      line-height: 1;
+      align-self: stretch;
+    }
+    .test-trigger.loading {
+      animation: pulse 1.2s ease-in-out infinite;
+      color: var(--accent);
+      border-color: var(--accent);
+    }
     @media (max-width: 720px) {
-      .composer .hint-trigger {
+      .composer .hint-trigger,
+      .composer .test-trigger {
         min-height: 48px;
         min-width: 48px;
         font-size: 20px;
@@ -816,6 +863,25 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   hintsError = signal<string | null>(null);
   hints = signal<HintSuggestion[]>([]);
 
+  // Psychological tests admin'd during this session. Cards render
+  // below the message stream and above the composer.
+  testModalOpen = signal(false);
+  /** Tests that have been administered this session (any status). */
+  sessionTests = signal<SessionTest[]>([]);
+  /** Catalog summaries cached so the result card can show
+   *  fullNameUa + scoreRange without an extra fetch. Loaded once. */
+  private testCatalog = signal<Map<string, PsychTestSummary>>(new Map());
+  /** Which test key is currently mid-administration (for the
+   *  spinner on the composer button). null when idle. */
+  loadingTestKey = signal<string | null>(null);
+
+  /** Helper for the template — looks up the catalog summary for a
+   *  given test row so the result card can render its full title +
+   *  scoreRange even though SessionTest itself doesn't carry them. */
+  summaryFor(testKey: string): PsychTestSummary | null {
+    return this.testCatalog().get(testKey) ?? null;
+  }
+
   private startedAt = Date.now();
   private nowMs = signal(Date.now());
   elapsedMin = computed(() => (this.nowMs() - this.startedAt) / 60000);
@@ -845,6 +911,19 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     // drafts don't bleed between unrelated chats.
     const restored = this.readDraft();
     if (restored) this.draft = restored;
+
+    // Load the test catalog summaries + any session tests already
+    // administered (in case the page was refreshed mid-session).
+    // Both run in the background — chat is functional even without.
+    void this.api.listPsychTests()
+      .then((tests) => {
+        const map = new Map(tests.map((t) => [t.key, t]));
+        this.testCatalog.set(map);
+      })
+      .catch(() => { /* no-op: modal still works, just won't preload */ });
+    void this.api.listSessionTests(this.sessionId)
+      .then((tests) => this.sessionTests.set(tests))
+      .catch(() => { /* no-op: session has no tests yet */ });
 
     const last = bubbles[bubbles.length - 1];
     if (last?.role === 'assistant' && !last.pending) {
@@ -979,6 +1058,61 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   closeNotes() {
     this.notesOpen.set(false);
+  }
+
+  /**
+   * Therapist picked a test from the modal — administer it to the AI
+   * patient. We close the modal immediately so the UI doesn't feel
+   * frozen, push a 'pending' placeholder into sessionTests for the
+   * loading card, then let the backend's LLM call resolve. On
+   * success / failure we replace the placeholder with the real row.
+   */
+  async onTestPicked(testKey: string) {
+    this.testModalOpen.set(false);
+    if (this.loadingTestKey()) return; // already administering one
+    this.loadingTestKey.set(testKey);
+
+    // Optimistic placeholder so the loading card appears right away.
+    const placeholder: SessionTest = {
+      id: -Date.now(),
+      sessionId: this.sessionId,
+      testKey,
+      status: 'pending',
+      answers: null,
+      rawScore: null,
+      scaledScore: null,
+      severity: null,
+      severityLabel: null,
+      aiAnalysis: null,
+      requestedAt: new Date().toISOString(),
+      completedAt: null,
+    };
+    this.sessionTests.update((arr) => [...arr, placeholder]);
+    this.shouldScroll = true;
+
+    try {
+      const result = await this.api.administerTest(this.sessionId, testKey);
+      // Backend returns answersJson; we keep both for ease — the
+      // result card uses .answers when present.
+      const enriched: SessionTest = {
+        ...result,
+        answers: result.answersJson ? JSON.parse(result.answersJson) : null,
+      };
+      // Swap the placeholder for the real row.
+      this.sessionTests.update((arr) =>
+        arr.map((t) => (t.id === placeholder.id ? enriched : t)),
+      );
+    } catch (e: unknown) {
+      // Mark placeholder failed so the user sees something went wrong.
+      this.sessionTests.update((arr) =>
+        arr.map((t) =>
+          t.id === placeholder.id ? { ...t, status: 'failed' as const } : t,
+        ),
+      );
+    } finally {
+      this.loadingTestKey.set(null);
+      this.shouldScroll = true;
+    }
   }
 
   @HostListener('document:keydown.escape')

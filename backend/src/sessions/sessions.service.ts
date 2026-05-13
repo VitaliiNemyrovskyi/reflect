@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PromptsService } from '../prompts/prompts.service';
 import { LlmService, ChatMessage } from '../llm/llm.service';
+import { TestsService } from '../tests/tests.service';
 
 export type HintKind =
   | 'open-question'
@@ -92,6 +93,7 @@ export class SessionsService {
     private readonly prisma: PrismaService,
     private readonly prompts: PromptsService,
     private readonly llm: LlmService,
+    private readonly tests: TestsService,
   ) {}
 
   async create(userId: number, characterId?: number) {
@@ -303,6 +305,202 @@ export class SessionsService {
     });
 
     return { reply };
+  }
+
+  /**
+   * Administers a psychological test mid-session. Therapist clicks
+   * "запропонувати тест" → backend asks the AI patient to "fill it
+   * in" staying in character (profile + difficulty + alliance state
+   * all influence the answers). Result is scored server-side and
+   * returned as a single record the frontend renders as a result card
+   * inline in the chat.
+   *
+   * Flow:
+   *   1. Verify ownership.
+   *   2. Create SessionTest row with status=pending (so a failed AI
+   *      call leaves an auditable trace).
+   *   3. Build the test-taking prompt: profile + transcript context +
+   *      items + options + brevity/realism guidance.
+   *   4. Call LLM, parse JSON answers, validate.
+   *   5. Score via TestsService, persist.
+   *   6. Return the populated row.
+   */
+  async administerTest(userId: number, sessionId: number, testKey: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { character: true },
+    });
+    if (!session || session.userId !== userId) {
+      throw new NotFoundException('session not found');
+    }
+    const test = this.tests.getOrThrow(testKey);
+    const sessionTest = await this.prisma.sessionTest.create({
+      data: { sessionId, testKey, status: 'pending' },
+    });
+
+    try {
+      const history = await this.loadHistory(sessionId);
+      const transcript = history
+        .map(
+          (m) =>
+            `${m.role === 'user' ? 'Терапевт' : session.character.displayName}: ${m.content}`,
+        )
+        .join('\n\n');
+
+      const itemsText = test.items
+        .map((it) => {
+          const opts = it.options ?? test.options;
+          const optsText = opts
+            .map((o) => `    ${o.value} — ${o.labelUa}`)
+            .join('\n');
+          return `${it.id}. ${it.constructUa}\n${optsText}`;
+        })
+        .join('\n\n');
+
+      const systemPrompt = [
+        `Терапевт попросив тебе пройти тест «${test.name}» (${test.fullNameUa}).`,
+        '',
+        `Профіль персонажа:`,
+        session.character.profileText,
+        '',
+        `Транскрипт сесії до цього моменту:`,
+        transcript || '(сесія щойно почалась)',
+        '',
+        `Інструкція тесту: ${test.instructionUa}`,
+        '',
+        `Пункти і варіанти відповідей:`,
+        itemsText,
+        '',
+        `ВАЖЛИВО:`,
+        `- Відповідай у персоні. Відповіді мають узгоджуватись з профілем, поточним станом, твоїми захистами і мірою розкриття перед терапевтом.`,
+        `- Реальні пацієнти НЕ дають "ідеальну" клінічну картку. Бувають мінімізації, заперечення, перебільшення.`,
+        `- Якщо у тебе високий defensiveness — деякі пункти знижуй на 1.`,
+        `- Якщо alliance ще не встановлений — недовірливі відповіді.`,
+        `- Не оцінюй сам себе клінічно — ти просто відповідаєш як людина.`,
+        '',
+        `Поверни ТІЛЬКИ JSON без markdown-фенсів і без коментарів:`,
+        `{"answers":[{"itemId":1,"value":2},{"itemId":2,"value":1},...]}`,
+        '',
+        `Усього пунктів: ${test.items.length}. Кожен має бути у відповіді.`,
+      ].join('\n');
+
+      const raw = await this.llm.chat({
+        systemPrompt,
+        history: [{ role: 'user', content: 'Пройди тест.' }],
+        maxTokens: 1024,
+      });
+
+      const parsed = this.parseTestAnswers(raw);
+      const result = this.tests.score(test, parsed.answers);
+
+      // Enrich answers with the option label for the result card —
+      // saves the frontend an extra lookup against the test catalog.
+      const answersWithLabels = parsed.answers.map((a) => {
+        const item = test.items.find((i) => i.id === a.itemId)!;
+        const opts = item.options ?? test.options;
+        const opt = opts.find((o) => o.value === a.value);
+        return {
+          itemId: a.itemId,
+          value: a.value,
+          optionLabel: opt?.labelUa ?? '',
+          constructUa: item.constructUa,
+        };
+      });
+
+      return this.prisma.sessionTest.update({
+        where: { id: sessionTest.id },
+        data: {
+          status: 'completed',
+          answersJson: JSON.stringify(answersWithLabels),
+          rawScore: result.rawScore,
+          scaledScore: result.scaledScore,
+          severity: result.severity,
+          severityLabel: result.severityLabel,
+          completedAt: new Date(),
+        },
+      });
+    } catch (e) {
+      // Mark the row failed so the audit trail keeps it but the
+      // frontend can show an error state.
+      await this.prisma.sessionTest
+        .update({ where: { id: sessionTest.id }, data: { status: 'failed' } })
+        .catch(() => undefined);
+      throw e;
+    }
+  }
+
+  /**
+   * Robust JSON extractor for the AI's test answers. Tolerates:
+   *   - clean JSON (preferred)
+   *   - markdown-fenced JSON (```json ... ```)
+   *   - JSON embedded in extra prose
+   * Throws BadGateway with a clear message if nothing parseable.
+   */
+  private parseTestAnswers(raw: string): {
+    answers: Array<{ itemId: number; value: number }>;
+  } {
+    const tryParse = (s: string) => {
+      try {
+        const parsed = JSON.parse(s);
+        if (parsed && Array.isArray(parsed.answers)) {
+          // Validate each entry has itemId + value as numbers.
+          for (const a of parsed.answers) {
+            if (typeof a.itemId !== 'number' || typeof a.value !== 'number') return null;
+          }
+          return parsed as { answers: Array<{ itemId: number; value: number }> };
+        }
+      } catch {
+        /* fall through */
+      }
+      return null;
+    };
+
+    const direct = tryParse(raw.trim());
+    if (direct) return direct;
+
+    const fenceMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (fenceMatch) {
+      const fenced = tryParse(fenceMatch[1].trim());
+      if (fenced) return fenced;
+    }
+
+    const braceMatch = raw.match(/\{[\s\S]*\}/);
+    if (braceMatch) {
+      const brace = tryParse(braceMatch[0]);
+      if (brace) return brace;
+    }
+
+    throw new BadGatewayException(
+      'AI повернув відповідь у форматі що не парсітся як JSON з полем answers',
+    );
+  }
+
+  /**
+   * Returns all tests administered in a session, with their answers
+   * parsed back from JSON. Used by the session view to re-display
+   * past tests inline in the transcript.
+   */
+  async listSessionTests(userId: number, sessionId: number) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { userId: true, tests: { orderBy: { id: 'asc' } } },
+    });
+    if (!session || session.userId !== userId) {
+      throw new NotFoundException('session not found');
+    }
+    return session.tests.map((t) => ({
+      ...t,
+      answers: t.answersJson ? this.safeParseJsonArray(t.answersJson) : null,
+    }));
+  }
+
+  private safeParseJsonArray(s: string): unknown[] | null {
+    try {
+      const parsed = JSON.parse(s);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
   }
 
   async end(userId: number, sessionId: number) {

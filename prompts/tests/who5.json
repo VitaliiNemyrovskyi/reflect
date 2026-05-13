@@ -1,0 +1,41 @@
+{
+  "key": "who5",
+  "name": "WHO-5",
+  "fullName": "WHO Wellbeing Index (5 items)",
+  "fullNameUa": "Індекс благополуччя ВООЗ (5 пунктів)",
+  "description": "Brief positive wellbeing screen — low scores flag possible depression",
+  "descriptionUa": "Короткий скринінг загального благополуччя. Низькі бали можуть свідчити про депресію — потрібна додаткова оцінка.",
+  "domain": "wellbeing",
+  "ageGroup": "adult",
+  "itemCount": 5,
+  "timeMinutes": 1,
+  "scoreRange": [0, 25],
+  "scaledScoreRange": [0, 100],
+  "scoreFormula": "sum × 4 (0-100 scale)",
+  "instructionUa": "За останні 2 тижні наскільки часто ви відчували наступне?",
+  "options": [
+    {"value": 0, "labelUa": "Жодного разу"},
+    {"value": 1, "labelUa": "Інколи"},
+    {"value": 2, "labelUa": "Менше половини часу"},
+    {"value": 3, "labelUa": "Більше половини часу"},
+    {"value": 4, "labelUa": "Майже весь час"},
+    {"value": 5, "labelUa": "Весь час"}
+  ],
+  "items": [
+    {"id": 1, "constructUa": "Жвавий настрій, гарний внутрішній стан"},
+    {"id": 2, "constructUa": "Спокій і відчуття внутрішнього миру"},
+    {"id": 3, "constructUa": "Енергійність, активність"},
+    {"id": 4, "constructUa": "Прокидання зранку відпочилим і свіжим"},
+    {"id": 5, "constructUa": "Повсякденне життя наповнене цікавим"}
+  ],
+  "interpretation": [
+    {"min": 0, "max": 28, "level": "depression-likely", "labelUa": "Імовірна депресія — потрібен PHQ-9", "color": "danger"},
+    {"min": 29, "max": 50, "level": "poor", "labelUa": "Низьке благополуччя", "color": "warn"},
+    {"min": 51, "max": 75, "level": "average", "labelUa": "Середнє благополуччя", "color": "neutral"},
+    {"min": 76, "max": 100, "level": "good", "labelUa": "Високе благополуччя", "color": "good"}
+  ],
+  "interpretationScale": "scaled",
+  "clinicalCutoff": 50,
+  "source": "На основі WHO-5 Wellbeing Index (WHO Regional Office Europe, 1998). Оригінал у вільному доступі через ВООЗ. Українські формулювання — авторські, для тренувального тренажера.",
+  "tags": ["screening", "благополуччя", "позитивний", "WHO", "quality-of-life"]
+}

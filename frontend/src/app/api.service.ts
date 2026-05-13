@@ -249,6 +249,84 @@ export interface HintResult {
   suggestions: HintSuggestion[];
 }
 
+// ─── Psychological tests ──────────────────────────────────────────────────
+
+export interface TestOption {
+  value: number;
+  labelUa: string;
+}
+
+export interface TestItem {
+  id: number;
+  constructUa: string;
+  reverse?: boolean;
+  options?: TestOption[];
+}
+
+export interface InterpretationBand {
+  min: number;
+  max: number;
+  level: string;
+  labelUa: string;
+  color: 'good' | 'neutral' | 'warn' | 'danger';
+}
+
+/** Catalog-list item — items array stripped to keep the response small. */
+export interface PsychTestSummary {
+  key: string;
+  name: string;
+  fullName: string;
+  fullNameUa: string;
+  description: string;
+  descriptionUa: string;
+  domain: string;
+  ageGroup: string;
+  itemCount: number;
+  timeMinutes: number;
+  scoreRange: [number, number];
+  source: string;
+  tags: string[];
+}
+
+export interface PsychTest extends PsychTestSummary {
+  instructionUa: string;
+  options: TestOption[];
+  items: TestItem[];
+  interpretation: InterpretationBand[];
+  interpretationScale?: 'raw' | 'scaled';
+  scaledScoreRange?: [number, number];
+  scoreFormula?: string;
+  clinicalCutoff?: number;
+  specialFlags?: Array<{ condition: string; labelUa: string }>;
+}
+
+/** One answer in a completed session-test. constructUa is denormalised
+ *  from the test catalog so the result card can render without an
+ *  extra getPsychTest() fetch. */
+export interface SessionTestAnswer {
+  itemId: number;
+  value: number;
+  optionLabel: string;
+  constructUa: string;
+}
+
+/** Result of administering a test in a specific session. */
+export interface SessionTest {
+  id: number;
+  sessionId: number;
+  testKey: string;
+  status: 'pending' | 'completed' | 'failed';
+  answers?: SessionTestAnswer[] | null;
+  answersJson?: string | null;
+  rawScore: number | null;
+  scaledScore: number | null;
+  severity: string | null;
+  severityLabel: string | null;
+  aiAnalysis: string | null;
+  requestedAt: string;
+  completedAt: string | null;
+}
+
 // ─── Admin types ──────────────────────────────────────────────────────────
 
 export interface AdminUser {
@@ -453,6 +531,37 @@ export class ApiService {
   requestHint(sessionId: number): Promise<HintResult> {
     return firstValueFrom(
       this.http.post<HintResult>(`${this.base}/sessions/${sessionId}/hint`, {}),
+    );
+  }
+
+  // ─── Psychological tests catalog ─────────────────────────────────────────
+
+  listPsychTests(opts: { q?: string; domain?: string } = {}): Promise<PsychTestSummary[]> {
+    const params: Record<string, string> = {};
+    if (opts.q) params['q'] = opts.q;
+    if (opts.domain) params['domain'] = opts.domain;
+    return firstValueFrom(
+      this.http.get<PsychTestSummary[]>(`${this.base}/tests`, { params }),
+    );
+  }
+
+  listTestDomains(): Promise<string[]> {
+    return firstValueFrom(this.http.get<string[]>(`${this.base}/tests/domains`));
+  }
+
+  getPsychTest(key: string): Promise<PsychTest> {
+    return firstValueFrom(this.http.get<PsychTest>(`${this.base}/tests/${key}`));
+  }
+
+  administerTest(sessionId: number, testKey: string): Promise<SessionTest> {
+    return firstValueFrom(
+      this.http.post<SessionTest>(`${this.base}/sessions/${sessionId}/tests`, { testKey }),
+    );
+  }
+
+  listSessionTests(sessionId: number): Promise<SessionTest[]> {
+    return firstValueFrom(
+      this.http.get<SessionTest[]>(`${this.base}/sessions/${sessionId}/tests`),
     );
   }
 

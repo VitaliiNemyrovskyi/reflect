@@ -1,0 +1,44 @@
+{
+  "key": "phq9",
+  "name": "PHQ-9",
+  "fullName": "Patient Health Questionnaire (9 items)",
+  "fullNameUa": "Опитувальник стану здоров'я (9 пунктів)",
+  "description": "Brief depression screening tool covering DSM-5 MDD criteria",
+  "descriptionUa": "Короткий скринінг депресії за критеріями DSM-5. Часовий вікно: 2 тижні до моменту опитування.",
+  "domain": "depression",
+  "ageGroup": "adult",
+  "itemCount": 9,
+  "timeMinutes": 3,
+  "scoreRange": [0, 27],
+  "instructionUa": "За останні 2 тижні наскільки часто вас турбували наступні стани?",
+  "options": [
+    {"value": 0, "labelUa": "Зовсім не турбувало"},
+    {"value": 1, "labelUa": "Кілька днів"},
+    {"value": 2, "labelUa": "Більше половини днів"},
+    {"value": 3, "labelUa": "Майже щодня"}
+  ],
+  "items": [
+    {"id": 1, "constructUa": "Втрата інтересу або задоволення від справ, які зазвичай подобались"},
+    {"id": 2, "constructUa": "Пригнічений настрій, відчуття безнадії або смутку"},
+    {"id": 3, "constructUa": "Проблеми зі сном — труднощі заснути, прокидання, або надмірний сон"},
+    {"id": 4, "constructUa": "Втомленість, низький рівень енергії протягом дня"},
+    {"id": 5, "constructUa": "Зміни апетиту — переїдання або, навпаки, поганий апетит"},
+    {"id": 6, "constructUa": "Відчуття власної нікчемності, провини або підведення близьких"},
+    {"id": 7, "constructUa": "Труднощі з концентрацією — читання, перегляд, розмови"},
+    {"id": 8, "constructUa": "Уповільненість рухів і мовлення; або, навпаки, збуджена непосида"},
+    {"id": 9, "constructUa": "Думки про власну смерть, самопошкодження або що краще не існувати"}
+  ],
+  "interpretation": [
+    {"min": 0, "max": 4, "level": "minimal", "labelUa": "Мінімальна / без депресії", "color": "good"},
+    {"min": 5, "max": 9, "level": "mild", "labelUa": "Легка депресія", "color": "neutral"},
+    {"min": 10, "max": 14, "level": "moderate", "labelUa": "Помірна депресія", "color": "warn"},
+    {"min": 15, "max": 19, "level": "moderately-severe", "labelUa": "Помірно тяжка депресія", "color": "danger"},
+    {"min": 20, "max": 27, "level": "severe", "labelUa": "Тяжка депресія", "color": "danger"}
+  ],
+  "clinicalCutoff": 10,
+  "specialFlags": [
+    {"condition": "item9 >= 1", "labelUa": "Суїцидальні думки — обов'язкова безпекова оцінка"}
+  ],
+  "source": "На основі PHQ-9 (Spitzer, Kroenke, Williams, 2001). Оригінальний англомовний інструмент у публічному домені (placed in PD by Pfizer Inc.). Українські формулювання — авторські, для тренувального тренажера. НЕ для клінічної діагностики.",
+  "tags": ["screening", "депресія", "primary-care", "DSM-5", "first-line"]
+}
