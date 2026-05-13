@@ -587,6 +587,12 @@ function formatBrief(b: CharacterDraftBrief): string {
   add('Шифр (англ. для бібліотеки)', b.diagnosisCode);
   add('Поведінкова складність 1-5', b.difficulty);
   add('Клінічна тяжкість 1-5', b.complexity);
+  // Modality steers the profile structure (couples profile mentions both
+  // partners; family mentions the system; crisis is acute-state-focused).
+  // Pass the human-readable form so the LLM can react to it naturally.
+  if (b.modality && b.modality !== 'individual') {
+    add('Модальність терапії', modalityLabel(b.modality));
+  }
   add('Короткий опис випадку (що відбувається з пацієнткою/-том)', b.brief);
   add('Прихований шар (підказка — що насправді відбувається)', b.hiddenLayerHint);
   add('Особливості мовлення', b.voiceNotes);
@@ -594,6 +600,19 @@ function formatBrief(b: CharacterDraftBrief): string {
     add('Спеціальні теми', b.themes.join(', '));
   }
   return lines.join('\n');
+}
+
+/** Maps a modality key to its Ukrainian label for the brief — kept
+ *  inline (not imported from modality.ts) to avoid a circular import
+ *  through the prompts dependency. The set is tiny + stable. */
+function modalityLabel(key: string): string {
+  switch (key) {
+    case 'couples': return 'парна (couples therapy) — двоє партнерів у кабінеті';
+    case 'family': return 'сімейна (family therapy) — кілька членів родини';
+    case 'adolescent': return 'підліткова (adolescent therapy) — клієнт 12-18 років';
+    case 'crisis': return 'кризова інтервенція (acute state)';
+    default: return key;
+  }
 }
 
 /**

@@ -117,6 +117,7 @@ export class SessionsService {
       [{ role: 'user', content: SEED_OPENING }],
       priorMemories,
       character.difficulty,
+      character.modality,
     );
 
     await this.prisma.message.create({
@@ -294,6 +295,7 @@ export class SessionsService {
       history,
       priorMemories,
       session.character.difficulty,
+      session.character.modality,
     );
 
     await this.prisma.message.create({
@@ -397,7 +399,7 @@ export class SessionsService {
   }
 
   private async buildFeedbackContext(
-    session: { character: { profileText: string; displayName: string } },
+    session: { character: { profileText: string; displayName: string; modality?: string | null } },
     sessionId: number,
   ): Promise<{
     systemBlocks: { text: string; cache?: boolean }[];
@@ -467,9 +469,18 @@ export class SessionsService {
     const supervisorAndProtocol = tpl
       .substring(0, profileIdx)
       .replaceAll('{{PROTOCOL}}', this.prompts.supervisorProtocol);
+    // Modality modulator goes INTO the profile section — it's a per-
+    // character constant (every session for that character uses the
+    // same modality), so it doesn't break per-character cache reuse.
+    // Empty string for 'individual'/null, so non-modality patients
+    // see the same profile block as before this change.
+    const modalitySupervisor = this.prompts.getModalitySupervisorModulator(
+      session.character.modality ?? null,
+    );
     const profileSection = tpl
       .substring(profileIdx, transcriptIdx)
-      .replaceAll('{{PROFILE}}', session.character.profileText);
+      .replaceAll('{{PROFILE}}', session.character.profileText)
+      + modalitySupervisor;
     const sessionSpecific = tpl
       .substring(transcriptIdx)
       .replaceAll('{{TRANSCRIPT}}', transcript)
@@ -623,6 +634,7 @@ export class SessionsService {
     history: ChatMessage[],
     priorMemories: string[] = [],
     difficulty: number | null = null,
+    modality: string | null = null,
   ): Promise<string> {
     const filled = this.prompts.fill(this.prompts.annaSystem, {
       CHARACTER_NAME: displayName,
@@ -637,8 +649,12 @@ export class SessionsService {
           .join('\n\n')}\n\nНа першій репліці нової сесії ти можеш (але не зобов'язана) згадати щось із минулого — як зробила б реальна людина, що повертається до знайомого терапевта.`
       : '';
     const difficultyModulator = this.prompts.getDifficultyModulator(difficulty);
+    // Modality modulator goes LAST so it's the strongest steering — the
+    // model sees baseline persona → difficulty → modality framing right
+    // before generating its reply. Empty string for 'individual'.
+    const modalityModulator = this.prompts.getModalityChatModulator(modality);
     return this.llm.chat({
-      systemPrompt: filled + warning + memorySection + difficultyModulator,
+      systemPrompt: filled + warning + memorySection + difficultyModulator + modalityModulator,
       history,
       cacheSystem: true,
     });
