@@ -318,7 +318,10 @@ export class SessionsService {
       systemBlocks: ctx.systemBlocks,
       history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
       model: this.llm.modelFeedback,
-      maxTokens: 3072,
+      // Capped at 2048 — supervisor brevity instruction targets
+      // 800-1500 words narrative + ~200 tokens JSON assessment. 2048
+      // gives headroom without paying for monologue-style outputs.
+      maxTokens: 2048,
     });
 
     const { narrative, json } = this.splitFeedback(rawFeedback);
@@ -376,7 +379,10 @@ export class SessionsService {
       systemBlocks: ctx.systemBlocks,
       history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
       model: this.llm.modelFeedback,
-      maxTokens: 3072,
+      // Capped at 2048 — supervisor brevity instruction targets
+      // 800-1500 words narrative + ~200 tokens JSON assessment. 2048
+      // gives headroom without paying for monologue-style outputs.
+      maxTokens: 2048,
     })) {
       raw += chunk;
       yield { type: 'chunk', data: { text: chunk } };
@@ -466,9 +472,14 @@ export class SessionsService {
       return { systemBlocks: [{ text: flat }], transcript, lineMap };
     }
 
-    const supervisorAndProtocol = tpl
-      .substring(0, profileIdx)
-      .replaceAll('{{PROTOCOL}}', this.prompts.supervisorProtocol);
+    const supervisorAndProtocol =
+      tpl
+        .substring(0, profileIdx)
+        .replaceAll('{{PROTOCOL}}', this.prompts.supervisorProtocol)
+      // Append the supervisor brevity instruction to block A — it's
+      // stable across ALL sessions, so it stays cache-friendly. Caps
+      // narrative at 800-1500 words and forbids generic truisms.
+      + this.prompts.getSupervisorBrevityInstruction();
     // Modality modulator goes INTO the profile section — it's a per-
     // character constant (every session for that character uses the
     // same modality), so it doesn't break per-character cache reuse.
@@ -653,8 +664,12 @@ export class SessionsService {
     // model sees baseline persona → difficulty → modality framing right
     // before generating its reply. Empty string for 'individual'.
     const modalityModulator = this.prompts.getModalityChatModulator(modality);
+    // Brevity instruction caps the reply length to the soft limit based
+    // on difficulty + modality. Cuts output cost AND shrinks history for
+    // subsequent turns — double-savings on long sessions.
+    const brevityInstruction = this.prompts.getBrevityInstruction(difficulty, modality);
     return this.llm.chat({
-      systemPrompt: filled + warning + memorySection + difficultyModulator + modalityModulator,
+      systemPrompt: filled + warning + memorySection + difficultyModulator + modalityModulator + brevityInstruction,
       history,
       cacheSystem: true,
     });

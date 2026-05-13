@@ -66,8 +66,13 @@ export class LlmService {
 
     if (this.provider === 'anthropic') {
       this.anthropic = new Anthropic();
-      this.modelChat = envChat || 'claude-sonnet-4-6';
-      this.modelFeedback = envFeedback || 'claude-opus-4-7';
+      // Defaults optimised for cost (~$0.13/session) while keeping
+      // feedback quality high — Sonnet handles citation accuracy fine,
+      // Haiku handles patient persona under brevity-capped output.
+      // Override via LLM_MODEL_CHAT / LLM_MODEL_FEEDBACK env vars if
+      // the deployment has different priorities.
+      this.modelChat = envChat || 'claude-haiku-4-5';
+      this.modelFeedback = envFeedback || 'claude-sonnet-4-6';
     } else if (this.provider === 'openrouter') {
       const apiKey = process.env.OPENROUTER_API_KEY;
       if (!apiKey) {
@@ -105,7 +110,11 @@ export class LlmService {
     cacheSystem?: boolean;
   }): Promise<string> {
     const model = opts.model ?? this.modelChat;
-    const maxTokens = opts.maxTokens ?? 1024;
+    // Default hard cap 512 — chat replies should be SHORT per brevity
+    // instruction in the system prompt. 512 tokens ≈ 380 words EN /
+    // 250-300 UA, well above the soft caps (20-180 words). Acts as a
+    // safety net against runaway monologues. Caller can override.
+    const maxTokens = opts.maxTokens ?? 512;
     const blocks = toSystemBlocks(opts);
 
     const callOnce = (signal: AbortSignal) =>
@@ -182,7 +191,11 @@ export class LlmService {
     cacheSystem?: boolean;
   }): AsyncGenerator<string, void, unknown> {
     const model = opts.model ?? this.modelChat;
-    const maxTokens = opts.maxTokens ?? 1024;
+    // Default hard cap 512 — chat replies should be SHORT per brevity
+    // instruction in the system prompt. 512 tokens ≈ 380 words EN /
+    // 250-300 UA, well above the soft caps (20-180 words). Acts as a
+    // safety net against runaway monologues. Caller can override.
+    const maxTokens = opts.maxTokens ?? 512;
     const blocks = toSystemBlocks(opts);
 
     try {

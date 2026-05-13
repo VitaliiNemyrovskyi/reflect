@@ -211,6 +211,81 @@ export class PromptsService implements OnModuleInit {
   }
 
   /**
+   * Brevity instruction for the chat side. Soft-caps the patient
+   * reply length so we don't burn tokens on monologue-style replies
+   * that don't help the trainee anyway (real therapy patients give
+   * short, textured answers — not essays).
+   *
+   * Word cap scales by difficulty AND modality:
+   *  - Easier patients (D1-D2) talk more openly → larger budget.
+   *  - Harder patients (D4-D5) are terse by nature → small budget.
+   *  - Couples / family need to voice multiple people → wider budget.
+   *  - Crisis sessions need terse, in-the-moment replies.
+   *
+   * Returns empty for missing inputs — never penalize a request that
+   * lacks the metadata.
+   */
+  getBrevityInstruction(
+    difficulty: number | null | undefined,
+    modality: string | null | undefined,
+  ): string {
+    const d = difficulty ?? 3;
+    if (d < 1 || d > 5) return '';
+
+    // Base word cap per modality at D3 (mid difficulty).
+    const baseByModality: Record<string, number> = {
+      individual: 80,
+      couples: 130,
+      family: 160,
+      adolescent: 50,
+      crisis: 35,
+    };
+    const m = modality ?? 'individual';
+    const base = baseByModality[m] ?? baseByModality.individual;
+
+    // Each step from D3 shifts the cap by 20 words.
+    // D1=+40, D2=+20, D3=0, D4=-20, D5=-40.
+    const cap = Math.max(20, base + (3 - d) * 20);
+
+    return (
+      '\n\n# Жорсткий лімит довжини репліки\n\n' +
+      `Максимум **${cap} слів** за хід. Це принципово — реальні пацієнти ` +
+      "не говорять монологами, а терапевтична динаміка не з'являється з " +
+      'розгорнутих абзаців.\n\n' +
+      '- Якщо у тебе кілька персонажів у сцені (couples / family) — ' +
+      'словобюджет ділиться МІЖ ними. Не подвоюй для кожного.\n' +
+      '- Якщо терапевт прямо просить розгорнуту відповідь («розкажи ' +
+      'детальніше», «з чого це починається?») — можеш перевищити ' +
+      'одноразово, але повертайся до коротких реплік на наступному ходу.\n' +
+      '- Якщо тиша / односкладна відповідь природна (D4-D5, кризовий стан) — ' +
+      "дай саме її, не заповнюй простір.\n" +
+      "- Перевищувати ліміт «бо хочеться розповісти більше» — не можна. " +
+      'Терпеливість терапевта повинна витягнути більшу відповідь, не твоя ' +
+      'багатослівність.'
+    );
+  }
+
+  /**
+   * Brevity instruction for the SUPERVISOR side. Caps the narrative
+   * length so feedback stays focused and doesn't pad with truisms.
+   */
+  getSupervisorBrevityInstruction(): string {
+    return (
+      '\n\n# Лімит довжини narrative\n\n' +
+      'Тримай розбір сесії у межах **800-1500 слів** (без JSON-блоку).\n\n' +
+      '- Без води: «важливо слухати клієнта», «емпатія — ключ до контакту» ' +
+      "тощо. Це truisms, вони не дадуть студенту жодного нового знання.\n" +
+      '- Кожне твердження має додавати щось **специфічне до ЦІЄЇ сесії** з ' +
+      'конкретним `[L<n>]` посиланням. Якщо не можеш прив\'язати до ' +
+      'конкретного моменту — не пиши взагалі.\n' +
+      '- Структуру тримай таку як у protocol, але кожен розділ — 2-4 ' +
+      'абзаци максимум. Краще пропустити розділ ніж заповнити загальними ' +
+      'фразами.\n' +
+      '- Цитати з транскрипту короткі: 5-15 слів на цитату, не цілі репліки.'
+    );
+  }
+
+  /**
    * Modality modulator for the SUPERVISOR (feedback) side. Appended
    * to the supervisor system prompt so the post-session analysis
    * weighs the right competencies for the case type.
