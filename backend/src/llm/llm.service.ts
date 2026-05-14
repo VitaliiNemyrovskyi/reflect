@@ -67,6 +67,13 @@ export class LlmService {
    *  upstream 5xx / connection reset), the supervisor retry uses
    *  this one. Empty / unset = no fallback, errors bubble up. */
   readonly modelFeedbackFallback: string | null;
+  /** Model for the two-pass REVIEWER stage (Pass 2). Pass 1 drafts
+   *  with `modelFeedback` (cheap Haiku). Pass 2 critic-reviews with
+   *  this — by default a stronger model (Opus) that catches deep
+   *  patterns + barely hallucinates citations. Override via
+   *  LLM_MODEL_FEEDBACK_REVIEWER. If unset, falls back to
+   *  `modelFeedback` (single-model mode). */
+  readonly modelFeedbackReviewer: string;
   /** Feedback generation mode:
    *  - 'single' — one supervisor pass (legacy, fast, ~$0.02/sess).
    *  - 'two-pass' — first supervisor drafts, second supervisor
@@ -85,6 +92,7 @@ export class LlmService {
     const envChat = process.env.LLM_MODEL_CHAT?.trim();
     const envFeedback = process.env.LLM_MODEL_FEEDBACK?.trim();
     const envFeedbackFallback = process.env.LLM_MODEL_FEEDBACK_FALLBACK?.trim();
+    const envFeedbackReviewer = process.env.LLM_MODEL_FEEDBACK_REVIEWER?.trim();
 
     // FEEDBACK_MODE drives whether feedback uses single supervisor or
     // a draft → reviewer 2-pass pipeline. Default 'two-pass' since
@@ -101,8 +109,12 @@ export class LlmService {
       // Override via LLM_MODEL_CHAT / LLM_MODEL_FEEDBACK env vars if
       // the deployment has different priorities.
       this.modelChat = envChat || 'claude-haiku-4-5';
-      this.modelFeedback = envFeedback || 'claude-sonnet-4-6';
+      this.modelFeedback = envFeedback || 'claude-haiku-4-5';
       this.modelFeedbackFallback = envFeedbackFallback || 'claude-haiku-4-5';
+      // Reviewer defaults to Opus for deep critique. ~$0.20/call, 5× the
+      // Sonnet cost; the offset is fewer hallucinations + sharper pattern
+      // detection. Fall back to modelFeedback for single-model setups.
+      this.modelFeedbackReviewer = envFeedbackReviewer || 'claude-opus-4-7';
     } else if (this.provider === 'openrouter') {
       const apiKey = process.env.OPENROUTER_API_KEY;
       if (!apiKey) {
@@ -127,12 +139,19 @@ export class LlmService {
       // OpenRouter is fast and cheap (~$0.01/call), pays off as the
       // safety net the moment primary is overloaded.
       this.modelFeedbackFallback = envFeedbackFallback || 'anthropic/claude-haiku-4-5';
+      // Reviewer routed to Opus via OpenRouter — same model identifier
+      // shape as Haiku/Sonnet. If overloaded, falls back to Haiku via
+      // modelFeedbackFallback (deep critique downgraded → flat critique
+      // but still verbatim citations + 8 dimensions).
+      this.modelFeedbackReviewer = envFeedbackReviewer || 'anthropic/claude-opus-4-7';
     } else {
       throw new Error(`Невідомий LLM_PROVIDER: ${this.provider}`);
     }
 
     this.logger.log(
-      `LLM provider=${this.provider} chat=${this.modelChat} feedback=${this.modelFeedback} mode=${this.feedbackMode}`,
+      `LLM provider=${this.provider} chat=${this.modelChat} ` +
+        `feedback=${this.modelFeedback} reviewer=${this.modelFeedbackReviewer} ` +
+        `mode=${this.feedbackMode}`,
     );
   }
 

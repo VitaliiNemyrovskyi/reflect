@@ -625,7 +625,15 @@ export class SessionsService {
       };
 
       const reviewerBlocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
-      for await (const chunk of this.streamFeedbackWithFallback(reviewerBlocks)) {
+      // Pass 2 = REVIEWER → use stronger model (Opus by default) for deep
+      // critique + pattern detection. If it stalls before first chunk,
+      // fall back to the cheaper draft model so the student still gets
+      // SOMETHING (downgraded review but functional) instead of a 504.
+      for await (const chunk of this.streamFeedbackWithFallback(
+        reviewerBlocks,
+        this.llm.modelFeedbackReviewer,
+        this.llm.modelFeedback,
+      )) {
         raw += chunk;
         yield { type: 'chunk', data: { text: chunk } };
       }
@@ -664,11 +672,19 @@ export class SessionsService {
    * retry would duplicate it.
    *
    * Used by BOTH single-pass and two-pass feedback flows. In two-pass
-   * mode this drives the reviewer (Pass 2); in single-pass it drives
-   * the supervisor (the only pass).
+   * mode the REVIEWER (Pass 2) calls this with the dedicated reviewer
+   * model (Opus by default); in single-pass it drives the supervisor
+   * with `modelFeedback` (Haiku) directly.
+   *
+   * @param primaryModel  the model to try first
+   * @param fallbackModel the model to retry with if `primaryModel`
+   *                      yields no output. null/undefined disables
+   *                      fallback. Same as primary ≡ disabled too.
    */
   private async *streamFeedbackWithFallback(
     systemBlocks: { text: string; cache?: boolean }[],
+    primaryModel: string = this.llm.modelFeedback,
+    fallbackModel: string | null = this.llm.modelFeedbackFallback,
   ): AsyncGenerator<string, void, unknown> {
     const tryModel = async function* (this: SessionsService, model: string) {
       let gotAny = false;
@@ -692,16 +708,15 @@ export class SessionsService {
 
     let gotAnyBeforeError = false;
     try {
-      for await (const chunk of tryModel.call(this, this.llm.modelFeedback)) {
+      for await (const chunk of tryModel.call(this, primaryModel)) {
         gotAnyBeforeError = true;
         yield chunk;
       }
     } catch (primaryErr) {
       if (gotAnyBeforeError) throw primaryErr;
-      const fallback = this.llm.modelFeedbackFallback;
-      if (!fallback || fallback === this.llm.modelFeedback) throw primaryErr;
-      yield `\n_[Перший виклик завис; переключаюсь на резервну модель ${fallback}…]_\n\n`;
-      for await (const chunk of tryModel.call(this, fallback)) {
+      if (!fallbackModel || fallbackModel === primaryModel) throw primaryErr;
+      yield `\n_[Перший виклик завис; переключаюсь на резервну модель ${fallbackModel}…]_\n\n`;
+      for await (const chunk of tryModel.call(this, fallbackModel)) {
         yield chunk;
       }
     }
