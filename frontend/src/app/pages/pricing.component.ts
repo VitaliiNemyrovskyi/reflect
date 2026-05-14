@@ -3,6 +3,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService, BillingStatus, PlanConfig } from '../api.service';
 import { AuthService } from '../auth.service';
+import { AnalyticsService } from '../analytics.service';
 
 /**
  * Public pricing page. Lists all 4 plans (Trial, Lite, Pro, Master)
@@ -376,12 +377,14 @@ import { AuthService } from '../auth.service';
 export class PricingComponent implements OnInit {
   private api = inject(ApiService);
   private auth = inject(AuthService);
+  private analytics = inject(AnalyticsService);
 
   plans = signal<PlanConfig[]>([]);
   status = signal<BillingStatus | null>(null);
   isLoggedIn = computed(() => !!this.auth.accessToken());
 
   async ngOnInit() {
+    this.analytics.track('page.pricing');
     // Plans endpoint is auth-gated by the global JwtAuthGuard. For
     // anonymous visitors we'd want a public version; for now we
     // hard-code an unauth'd fallback by skipping the fetch and using

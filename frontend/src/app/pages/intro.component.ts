@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../api.service';
 import { SessionStateService } from '../session-state.service';
+import { AnalyticsService } from '../analytics.service';
 
 @Component({
   selector: 'app-intro',
@@ -53,6 +54,7 @@ export class IntroComponent implements OnInit {
   private router = inject(Router);
   private api = inject(ApiService);
   private state = inject(SessionStateService);
+  private analytics = inject(AnalyticsService);
 
   displayName = signal<string | null>(null);
   starting = signal(false);
@@ -85,6 +87,7 @@ export class IntroComponent implements OnInit {
       const data = await this.api.startSession(this.characterId);
       this.state.reset(data.character.displayName);
       this.state.push({ role: 'assistant', content: data.firstMessage });
+      this.analytics.track('session.created', { characterId: this.characterId }, data.sessionId);
       void this.router.navigate(['/session', data.sessionId]);
     } catch (e: unknown) {
       this.error.set(this.errMsg(e));

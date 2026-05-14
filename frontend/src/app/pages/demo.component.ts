@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AnalyticsService } from '../analytics.service';
 
 /**
  * Public landing demo — shows a real Opus reviewer output on a
@@ -504,4 +505,9 @@ import { RouterLink } from '@angular/router';
     }
   `],
 })
-export class DemoComponent {}
+export class DemoComponent implements OnInit {
+  private analytics = inject(AnalyticsService);
+  ngOnInit() {
+    this.analytics.track('page.demo');
+  }
+}

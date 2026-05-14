@@ -821,4 +821,48 @@ export class ApiService {
       this.http.get<AdminErrorLog[]>(`${this.base}/admin/errors`, { params }),
     );
   }
+
+  /** Acquisition funnel for the past 7 days. */
+  adminFunnel(): Promise<AdminFunnel> {
+    return firstValueFrom(
+      this.http.get<AdminFunnel>(`${this.base}/admin/analytics/funnel`),
+    );
+  }
+
+  /** Most-recent N telemetry events. */
+  adminRecentEvents(limit = 100): Promise<AdminEvent[]> {
+    return firstValueFrom(
+      this.http.get<AdminEvent[]>(
+        `${this.base}/admin/analytics/recent`,
+        { params: { limit: String(limit) } },
+      ),
+    );
+  }
+}
+
+export interface AdminFunnel {
+  windowDays: number;
+  since: string;
+  funnel: {
+    visited_demo_or_pricing: number;
+    registered: number;
+    started_first_session: number;
+    started_third_session: number;
+    viewed_feedback: number;
+  };
+  rates: {
+    register_per_visit: number | null;
+    session_per_register: number | null;
+    feedback_per_session: number | null;
+    retention_3plus_sessions: number | null;
+  };
+}
+
+export interface AdminEvent {
+  id: number;
+  eventType: string;
+  userId: number | null;
+  anonHash: string | null;
+  props: string | null;
+  createdAt: string;
 }

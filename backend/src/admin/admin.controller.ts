@@ -16,6 +16,7 @@ import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
 import { SubscriptionsService } from '../billing/subscriptions.service';
 import { PLANS, PlanId } from '../billing/plans.config';
+import { EventsService } from '../events/events.service';
 
 /**
  * All admin endpoints live under /api/admin/* and require both:
@@ -30,6 +31,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly events: EventsService,
   ) {}
 
   @Get('users')
@@ -115,5 +117,20 @@ export class AdminController {
   @Get('billing/distribution')
   billingDistribution() {
     return this.subscriptions.distributionStats();
+  }
+
+  /** 7-day acquisition funnel: visits → register → 1st session → 3rd
+   *  session → feedback viewed. Computed from the Event table on the
+   *  fly (no precomputation cron yet — table stays small enough for
+   *  this scope). */
+  @Get('analytics/funnel')
+  analyticsFunnel() {
+    return this.events.funnelLast7Days();
+  }
+
+  /** Live tail of the most recent events for ad-hoc debugging. */
+  @Get('analytics/recent')
+  analyticsRecent(@Query('limit') limit?: string) {
+    return this.events.recentEvents(limit ? parseInt(limit, 10) : 100);
   }
 }

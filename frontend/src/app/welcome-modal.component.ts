@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import { AnalyticsService } from './analytics.service';
 
 /**
  * First-time onboarding modal — shown on the very first visit to the
@@ -252,6 +253,7 @@ import { Component, EventEmitter, Output, signal } from '@angular/core';
 })
 export class WelcomeModalComponent {
   @Output() dismissed = new EventEmitter<void>();
+  private analytics = inject(AnalyticsService);
 
   /** Slide index (0-based). Three slides total. */
   step = signal(0);
@@ -268,6 +270,7 @@ export class WelcomeModalComponent {
 
   dismiss() {
     localStorage.setItem('reflect.onboarded', new Date().toISOString());
+    this.analytics.track('welcome.dismissed', { atStep: this.step() });
     this.dismissed.emit();
   }
 }

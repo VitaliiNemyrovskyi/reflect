@@ -80,6 +80,7 @@ model User {
   errorLogs       ErrorLog[]
   characters      Character[] // user-created patients
   characterShares CharacterShare[] // patients others have shared with this user
+  events          Event[]    // telemetry events (funnel analysis)
   // Per-user subscription. Optional only at the schema level — every
   // user gets one provisioned on register/oauth-create (default plan
   // = 'trial', trialEndsAt = now + 14 days). Lazy-create fallback in
@@ -135,6 +136,47 @@ model Subscription {
   notes              String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+}
+
+/**
+ * Per-event telemetry record. Used for funnel analysis: who hit
+ * /demo, who registered, who reached 1st/3rd session, who saw
+ * feedback. Lightweight — no PII beyond what's already on User.
+ *
+ * eventType is a free-form string (validated only against a known
+ * set in the controller). props is a JSON-serialized payload — for
+ * "session.created" we put characterId, modality; for
+ * "pricing.viewed" we put referrer; etc.
+ *
+ * userId is nullable: pre-registration events (demo/pricing visits
+ * from anon browsers) are still recorded, tagged by anonHash.
+ *
+ * Indexes:
+ *   - createdAt for date-range queries (the funnel reads "last 7 days")
+ *   - userId for per-user funnel reconstruction
+ *   - eventType for type-aggregations
+ */
+model Event {
+  id         Int       @id @default(autoincrement())
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId     Int?
+  /** Stable hash of IP + UA for anonymous-visitor unique counts.
+   *  16 hex chars (8 random bytes via crypto.randomBytes seeded from
+   *  the actual IP+UA — so repeat visits from the same browser
+   *  collide). Null when userId is set (no need to dedupe). */
+  anonHash   String?
+  eventType  String
+  /** JSON payload. Keep small — < 500 chars in practice. */
+  props      String?
+  sessionId  Int?      // not a FK — sessions can be discarded
+  /** Truncated to 200 chars at ingestion. */
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([eventType])
+  @@index([anonHash])
 }
 
 /**

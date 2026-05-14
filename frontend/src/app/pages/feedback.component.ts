@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { marked } from 'marked';
 import { ApiService, AssessmentJson } from '../api.service';
 import { SessionStateService } from '../session-state.service';
+import { AnalyticsService } from '../analytics.service';
 
 /**
  * Therapist competency rubric. Each row maps a JSON key from the
@@ -575,6 +576,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private state = inject(SessionStateService);
   private sanitizer = inject(DomSanitizer);
+  private analytics = inject(AnalyticsService);
 
   feedback = signal<string>('');
   /** Machine-readable assessment block — drives the rubric UI above
@@ -674,6 +676,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
     }
     // Cache for the feedbackHtml computed — drives [L<n>] anchor href.
     this.sessionId.set(sessionId);
+    this.analytics.track('feedback.viewed', undefined, sessionId);
     await this.runFeedbackStream(sessionId);
   }
 

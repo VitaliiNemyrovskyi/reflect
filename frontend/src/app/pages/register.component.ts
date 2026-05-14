@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
+import { AnalyticsService } from '../analytics.service';
 import { LogoComponent } from '../logo.component';
 
 @Component({
@@ -106,6 +107,7 @@ import { LogoComponent } from '../logo.component';
 export class RegisterComponent implements OnInit {
   protected auth = inject(AuthService);
   private router = inject(Router);
+  private analytics = inject(AnalyticsService);
 
   email = '';
   password = '';
@@ -123,6 +125,7 @@ export class RegisterComponent implements OnInit {
     this.error.set(null);
     try {
       await this.auth.register(this.email, this.password, this.displayName);
+      this.analytics.track('auth.register', { provider: 'local' });
       void this.router.navigate(['/']);
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;

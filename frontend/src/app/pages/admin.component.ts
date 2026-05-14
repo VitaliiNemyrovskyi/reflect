@@ -3,6 +3,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   AdminErrorLog,
+  AdminEvent,
+  AdminFunnel,
   AdminSessionDetail,
   AdminSessionListItem,
   AdminUser,
@@ -10,7 +12,7 @@ import {
 } from '../api.service';
 import { AuthService } from '../auth.service';
 
-type Tab = 'users' | 'sessions' | 'errors';
+type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
 
 @Component({
   selector: 'app-admin',
@@ -36,6 +38,9 @@ type Tab = 'users' | 'sessions' | 'errors';
         <button [class.active]="tab() === 'errors'" (click)="setTab('errors')">
           🐛 Помилки
           @if (errors().length) { <span class="count">{{ errors().length }}</span> }
+        </button>
+        <button [class.active]="tab() === 'funnel'" (click)="setTab('funnel')">
+          📊 Funnel
         </button>
       </nav>
     </header>
@@ -221,6 +226,92 @@ type Tab = 'users' | 'sessions' | 'errors';
             }
           </tbody>
         </table>
+      }
+
+      @if (tab() === 'funnel') {
+        @if (funnel(); as f) {
+          <div class="funnel">
+            <p class="hint">
+              Останні 7 днів (з {{ f.since | date: 'd MMM, HH:mm' }}).
+              Кожен крок — кількість унікальних користувачів (анонімні — за hash IP+UA).
+            </p>
+            <ol class="funnel-steps">
+              <li>
+                <div class="step-num">1</div>
+                <div class="step-meta">
+                  <strong>{{ f.funnel.visited_demo_or_pricing }}</strong>
+                  <span>відвідали /demo або /pricing</span>
+                </div>
+              </li>
+              <li>
+                <div class="step-num">2</div>
+                <div class="step-meta">
+                  <strong>{{ f.funnel.registered }}</strong>
+                  <span>зареєструвались
+                    @if (f.rates.register_per_visit !== null) {
+                      <em>· {{ (f.rates.register_per_visit * 100) | number: '1.0-1' }}% від візитів</em>
+                    }
+                  </span>
+                </div>
+              </li>
+              <li>
+                <div class="step-num">3</div>
+                <div class="step-meta">
+                  <strong>{{ f.funnel.started_first_session }}</strong>
+                  <span>почали першу сесію
+                    @if (f.rates.session_per_register !== null) {
+                      <em>· {{ (f.rates.session_per_register * 100) | number: '1.0-1' }}% від реєстрацій</em>
+                    }
+                  </span>
+                </div>
+              </li>
+              <li>
+                <div class="step-num">4</div>
+                <div class="step-meta">
+                  <strong>{{ f.funnel.started_third_session }}</strong>
+                  <span>дійшли до 3-ї сесії
+                    @if (f.rates.retention_3plus_sessions !== null) {
+                      <em>· {{ (f.rates.retention_3plus_sessions * 100) | number: '1.0-1' }}% retention</em>
+                    }
+                  </span>
+                </div>
+              </li>
+              <li>
+                <div class="step-num">5</div>
+                <div class="step-meta">
+                  <strong>{{ f.funnel.viewed_feedback }}</strong>
+                  <span>побачили фідбек супервізора
+                    @if (f.rates.feedback_per_session !== null) {
+                      <em>· {{ (f.rates.feedback_per_session * 100) | number: '1.0-1' }}% від першої сесії</em>
+                    }
+                  </span>
+                </div>
+              </li>
+            </ol>
+
+            <h3 class="recent-head">Останні події</h3>
+            <table class="data-table compact">
+              <thead>
+                <tr><th>Коли</th><th>Тип</th><th>Користувач</th><th>Дані</th></tr>
+              </thead>
+              <tbody>
+                @for (ev of recentEvents(); track ev.id) {
+                  <tr>
+                    <td>{{ ev.createdAt | date: 'HH:mm:ss' }}</td>
+                    <td><code>{{ ev.eventType }}</code></td>
+                    <td>{{ ev.userId ?? 'anon:' + (ev.anonHash?.slice(0,6) ?? '?') }}</td>
+                    <td class="dim">{{ ev.props }}</td>
+                  </tr>
+                }
+                @if (recentEvents().length === 0) {
+                  <tr><td colspan="4" class="empty">Подій ще немає</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="hint">Завантаження funnel-даних…</p>
+        }
       }
     }
   `,
@@ -451,6 +542,73 @@ type Tab = 'users' | 'sessions' | 'errors';
       letter-spacing: .04em;
       text-transform: uppercase;
     }
+
+    /* Funnel widget */
+    .funnel {
+      max-width: 720px;
+    }
+    .funnel-steps {
+      list-style: none;
+      counter-reset: step;
+      padding: 0;
+      margin: 24px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .funnel-steps li {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .step-num {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: rgba(216, 201, 255, 0.12);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .step-meta {
+      display: flex;
+      flex-direction: column;
+    }
+    .step-meta strong {
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .step-meta span {
+      font-size: 13px;
+      color: var(--fg-dim);
+    }
+    .step-meta em {
+      color: var(--accent);
+      font-style: normal;
+      margin-left: 6px;
+    }
+
+    .recent-head {
+      margin: 32px 0 12px;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+    }
+    .data-table.compact th,
+    .data-table.compact td {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
   `],
 })
 export class AdminComponent implements OnInit {
@@ -464,6 +622,8 @@ export class AdminComponent implements OnInit {
   users = signal<AdminUser[]>([]);
   sessions = signal<AdminSessionListItem[]>([]);
   errors = signal<AdminErrorLog[]>([]);
+  funnel = signal<AdminFunnel | null>(null);
+  recentEvents = signal<AdminEvent[]>([]);
 
   selectedSession = signal<AdminSessionDetail | null>(null);
   expandedError = signal<number | null>(null);
@@ -498,6 +658,14 @@ export class AdminComponent implements OnInit {
           break;
         case 'errors':
           this.errors.set(await this.api.adminListErrors({ limit: 200 }));
+          break;
+        case 'funnel':
+          const [f, recent] = await Promise.all([
+            this.api.adminFunnel(),
+            this.api.adminRecentEvents(50),
+          ]);
+          this.funnel.set(f);
+          this.recentEvents.set(recent);
           break;
       }
     } catch (e: unknown) {
