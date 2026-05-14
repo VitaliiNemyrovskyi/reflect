@@ -564,6 +564,7 @@ export class SessionsService {
   ): AsyncGenerator<
     | { type: 'cached'; data: { feedback: string; assessment: unknown } }
     | { type: 'chunk'; data: { text: string } }
+    | { type: 'progress'; data: { stage: string; message: string } }
     | { type: 'done'; data: { feedback: string; assessment: unknown } },
     void,
     unknown
@@ -584,58 +585,46 @@ export class SessionsService {
 
     const ctx = await this.buildFeedbackContext(session, sessionId);
 
-    // Stream with automatic fallback: if the primary feedback model
-    // dies BEFORE the first chunk (timeout / 5xx / stealth-provider
-    // hang), retry once with modelFeedbackFallback. Mid-stream errors
-    // bubble up — we already gave the user partial output, retrying
-    // would just duplicate it.
     let raw = '';
-    const tryModel = async function* (this: SessionsService, model: string) {
-      let gotAny = false;
-      for await (const chunk of this.llm.chatStream({
+
+    // TWO-PASS mode: first supervisor drafts (non-streaming, blocking),
+    // then a reviewer agent receives the draft + transcript + profile
+    // and streams an improved final version. The reviewer's job is to
+    // catch misses, prune truisms, and calibrate tone — not rewrite
+    // from scratch. ~2× total cost but noticeably better feedback
+    // quality in our domain.
+    if (this.llm.feedbackMode === 'two-pass') {
+      yield {
+        type: 'progress',
+        data: {
+          stage: 'drafting',
+          message: 'Перший супервізор готує чернетку розбору…',
+        },
+      };
+      const draft = await this.llm.chat({
         systemBlocks: ctx.systemBlocks,
         history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
-        model,
-        // Capped at 2048 — supervisor brevity instruction targets
-        // 800-1500 words narrative + ~200 tokens JSON assessment.
-        // 2048 gives headroom without paying for monologue-style.
+        model: this.llm.modelFeedback,
         maxTokens: 2048,
-      })) {
-        gotAny = true;
-        yield chunk;
-      }
-      if (!gotAny) {
-        // Some providers complete the stream with zero chunks rather
-        // than throwing — treat that as a soft failure too so the
-        // fallback path catches it.
-        throw new BadGatewayException('empty feedback stream');
-      }
-    };
+      });
 
-    try {
-      for await (const chunk of tryModel.call(this, this.llm.modelFeedback)) {
+      yield {
+        type: 'progress',
+        data: {
+          stage: 'reviewing',
+          message: 'Другий супервізор перевіряє і покращує…',
+        },
+      };
+
+      const reviewerBlocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
+      for await (const chunk of this.streamFeedbackWithFallback(reviewerBlocks)) {
         raw += chunk;
         yield { type: 'chunk', data: { text: chunk } };
       }
-    } catch (primaryErr) {
-      if (raw.length > 0) {
-        // Stream had partial output before failing — caller already
-        // sees it. Re-raising would duplicate text on the retry path.
-        throw primaryErr;
-      }
-      const fallback = this.llm.modelFeedbackFallback;
-      if (!fallback || fallback === this.llm.modelFeedback) {
-        throw primaryErr;
-      }
-      // Tell the client we're switching — frontend can show a
-      // "retrying with a faster model" hint instead of pure silence.
-      yield {
-        type: 'chunk',
-        data: {
-          text: `\n_[Перший виклик завис; переключаюсь на резервну модель ${fallback}…]_\n\n`,
-        },
-      };
-      for await (const chunk of tryModel.call(this, fallback)) {
+    } else {
+      // SINGLE-PASS mode (legacy): one supervisor streams direct to
+      // client. Faster, cheaper, marginally less polished.
+      for await (const chunk of this.streamFeedbackWithFallback(ctx.systemBlocks)) {
         raw += chunk;
         yield { type: 'chunk', data: { text: chunk } };
       }
@@ -655,6 +644,92 @@ export class SessionsService {
     });
 
     yield { type: 'done', data: { feedback, assessment: json } };
+  }
+
+  /**
+   * Stream feedback from the LLM with one-shot fallback to the
+   * configured secondary model. The primary model's stream is consumed
+   * chunk-by-chunk and re-yielded; if it dies BEFORE the first chunk
+   * (timeout / 5xx / empty-stream), we retry once with
+   * modelFeedbackFallback. Mid-stream errors bubble up because the
+   * caller has already emitted partial output to the client and a
+   * retry would duplicate it.
+   *
+   * Used by BOTH single-pass and two-pass feedback flows. In two-pass
+   * mode this drives the reviewer (Pass 2); in single-pass it drives
+   * the supervisor (the only pass).
+   */
+  private async *streamFeedbackWithFallback(
+    systemBlocks: { text: string; cache?: boolean }[],
+  ): AsyncGenerator<string, void, unknown> {
+    const tryModel = async function* (this: SessionsService, model: string) {
+      let gotAny = false;
+      for await (const chunk of this.llm.chatStream({
+        systemBlocks,
+        history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
+        model,
+        // 2048 covers the brevity target of 800-1500 words narrative
+        // + ~200 tokens of JSON assessment, with headroom.
+        maxTokens: 2048,
+      })) {
+        gotAny = true;
+        yield chunk;
+      }
+      if (!gotAny) {
+        throw new BadGatewayException('empty feedback stream');
+      }
+    };
+
+    let gotAnyBeforeError = false;
+    try {
+      for await (const chunk of tryModel.call(this, this.llm.modelFeedback)) {
+        gotAnyBeforeError = true;
+        yield chunk;
+      }
+    } catch (primaryErr) {
+      if (gotAnyBeforeError) throw primaryErr;
+      const fallback = this.llm.modelFeedbackFallback;
+      if (!fallback || fallback === this.llm.modelFeedback) throw primaryErr;
+      yield `\n_[Перший виклик завис; переключаюсь на резервну модель ${fallback}…]_\n\n`;
+      for await (const chunk of tryModel.call(this, fallback)) {
+        yield chunk;
+      }
+    }
+  }
+
+  /**
+   * Assemble system-prompt blocks for the second-pass reviewer agent.
+   * The critic_reviewer template fills with: profile, transcript,
+   * notes, and the Pass-1 draft. Single block — the prompt is large
+   * but uncacheable across sessions anyway because of the draft.
+   */
+  private async buildReviewerContext(
+    session: { character: { profileText: string } },
+    sessionId: number,
+    draft: string,
+    transcript: string,
+  ): Promise<{ text: string; cache?: boolean }[]> {
+    const notes = await this.prisma.note.findMany({
+      where: { sessionId },
+      orderBy: { id: 'asc' },
+    });
+    const notesText = notes.length
+      ? notes
+          .map((n) =>
+            n.anchorText
+              ? `- (про репліку «${n.anchorText}») ${n.noteText}`
+              : `- ${n.noteText}`,
+          )
+          .join('\n')
+      : '_(нотаток терапевта на цій сесії немає)_';
+
+    const filled = this.prompts.fill(this.prompts.criticReviewer, {
+      PROFILE: session.character.profileText,
+      TRANSCRIPT: transcript,
+      NOTES: notesText,
+      DRAFT: draft,
+    });
+    return [{ text: filled }];
   }
 
   private async buildFeedbackContext(

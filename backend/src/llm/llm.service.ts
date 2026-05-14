@@ -67,6 +67,13 @@ export class LlmService {
    *  upstream 5xx / connection reset), the supervisor retry uses
    *  this one. Empty / unset = no fallback, errors bubble up. */
   readonly modelFeedbackFallback: string | null;
+  /** Feedback generation mode:
+   *  - 'single' — one supervisor pass (legacy, fast, ~$0.02/sess).
+   *  - 'two-pass' — first supervisor drafts, second supervisor
+   *    reviews+amends. ~2× cost and latency but catches misses,
+   *    cuts truisms, calibrates tone. Default.
+   *  Override via FEEDBACK_MODE env var. */
+  readonly feedbackMode: 'single' | 'two-pass';
 
   constructor() {
     this.provider = (process.env.LLM_PROVIDER as LlmProvider) || 'anthropic';
@@ -78,6 +85,13 @@ export class LlmService {
     const envChat = process.env.LLM_MODEL_CHAT?.trim();
     const envFeedback = process.env.LLM_MODEL_FEEDBACK?.trim();
     const envFeedbackFallback = process.env.LLM_MODEL_FEEDBACK_FALLBACK?.trim();
+
+    // FEEDBACK_MODE drives whether feedback uses single supervisor or
+    // a draft → reviewer 2-pass pipeline. Default 'two-pass' since
+    // the reviewer catches enough misses + truisms to justify the
+    // ~2× cost in this domain. Set FEEDBACK_MODE=single to revert.
+    const envFeedbackMode = process.env.FEEDBACK_MODE?.trim().toLowerCase();
+    this.feedbackMode = envFeedbackMode === 'single' ? 'single' : 'two-pass';
 
     if (this.provider === 'anthropic') {
       this.anthropic = new Anthropic();
@@ -118,7 +132,7 @@ export class LlmService {
     }
 
     this.logger.log(
-      `LLM provider=${this.provider} chat=${this.modelChat} feedback=${this.modelFeedback}`,
+      `LLM provider=${this.provider} chat=${this.modelChat} feedback=${this.modelFeedback} mode=${this.feedbackMode}`,
     );
   }
 

@@ -215,6 +215,7 @@ export interface SessionView {
 export type FeedbackStreamEvent =
   | { type: 'cached'; data: { feedback: string; assessment: AssessmentJson | null } }
   | { type: 'chunk'; data: { text: string } }
+  | { type: 'progress'; data: { stage: string; message: string } }
   | { type: 'done'; data: { feedback: string; assessment: AssessmentJson | null } }
   | { type: 'error'; data: { message: string } };
 

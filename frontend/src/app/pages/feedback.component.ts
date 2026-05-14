@@ -85,7 +85,13 @@ marked.setOptions({
     }
 
     @if (waiting() && !feedback()) {
-      <p class="hint">Готую фідбек…</p>
+      <p class="hint progress-hint">
+        @if (progressMessage(); as msg) {
+          <span class="dot"></span> {{ msg }}
+        } @else {
+          Готую фідбек…
+        }
+      </p>
     } @else {
       <!-- Competency rubric: machine-readable scores from the supervisor
            assessment block, rendered as bars + numerical values. Renders
@@ -201,6 +207,23 @@ marked.setOptions({
     @keyframes pulse {
       0%, 100% { opacity: 0.35; transform: scale(0.85); }
       50% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Two-pass progress hint — same pulsing-dot pattern as the
+       streaming badge but inline with regular hint copy, so the
+       stage transitions ("Перший супервізор готує…" → "Другий
+       перевіряє…") feel like one continuous loading state. */
+    .progress-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .progress-hint .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.2s infinite ease-in-out;
     }
 
     /* Competency rubric — bars + numerical scores, two groups (your
@@ -564,6 +587,11 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   /** True while a manual retry attempt is in flight. Disables the
    *  retry button so the user can't queue duplicate retries. */
   retrying = signal(false);
+  /** Current stage message from the backend's two-pass flow ('drafting'
+   *  → 'reviewing' → streaming). Used to show a meaningful loading
+   *  hint instead of generic "Готую фідбек…". Null = no progress
+   *  event received yet (legacy single-pass behaviour). */
+  progressMessage = signal<string | null>(null);
   /** A stream is in flight (chunks may still arrive). */
   streaming = signal(false);
   error = signal<string | null>(null);
@@ -698,9 +726,17 @@ export class FeedbackComponent implements OnInit, OnDestroy {
             this.waiting.set(false);
             this.streaming.set(false);
             return;
+          case 'progress':
+            // Two-pass mode telegraphs stage transitions before any
+            // narrative content arrives. Keep `waiting` true so the
+            // hint stays visible — chunk handler will flip it off
+            // when the actual narrative starts streaming.
+            this.progressMessage.set(event.data.message);
+            break;
           case 'chunk':
             if (!gotAnyChunk) {
               this.waiting.set(false);
+              this.progressMessage.set(null); // narrative started; drop the stage hint
               gotAnyChunk = true;
             }
             buffer += event.data.text;

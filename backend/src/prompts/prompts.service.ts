@@ -24,6 +24,10 @@ export class PromptsService implements OnModuleInit {
   readonly supervisorProtocol: string;
   readonly hintSystem: string;
   readonly patientGenerationSystem: string;
+  /** Second-pass reviewer prompt — the "two-pass feedback" mode loads
+   *  this and feeds the Pass-1 draft + transcript + profile to a
+   *  reviewer agent that returns an improved final version. */
+  readonly criticReviewer: string;
   private readonly profilesDir: string;
 
   constructor(private readonly prisma: PrismaService) {
@@ -34,6 +38,7 @@ export class PromptsService implements OnModuleInit {
     this.supervisorProtocol = this.read(promptsDir, 'supervisor_protocol.md');
     this.hintSystem = this.read(promptsDir, 'hint_system.md');
     this.patientGenerationSystem = this.read(promptsDir, 'patient_generation_system.md');
+    this.criticReviewer = this.read(promptsDir, 'critic_reviewer.md');
     this.profilesDir = resolve(promptsDir, 'profiles');
   }
 
