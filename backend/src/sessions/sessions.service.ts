@@ -1,8 +1,9 @@
-import { BadGatewayException, BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PromptsService } from '../prompts/prompts.service';
 import { LlmService, ChatMessage } from '../llm/llm.service';
 import { TestsService } from '../tests/tests.service';
+import { cleanFeedback } from './feedback-cleaner';
 
 export type HintKind =
   | 'open-question'
@@ -89,6 +90,8 @@ const FEEDBACK_USER_PROMPT =
 
 @Injectable()
 export class SessionsService {
+  private readonly logger = new Logger(SessionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly prompts: PromptsService,
@@ -538,7 +541,7 @@ export class SessionsService {
     });
 
     const { narrative, json } = this.splitFeedback(rawFeedback);
-    const feedback = this.auditFeedback(narrative, ctx.lineMap);
+    const feedback = this.repairAndAudit(narrative, ctx.lineMap);
 
     await this.prisma.session.update({
       where: { id: sessionId },
@@ -636,7 +639,7 @@ export class SessionsService {
     }
 
     const { narrative, json } = this.splitFeedback(raw);
-    const feedback = this.auditFeedback(narrative, ctx.lineMap);
+    const feedback = this.repairAndAudit(narrative, ctx.lineMap);
 
     await this.prisma.session.update({
       where: { id: sessionId },
@@ -944,90 +947,49 @@ export class SessionsService {
    * If all three classes pass, the feedback is returned untouched. Otherwise
    * an audit section listing the flagged fragments is appended at the bottom.
    */
-  private auditFeedback(feedback: string, lineMap: Map<number, string>): string {
-    const issues: string[] = [];
-    const normalize = (s: string) =>
-      s.replace(/\s+/g, ' ').replace(/[«»"'`]/g, '').toLowerCase().trim();
-
-    // 1. Find every [L<n>] reference, verify the line exists.
-    const refRe = /\[L(\d+)\]/g;
-    let m: RegExpExecArray | null;
-    const seenInvalidRefs = new Set<number>();
-    while ((m = refRe.exec(feedback)) !== null) {
-      const n = parseInt(m[1], 10);
-      if (!lineMap.has(n) && !seenInvalidRefs.has(n)) {
-        seenInvalidRefs.add(n);
-        issues.push(
-          `🔢 **Неіснуюче посилання \`[L${n}]\`** — у транскрипті лише L1-L${lineMap.size}.`,
-        );
-      }
+  /**
+   * Repair the supervisor's feedback narrative in place, then attach
+   * an audit footer ONLY for problems that couldn't be auto-fixed
+   * (invalid `[L<n>]` line references, mostly).
+   *
+   * Algorithm (delegated to feedback-cleaner.ts):
+   *   1. Every «...» [L<n>] anchored quote: verbatim or fuzzy-fixed
+   *      against line N; if neither, strip the « » but keep [L<n>].
+   *   2. Every «...» without [L<n>]: skipped if it's a proposed
+   *      therapist wording ("можна було спитати: «...»"); otherwise
+   *      try to locate in transcript & add [L<n>], or strip quotes.
+   *   3. Any [L<n>] where N > lineMap.size: surfaces as audit issue.
+   *
+   * Telemetry: repair count is logged per session so we can monitor
+   * how many quotes the LLM gets wrong on average.
+   */
+  private repairAndAudit(feedback: string, lineMap: Map<number, string>): string {
+    const { cleaned, repairs, issues } = cleanFeedback(feedback, lineMap);
+    if (repairs > 0 || issues.length > 0) {
+      this.logger.log(
+        `feedback cleaner: ${repairs} repairs, ${issues.length} residual issues`,
+      );
     }
+    if (issues.length === 0) return cleaned;
 
-    // 2. For each «quote» followed by [L<n>], verify quote ⊂ line N.
-    const quotedRefRe = /[«"]([^»"]{4,500})[»"]\s*\(?\s*\[L(\d+)\]\s*\)?/g;
-    while ((m = quotedRefRe.exec(feedback)) !== null) {
-      const quote = m[1].trim();
-      const n = parseInt(m[2], 10);
-      const line = lineMap.get(n);
-      if (!line) continue; // already flagged above
-      if (!normalize(line).includes(normalize(quote))) {
-        issues.push(
-          `📝 **Цитата не співпадає з \`[L${n}]\`** — фрагмент «${this.shortQuote(quote)}» в тому рядку відсутній. Рядок насправді: «${this.shortQuote(line)}».`,
-        );
-      }
-    }
-
-    // 3. Quotes WITHOUT any nearby [L<n>] — must appear in transcript verbatim.
-    const transcript = Array.from(lineMap.values()).join('\n');
-    const tNorm = normalize(transcript);
-    const allQuoteRe = /[«"]([^»"]{20,500})[»"]/g;
-    const reportedOrphans = new Set<string>();
-    while ((m = allQuoteRe.exec(feedback)) !== null) {
-      const quote = m[1].trim();
-      // Skip if followed (within ~30 chars) by [L<n>] — handled above.
-      const tail = feedback.slice(m.index + m[0].length, m.index + m[0].length + 30);
-      if (/^\s*\(?\s*\[L\d+\]/.test(tail)) continue;
-      if (reportedOrphans.has(quote)) continue;
-      if (!tNorm.includes(normalize(quote))) {
-        reportedOrphans.add(quote);
-        issues.push(
-          `🔍 **Цитата без посилання** — «${this.shortQuote(quote)}» у транскрипті дослівно не знайдено. Додай \`[L<n>]\` або переформулюй.`,
-        );
-      }
-    }
-
-    if (issues.length === 0) return feedback;
-
-    // Wrap the audit list in a native <details> block so the feedback page
-    // shows a single compact "⚠ N цитат не пройшли перевірку" line that
-    // expands on click. Without this, 8+ warnings looked like the entire
-    // feedback was suspect — overwhelming for the student. The narrative
-    // above is unaffected; this section is purely a "trust score" footer.
-    //
-    // markdown allows raw HTML, and marked passes <details> through verbatim
-    // so the frontend doesn't need a custom renderer.
+    // Same details/summary HTML wrapper as before — but now triggered
+    // only for residual problems (invalid line refs). The user-facing
+    // count should normally be 0; if it's non-zero we want it visible
+    // so the student knows to double-check those specific points.
     const summaryWord =
-      issues.length === 1 ? 'цитата' : issues.length < 5 ? 'цитати' : 'цитат';
-    const summaryLabel = `⚠️ ${issues.length} ${summaryWord} не пройшли автоматичну перевірку`;
-
+      issues.length === 1 ? 'проблема' : issues.length < 5 ? 'проблеми' : 'проблем';
+    const summaryLabel = `⚠️ ${issues.length} ${summaryWord} у посиланнях на транскрипт`;
     const items = issues.map((s) => `<li>${s}</li>`).join('\n');
-
     return (
-      feedback +
+      cleaned +
       '\n\n' +
       '<details class="audit-block">\n' +
       `  <summary><strong>${summaryLabel}</strong></summary>\n\n` +
-      'Ці фрагменти у фідбеку не звіряються з транскриптом — можлива галюцинація моделі. ' +
-      'Текст вище у фідбеку — структурований розбір — довіряй. А цитати у лапках, ' +
-      'які попали сюди, — перевір вручну або ігноруй.\n\n' +
+      'Ці посилання у фідбеку вище не звіряються з транскриптом — можлива помилка моделі. ' +
+      'Більшість некоректних цитат уже автоматично виправлено в тексті; те, що тут — це не вдалося.\n\n' +
       `<ul class="audit-issues">\n${items}\n</ul>\n` +
       '</details>'
     );
-  }
-
-  private shortQuote(s: string): string {
-    const t = s.trim();
-    return t.length > 100 ? t.slice(0, 97) + '…' : t;
   }
 
   private async loadHistory(sessionId: number): Promise<ChatMessage[]> {
