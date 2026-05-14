@@ -106,6 +106,14 @@ export const routes: Routes = [
       import('./pages/pricing.component').then((m) => m.PricingComponent),
   },
   {
+    // Public demo — shows a real Opus reviewer output on a sample
+    // session. Used as the marketing entry point ("see what the AI
+    // actually does before you sign up").
+    path: 'demo',
+    loadComponent: () =>
+      import('./pages/demo.component').then((m) => m.DemoComponent),
+  },
+  {
     path: 'account/billing',
     canActivate: [authGuard],
     loadComponent: () =>

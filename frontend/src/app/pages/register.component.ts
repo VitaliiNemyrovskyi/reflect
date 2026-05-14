@@ -55,6 +55,9 @@ import { LogoComponent } from '../logo.component';
       <p class="link-row">
         Уже маєш акаунт? <a routerLink="/login">Увійти</a>
       </p>
+      <p class="link-row demo-row">
+        Спершу подивись <a routerLink="/demo">приклад фідбеку →</a>
+      </p>
     </section>
   `,
   styles: [`
