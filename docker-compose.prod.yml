@@ -40,6 +40,10 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
       FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      # Comma-separated allow-list. AuthService.reconcileAdmin() re-syncs
+      # User.isAdmin on every login/refresh against this list — so manual
+      # DB writes get overwritten unless the email is here too.
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     volumes:
       - reflect_data:/data
     healthcheck:
