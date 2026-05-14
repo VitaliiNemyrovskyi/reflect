@@ -191,6 +191,24 @@ import { RouterLink } from '@angular/router';
       text-decoration: none;
     }
     .safety-block a:hover { text-decoration: underline; }
+    /* Crisis-page links specifically — these are tap targets a person in
+     * acute distress (or shaking hands) must hit. Bumping to ≥44px
+     * touch area meets WCAG 2.5.5 and reduces misclicks on mobile. We
+     * apply this only to anchors inside resource lists (tel: + http
+     * hotline links), not back-link / profile-link in paragraphs. */
+    .safety-block .res-row dd a,
+    .safety-block ul a {
+      display: inline-block;
+      min-height: 44px;
+      min-width: 44px;
+      padding: 12px 10px;
+      font-size: 15px;
+      line-height: 20px;
+      font-weight: 500;
+      text-align: center;
+      vertical-align: middle;
+      box-sizing: border-box;
+    }
 
     .resources {
       margin: 12px 0 0;

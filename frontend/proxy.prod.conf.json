@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "https://reflect.swift-mail.app",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

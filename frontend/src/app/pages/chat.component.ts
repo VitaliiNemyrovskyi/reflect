@@ -343,12 +343,17 @@ interface SelectionAnchor {
       min-height: 0;
     }
     @media (max-width: 880px) {
-      .chat-layout { grid-template-columns: 1fr; }
+      /* minmax(0, 1fr) — without the explicit 0 minimum, the grid
+         column auto-expands to fit min-content of children (long
+         composer rows, wide bubbles), forcing horizontal scroll on
+         mobile. The 0 minimum lets the column shrink to viewport. */
+      .chat-layout { grid-template-columns: minmax(0, 1fr); }
     }
 
     .chat-main {
       display: flex;
       flex-direction: column;
+      min-width: 0;
       min-height: 0;
     }
 
@@ -419,6 +424,7 @@ interface SelectionAnchor {
     }
     .composer textarea {
       flex: 1;
+      min-width: 0;  /* without this, textarea natural min-content keeps composer wider than viewport on mobile */
       resize: vertical;
       min-height: 44px;
       max-height: 200px;
@@ -436,7 +442,7 @@ interface SelectionAnchor {
       }
       .composer textarea {
         min-height: 48px;
-        font-size: 16px; // prevents iOS zoom-on-focus
+        font-size: 16px; /* prevents iOS zoom-on-focus */
       }
       .composer .primary,
       .composer .mic {
@@ -607,7 +613,7 @@ interface SelectionAnchor {
     .mobile-only { display: none; }
     @media (max-width: 880px) {
       .mobile-only { display: inline-flex; }
-      // Mobile: notes panel becomes a bottom-sheet
+      /* Mobile: notes panel becomes a bottom-sheet */
       .notes-panel {
         position: fixed;
         left: 0;
@@ -648,7 +654,7 @@ interface SelectionAnchor {
     }
     @media (min-width: 881px) {
       .notes-panel .sheet-handle { display: none; }
-      // Backdrop only relevant on mobile
+      /* Backdrop only relevant on mobile */
       .sheet-backdrop { display: none !important; }
     }
 
@@ -898,10 +904,34 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   async ngOnInit() {
     this.sessionId = Number(this.route.snapshot.paramMap.get('sessionId'));
-    const bubbles = this.state.bubbles();
+    let bubbles = this.state.bubbles();
+    // Empty bubbles = direct URL hit / refresh / new tab. In that case
+    // we hydrate state from the API instead of redirecting home —
+    // critical for mobile UX, where pull-to-refresh is one swipe away.
+    // If session ended, we send the user to the read-only view; if the
+    // session doesn't exist or belongs to someone else, we bounce home.
     if (bubbles.length === 0) {
-      void this.router.navigate(['/']);
-      return;
+      try {
+        const sv = await this.api.viewSession(this.sessionId);
+        if (sv.endedAt) {
+          // Session already finished — route to /view, not /chat.
+          void this.router.navigate(['/session', this.sessionId, 'view']);
+          return;
+        }
+        this.state.reset(sv.character.displayName);
+        for (const m of sv.messages) {
+          this.state.push({ role: m.role as 'user' | 'assistant', content: m.content });
+        }
+        bubbles = this.state.bubbles();
+        if (bubbles.length === 0) {
+          // Empty session (no messages persisted) — treat as broken, go home.
+          void this.router.navigate(['/']);
+          return;
+        }
+      } catch {
+        void this.router.navigate(['/']);
+        return;
+      }
     }
     this.startedAt = Date.now();
     this.tickHandle = window.setInterval(() => this.nowMs.set(Date.now()), 1000);

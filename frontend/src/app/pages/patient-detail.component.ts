@@ -1699,8 +1699,8 @@ const SPOILER_PATTERNS: RegExp[] = [
     .badge-stable { background: #2a2a32; color: var(--fg-dim); border: 1px solid var(--border); }
     .badge-worsening {
       background: #3c1a1a; color: var(--danger); border: 1px solid #6f2a2a;
-      // Persistent gentle pulse — this is a flag, it should keep tugging
-      // at the supervisor's attention. Honour reduced-motion globally.
+      /* Persistent gentle pulse — this is a flag, it should keep tugging
+         at the supervisor's attention. Honour reduced-motion globally. */
       @media (prefers-reduced-motion: no-preference) {
         animation: fx-pulse 1.8s ease-in-out infinite;
       }
@@ -2073,7 +2073,7 @@ const SPOILER_PATTERNS: RegExp[] = [
     .session-status.done { background: #143c2c; color: #6ee7b7; }
     .session-status.open {
       background: #3c2c14; color: #fbbf6e;
-      // "In progress" — gentle breathe to signal it's a live state.
+      /* "In progress" — gentle breathe to signal it's a live state. */
       @media (prefers-reduced-motion: no-preference) {
         animation: fx-pulse 2.2s ease-in-out infinite;
       }

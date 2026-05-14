@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "reflect-mobile-audit",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start", "--", "--proxy-config", "proxy.prod.conf.json"],
+      "port": 4200,
+      "cwd": "/Users/Nemyrovskyi/Projects/reflect/frontend"
+    }
+  ]
+}
