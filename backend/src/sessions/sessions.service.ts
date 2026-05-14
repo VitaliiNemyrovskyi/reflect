@@ -584,18 +584,61 @@ export class SessionsService {
 
     const ctx = await this.buildFeedbackContext(session, sessionId);
 
+    // Stream with automatic fallback: if the primary feedback model
+    // dies BEFORE the first chunk (timeout / 5xx / stealth-provider
+    // hang), retry once with modelFeedbackFallback. Mid-stream errors
+    // bubble up — we already gave the user partial output, retrying
+    // would just duplicate it.
     let raw = '';
-    for await (const chunk of this.llm.chatStream({
-      systemBlocks: ctx.systemBlocks,
-      history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
-      model: this.llm.modelFeedback,
-      // Capped at 2048 — supervisor brevity instruction targets
-      // 800-1500 words narrative + ~200 tokens JSON assessment. 2048
-      // gives headroom without paying for monologue-style outputs.
-      maxTokens: 2048,
-    })) {
-      raw += chunk;
-      yield { type: 'chunk', data: { text: chunk } };
+    const tryModel = async function* (this: SessionsService, model: string) {
+      let gotAny = false;
+      for await (const chunk of this.llm.chatStream({
+        systemBlocks: ctx.systemBlocks,
+        history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
+        model,
+        // Capped at 2048 — supervisor brevity instruction targets
+        // 800-1500 words narrative + ~200 tokens JSON assessment.
+        // 2048 gives headroom without paying for monologue-style.
+        maxTokens: 2048,
+      })) {
+        gotAny = true;
+        yield chunk;
+      }
+      if (!gotAny) {
+        // Some providers complete the stream with zero chunks rather
+        // than throwing — treat that as a soft failure too so the
+        // fallback path catches it.
+        throw new BadGatewayException('empty feedback stream');
+      }
+    };
+
+    try {
+      for await (const chunk of tryModel.call(this, this.llm.modelFeedback)) {
+        raw += chunk;
+        yield { type: 'chunk', data: { text: chunk } };
+      }
+    } catch (primaryErr) {
+      if (raw.length > 0) {
+        // Stream had partial output before failing — caller already
+        // sees it. Re-raising would duplicate text on the retry path.
+        throw primaryErr;
+      }
+      const fallback = this.llm.modelFeedbackFallback;
+      if (!fallback || fallback === this.llm.modelFeedback) {
+        throw primaryErr;
+      }
+      // Tell the client we're switching — frontend can show a
+      // "retrying with a faster model" hint instead of pure silence.
+      yield {
+        type: 'chunk',
+        data: {
+          text: `\n_[Перший виклик завис; переключаюсь на резервну модель ${fallback}…]_\n\n`,
+        },
+      };
+      for await (const chunk of tryModel.call(this, fallback)) {
+        raw += chunk;
+        yield { type: 'chunk', data: { text: chunk } };
+      }
     }
 
     const { narrative, json } = this.splitFeedback(raw);

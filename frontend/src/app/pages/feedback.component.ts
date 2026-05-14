@@ -69,7 +69,19 @@ marked.setOptions({
     </header>
 
     @if (error()) {
-      <p class="hint danger">{{ error() }}</p>
+      <div class="error-block">
+        <p class="hint danger">{{ error() }}</p>
+        <button class="primary retry-btn"
+                type="button"
+                [disabled]="retrying()"
+                (click)="retryFeedback()">
+          @if (retrying()) {
+            Генерую…
+          } @else {
+            ↻ Спробувати ще раз
+          }
+        </button>
+      </div>
     }
 
     @if (waiting() && !feedback()) {
@@ -504,6 +516,27 @@ marked.setOptions({
     .hint { color: var(--fg-dim); font-size: 14px; }
     .hint.danger { color: var(--danger); }
 
+    /* Error block with inline retry — when feedback streaming fails
+       (timeout / 5xx / aborted stream), give the user a one-click
+       way to re-trigger the request without restarting the page or
+       navigating away. */
+    .error-block {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 18px 22px;
+      margin: 14px 0;
+      background: color-mix(in srgb, var(--danger) 8%, var(--assistant-bg));
+      border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border));
+      border-left: 3px solid var(--danger);
+      border-radius: 10px;
+    }
+    .error-block .hint.danger { margin: 0; line-height: 1.5; }
+    .retry-btn {
+      align-self: flex-start;
+      padding: 10px 22px;
+    }
+
     @media (max-width: 720px) {
       .feedback { padding: 16px 18px; }
       .prose h1 { font-size: 20px; }
@@ -528,6 +561,9 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   assessment = signal<AssessmentJson | null>(null);
   /** Initial wait before first chunk arrives. */
   waiting = signal(true);
+  /** True while a manual retry attempt is in flight. Disables the
+   *  retry button so the user can't queue duplicate retries. */
+  retrying = signal(false);
   /** A stream is in flight (chunks may still arrive). */
   streaming = signal(false);
   error = signal<string | null>(null);
@@ -610,8 +646,44 @@ export class FeedbackComponent implements OnInit, OnDestroy {
     }
     // Cache for the feedbackHtml computed — drives [L<n>] anchor href.
     this.sessionId.set(sessionId);
+    await this.runFeedbackStream(sessionId);
+  }
 
+  /**
+   * Trigger a manual retry after the first attempt failed (timeout
+   * or 5xx from the LLM provider). Recreates the abort controller so
+   * the previous attempt's signal can't accidentally tear down the
+   * new request, clears prior error/feedback state, and re-runs the
+   * stream against the same sessionId. The backend's `endStream`
+   * already has a one-shot fallback model built in; this button is
+   * the user-facing recovery on top of that.
+   */
+  async retryFeedback() {
+    if (this.retrying() || this.streaming()) return;
+    const sid = this.sessionId();
+    if (!sid) return;
+
+    this.retrying.set(true);
+    this.error.set(null);
+    this.feedback.set('');
+    this.assessment.set(null);
+    // Fresh abort signal — ngOnDestroy's abort() shouldn't kill the retry.
+    this.abort = new AbortController();
+    try {
+      await this.runFeedbackStream(sid);
+    } finally {
+      this.retrying.set(false);
+    }
+  }
+
+  /**
+   * Streaming consumer extracted from ngOnInit so retryFeedback can
+   * re-use the exact same event-handling pipeline (cached/chunk/done
+   * /error) without duplication.
+   */
+  private async runFeedbackStream(sessionId: number) {
     this.streaming.set(true);
+    this.waiting.set(true);
     let buffer = '';
     let gotAnyChunk = false;
 

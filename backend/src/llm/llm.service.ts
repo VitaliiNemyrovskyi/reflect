@@ -10,13 +10,22 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 
 /**
- * Hard wall-clock cap for a non-streaming LLM call. Free OpenRouter tiers
- * occasionally hang for >2 minutes (especially on prompts with thick
- * Ukrainian context). The frontend already shows a per-field "⏳" while
- * waiting; surfacing a clean 504 after this many ms is way better UX
- * than letting the request hang until Caddy's 300s outer timeout.
+ * Hard wall-clock cap for a non-streaming LLM call. Free OpenRouter
+ * stealth tiers (owl-alpha & co) sometimes spend 30-60s on first byte
+ * for long-context calls (full transcript + protocol + profile in the
+ * feedback flow). 120s gives that headroom while still failing clean
+ * well before Caddy's outer 300s. Frontend shows a "⏳" the whole time.
  */
-const CHAT_TIMEOUT_MS = 45_000;
+const CHAT_TIMEOUT_MS = 120_000;
+
+/**
+ * Explicit per-request timeout on the OpenAI Node SDK client. Without
+ * this the SDK uses its own internal default which can hang for the
+ * full connection-keepalive window when a stealth provider stalls
+ * mid-stream. 180s lets a slow first-byte resolve while bounding the
+ * worst case.
+ */
+const OPENAI_SDK_TIMEOUT_MS = 180_000;
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -53,6 +62,11 @@ export class LlmService {
 
   readonly modelChat: string;
   readonly modelFeedback: string;
+  /** Optional fallback model for feedback generation. If the primary
+   *  feedback model fails BEFORE any chunk has streamed (timeout /
+   *  upstream 5xx / connection reset), the supervisor retry uses
+   *  this one. Empty / unset = no fallback, errors bubble up. */
+  readonly modelFeedbackFallback: string | null;
 
   constructor() {
     this.provider = (process.env.LLM_PROVIDER as LlmProvider) || 'anthropic';
@@ -63,6 +77,7 @@ export class LlmService {
     // model="" and OpenRouter returns 400 "No models provided".
     const envChat = process.env.LLM_MODEL_CHAT?.trim();
     const envFeedback = process.env.LLM_MODEL_FEEDBACK?.trim();
+    const envFeedbackFallback = process.env.LLM_MODEL_FEEDBACK_FALLBACK?.trim();
 
     if (this.provider === 'anthropic') {
       this.anthropic = new Anthropic();
@@ -73,6 +88,7 @@ export class LlmService {
       // the deployment has different priorities.
       this.modelChat = envChat || 'claude-haiku-4-5';
       this.modelFeedback = envFeedback || 'claude-sonnet-4-6';
+      this.modelFeedbackFallback = envFeedbackFallback || 'claude-haiku-4-5';
     } else if (this.provider === 'openrouter') {
       const apiKey = process.env.OPENROUTER_API_KEY;
       if (!apiKey) {
@@ -83,6 +99,7 @@ export class LlmService {
       this.openai = new OpenAI({
         apiKey,
         baseURL: 'https://openrouter.ai/api/v1',
+        timeout: OPENAI_SDK_TIMEOUT_MS,
         defaultHeaders: {
           // OpenRouter uses HTTP-Referer + X-Title for analytics. Match
           // FRONTEND_URL when set so analytics group prod traffic correctly.
@@ -92,6 +109,10 @@ export class LlmService {
       });
       this.modelChat = envChat || 'openrouter/owl-alpha';
       this.modelFeedback = envFeedback || 'openrouter/owl-alpha';
+      // Fallback for slow / unstable stealth feedback model. Haiku via
+      // OpenRouter is fast and cheap (~$0.01/call), pays off as the
+      // safety net the moment primary is overloaded.
+      this.modelFeedbackFallback = envFeedbackFallback || 'anthropic/claude-haiku-4-5';
     } else {
       throw new Error(`Невідомий LLM_PROVIDER: ${this.provider}`);
     }
