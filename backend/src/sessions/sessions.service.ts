@@ -528,10 +528,13 @@ export class SessionsService {
       systemBlocks: ctx.systemBlocks,
       history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
       model: this.llm.modelFeedback,
-      // Capped at 2048 — supervisor brevity instruction targets
-      // 800-1500 words narrative + ~200 tokens JSON assessment. 2048
-      // gives headroom without paying for monologue-style outputs.
-      maxTokens: 2048,
+      // Capped at 3072 — supervisor brevity instruction targets
+      // 800-1500 words narrative + ~200 tokens JSON assessment. The
+      // earlier 2048 limit was clipping reviewer output mid-sentence
+      // for 5+ dimension feedback; 3072 lets the reviewer add a new
+      // block or two without overshoot. Output cost is ~$0.003 per
+      // session on Haiku, negligible vs total ~$0.15.
+      maxTokens: 3072,
     });
 
     const { narrative, json } = this.splitFeedback(rawFeedback);
@@ -605,7 +608,9 @@ export class SessionsService {
         systemBlocks: ctx.systemBlocks,
         history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
         model: this.llm.modelFeedback,
-        maxTokens: 2048,
+        // 3072: lets Pass-1 produce a complete draft; reviewer then
+        // polishes/extends rather than receiving a truncated input.
+        maxTokens: 3072,
       });
 
       yield {
@@ -668,9 +673,11 @@ export class SessionsService {
         systemBlocks,
         history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
         model,
-        // 2048 covers the brevity target of 800-1500 words narrative
-        // + ~200 tokens of JSON assessment, with headroom.
-        maxTokens: 2048,
+        // 3072 covers the brevity target of 800-1500 words narrative
+        // + ~200 tokens of JSON assessment, with headroom for the
+        // reviewer to add a new block or two. The earlier 2048 cap
+        // was clipping output mid-sentence on richer sessions.
+        maxTokens: 3072,
       })) {
         gotAny = true;
         yield chunk;
