@@ -80,6 +80,61 @@ model User {
   errorLogs       ErrorLog[]
   characters      Character[] // user-created patients
   characterShares CharacterShare[] // patients others have shared with this user
+  // Per-user subscription. Optional only at the schema level — every
+  // user gets one provisioned on register/oauth-create (default plan
+  // = 'trial', trialEndsAt = now + 14 days). Lazy-create fallback in
+  // SubscriptionsService.getOrProvision() covers any pre-existing
+  // accounts that pre-date the billing rollout.
+  subscription    Subscription?
+}
+
+/**
+ * Per-user billing state. We keep a SINGLE row per user (1:1 via
+ * @unique on userId) — when a user upgrades/downgrades/cancels, we
+ * mutate this row rather than creating new ones. History (period
+ * transitions, payments) lives on separate ledger tables, added when
+ * we wire actual payments.
+ *
+ * Lifecycle:
+ *   active   — paid + currentPeriodEnd in future
+ *   paused   — user clicked "pause", no charges, no usage; resumesAt
+ *              set 1-3 months out
+ *   canceled — user clicked "cancel"; access lasts until
+ *              currentPeriodEnd, then auto-flips to expired by a
+ *              cron sweep (TODO)
+ *   expired  — past period end, no renewal — read-only access to
+ *              session history, no new sessions
+ */
+model Subscription {
+  id                 Int       @id @default(autoincrement())
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             Int       @unique
+  /** plan slug — one of 'trial' | 'lite' | 'pro' | 'master'.
+   *  Stored as string (SQLite has no native enum); validated in
+   *  SubscriptionsService against PLANS catalog. */
+  plan               String
+  /** status: 'active' | 'paused' | 'canceled' | 'expired'. */
+  status             String    @default("active")
+  currentPeriodStart DateTime  @default(now())
+  /** End of paid window. For trial = trialEndsAt. After this date,
+   *  status transitions to 'expired' unless renewed. */
+  currentPeriodEnd   DateTime
+  /** Trial-specific cutoff. null for paid plans. */
+  trialEndsAt        DateTime?
+  /** Set when user cancels; access continues until currentPeriodEnd. */
+  canceledAt         DateTime?
+  /** Set when user pauses. No usage allowed while paused. */
+  pausedAt           DateTime?
+  /** Auto-resume target. Null = paused indefinitely. */
+  resumesAt          DateTime?
+  /** Sessions used in CURRENT period. Resets when currentPeriodEnd
+   *  rolls over. Compared against PLANS[plan].sessionLimit. */
+  sessionsThisPeriod Int       @default(0)
+  /** Admin-only free-form notes (e.g. "voucher Q3-2026", "comped for
+   *  university pilot"). Never shown to user. */
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 /**

@@ -11,6 +11,7 @@ import { TtsModule } from './tts/tts.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { TestsModule } from './tests/tests.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TestsModule } from './tests/tests.module';
     TtsModule,
     AdminModule,
     TestsModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

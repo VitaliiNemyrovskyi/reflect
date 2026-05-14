@@ -413,11 +413,88 @@ function parseSseFrame(frame: string): { type: string; data: unknown } | null {
   return { type: evType, data };
 }
 
+/** Billing types — mirror backend's PlanConfig in plans.config.ts. */
+export interface PlanFeatures {
+  psychTests: boolean;
+  progressGraphs: boolean;
+  pdfExport: boolean;
+  customCharacters: boolean;
+  advancedAnalytics: boolean;
+  notionExport: boolean;
+  earlyAccess: boolean;
+  prioritySupport: boolean;
+}
+
+export interface PlanConfig {
+  id: 'trial' | 'lite' | 'pro' | 'master';
+  name: string;
+  tagline: string;
+  priceUah: number;
+  priceUsd: number;
+  annualPriceUah: number | null;
+  semesterPriceUah: number | null;
+  trialDays: number | null;
+  sessionLimit: number | null;
+  softCap: number | null;
+  reviewerModel: 'sonnet' | 'opus';
+  charactersAccessibleCount: number | null;
+  modalitiesAllAccess: boolean;
+  features: PlanFeatures;
+  highlights: string[];
+}
+
+export interface BillingStatus {
+  plan: 'trial' | 'lite' | 'pro' | 'master';
+  config: PlanConfig;
+  status: 'active' | 'paused' | 'canceled' | 'expired';
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  trialEndsAt: string | null;
+  canceledAt: string | null;
+  pausedAt: string | null;
+  resumesAt: string | null;
+  sessionsUsed: number;
+  sessionsRemaining: number | null;
+  sessionLimit: number | null;
+  softCap: number | null;
+  daysUntilPeriodEnd: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
   private base = '/api';
+
+  // ---------------------------------------------------------------
+  // Billing
+  // ---------------------------------------------------------------
+
+  listPlans(): Promise<PlanConfig[]> {
+    return firstValueFrom(this.http.get<PlanConfig[]>(`${this.base}/billing/plans`));
+  }
+
+  billingStatus(): Promise<BillingStatus> {
+    return firstValueFrom(this.http.get<BillingStatus>(`${this.base}/billing/me`));
+  }
+
+  cancelSubscription(): Promise<unknown> {
+    return firstValueFrom(this.http.post(`${this.base}/billing/cancel`, {}));
+  }
+
+  pauseSubscription(resumeInDays?: number): Promise<unknown> {
+    return firstValueFrom(
+      this.http.post(`${this.base}/billing/pause`, { resumeInDays }),
+    );
+  }
+
+  resumeSubscription(): Promise<unknown> {
+    return firstValueFrom(this.http.post(`${this.base}/billing/resume`, {}));
+  }
+
+  // ---------------------------------------------------------------
+  // Characters
+  // ---------------------------------------------------------------
 
   listCharacters(): Promise<Character[]> {
     return firstValueFrom(this.http.get<Character[]>(`${this.base}/characters`));

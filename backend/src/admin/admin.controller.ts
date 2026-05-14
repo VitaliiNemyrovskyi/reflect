@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Delete,
   Get,
@@ -6,11 +8,14 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
+import { SubscriptionsService } from '../billing/subscriptions.service';
+import { PLANS, PlanId } from '../billing/plans.config';
 
 /**
  * All admin endpoints live under /api/admin/* and require both:
@@ -22,7 +27,10 @@ import { AdminService } from './admin.service';
 @Controller('admin')
 @UseGuards(AdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly subscriptions: SubscriptionsService,
+  ) {}
 
   @Get('users')
   users() {
@@ -64,5 +72,48 @@ export class AdminController {
       before: before ? parseInt(before, 10) : undefined,
       userId: userId ? parseInt(userId, 10) : undefined,
     });
+  }
+
+  /**
+   * Grant a paid plan to a user manually. Used for:
+   *  - Vouchers / promo codes (before payment integration)
+   *  - University pilots (free Pro for a semester)
+   *  - Comps for influencers / partners
+   *
+   * Body: { plan: 'lite'|'pro'|'master', months?: number, note?: string }
+   * Default duration = 1 month. note appended to Subscription.notes
+   * with timestamp for audit trail.
+   */
+  @Post('users/:id/grant-plan')
+  @HttpCode(HttpStatus.OK)
+  async grantPlan(
+    @Param('id', ParseIntPipe) userId: number,
+    @Body() body: { plan: string; months?: number; note?: string },
+  ) {
+    if (!body?.plan || !(body.plan in PLANS)) {
+      throw new BadRequestException(
+        `plan має бути одним з: ${Object.keys(PLANS).join(', ')}`,
+      );
+    }
+    if (body.months !== undefined && (body.months < 1 || body.months > 24)) {
+      throw new BadRequestException('months має бути 1-24');
+    }
+    const sub = await this.subscriptions.grant(userId, body.plan as PlanId, {
+      months: body.months,
+      note: body.note,
+    });
+    return {
+      userId,
+      plan: sub.plan,
+      status: sub.status,
+      currentPeriodEnd: sub.currentPeriodEnd,
+    };
+  }
+
+  /** Snapshot of the user base by plan/status — useful for admin dashboards
+   *  before we wire a proper BI tool. */
+  @Get('billing/distribution')
+  billingDistribution() {
+    return this.subscriptions.distributionStats();
   }
 }

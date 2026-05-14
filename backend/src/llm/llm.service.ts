@@ -56,7 +56,7 @@ export type LlmProvider = 'anthropic' | 'openrouter';
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
-  private readonly provider: LlmProvider;
+  readonly provider: LlmProvider;
   private readonly anthropic?: Anthropic;
   private readonly openai?: OpenAI;
 

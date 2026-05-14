@@ -4,6 +4,8 @@ import { PromptsService } from '../prompts/prompts.service';
 import { LlmService, ChatMessage } from '../llm/llm.service';
 import { TestsService } from '../tests/tests.service';
 import { cleanFeedback } from './feedback-cleaner';
+import { FeatureGateService, GateReason } from '../billing/feature-gate.service';
+import { SubscriptionsService } from '../billing/subscriptions.service';
 
 export type HintKind =
   | 'open-question'
@@ -97,13 +99,53 @@ export class SessionsService {
     private readonly prompts: PromptsService,
     private readonly llm: LlmService,
     private readonly tests: TestsService,
+    private readonly featureGate: FeatureGateService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   async create(userId: number, characterId?: number) {
+    // Billing gate: BEFORE we touch character or DB. Throws 402-ish
+    // BadRequest with a structured `reason` so the frontend can render
+    // the right upgrade nudge.
+    const gate = await this.featureGate.canStartSession(userId);
+    if (!gate.ok) {
+      throw new BadRequestException({
+        message: this.gateReasonMessage(gate.reason ?? 'expired'),
+        reason: gate.reason,
+        billingBlocked: true,
+      });
+    }
+
     const character = characterId
       ? await this.prisma.character.findUnique({ where: { id: characterId } })
       : await this.prisma.character.findFirst({ orderBy: { id: 'asc' } });
     if (!character) throw new NotFoundException('character not found');
+
+    // Plan-aware character access — trial sees first N system
+    // characters only. Owner-created + shared characters bypass this.
+    const charGate = await this.featureGate.canAccessCharacter(userId, {
+      id: character.id,
+      createdById: character.createdById,
+    });
+    if (!charGate.ok) {
+      throw new BadRequestException({
+        message: 'Цей персонаж доступний з тарифу Lite. Оновись на /pricing.',
+        reason: charGate.reason,
+        requiredPlan: charGate.requiredPlan,
+        billingBlocked: true,
+      });
+    }
+
+    // Modality gate — couples/family/crisis/adolescent need Pro+.
+    const modGate = await this.featureGate.canUseModality(userId, character.modality);
+    if (!modGate.ok) {
+      throw new BadRequestException({
+        message: `Модальність "${character.modality}" доступна з тарифу Pro.`,
+        reason: modGate.reason,
+        requiredPlan: modGate.requiredPlan,
+        billingBlocked: true,
+      });
+    }
 
     // Pull prior session memories for this user-character pair (most recent 5)
     const priorMemories = await this.loadPriorMemories(userId, character.id);
@@ -111,6 +153,11 @@ export class SessionsService {
     const session = await this.prisma.session.create({
       data: { characterId: character.id, userId },
     });
+
+    // Increment counter AFTER session row exists — we charge for the
+    // slot the moment it's created, not refunded on early abandon.
+    // (Power-users abandoning to game the counter is a future problem.)
+    await this.subscriptions.incrementSessions(userId);
 
     await this.prisma.message.create({
       data: { sessionId: session.id, role: 'user', content: SEED_OPENING },
@@ -625,13 +672,14 @@ export class SessionsService {
       };
 
       const reviewerBlocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
-      // Pass 2 = REVIEWER → use stronger model (Opus by default) for deep
-      // critique + pattern detection. If it stalls before first chunk,
-      // fall back to the cheaper draft model so the student still gets
-      // SOMETHING (downgraded review but functional) instead of a 504.
+      // Pass 2 = REVIEWER → use the user's plan-tier model (Opus for
+      // Pro/Master, Sonnet for Trial/Lite). Falls back to Pass-1 draft
+      // model if the reviewer stalls before first chunk so the student
+      // still gets SOMETHING (downgraded review) instead of a 504.
+      const reviewerModel = await this.featureGate.getReviewerModelId(userId);
       for await (const chunk of this.streamFeedbackWithFallback(
         reviewerBlocks,
-        this.llm.modelFeedbackReviewer,
+        reviewerModel,
         this.llm.modelFeedback,
       )) {
         raw += chunk;
@@ -1005,6 +1053,31 @@ export class SessionsService {
       `<ul class="audit-issues">\n${items}\n</ul>\n` +
       '</details>'
     );
+  }
+
+  /** Translate a billing-gate reason code into a user-facing Ukrainian
+   *  sentence. Frontend ALSO has its own translation (so it can
+   *  reformat with links/buttons), but having a server-side fallback
+   *  means non-JS clients (curl, retry scripts) get readable errors. */
+  private gateReasonMessage(reason: GateReason): string {
+    switch (reason) {
+      case 'paused':
+        return 'Підписка призупинена. Відновіть її в /account/billing щоб продовжити.';
+      case 'expired':
+        return 'Підписка завершилась. Оновіть план на /pricing.';
+      case 'trial-expired':
+        return '14-денний trial закінчився. Оберіть тариф на /pricing щоб продовжити.';
+      case 'session-limit-reached':
+        return 'Ви досягли ліміту сесій на цьому тарифі. Оновіть до Pro для необмеженого доступу.';
+      case 'feature-not-included':
+        return 'Ця функція не входить у поточний тариф.';
+      case 'modality-not-included':
+        return 'Ця модальність терапії доступна з тарифу Pro.';
+      case 'character-not-accessible':
+        return 'Цей персонаж недоступний на trial. Оновіть до Lite або вище.';
+      default:
+        return 'Доступ заборонений політикою тарифу.';
+    }
   }
 
   private async loadHistory(sessionId: number): Promise<ChatMessage[]> {

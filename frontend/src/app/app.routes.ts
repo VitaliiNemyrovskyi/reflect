@@ -97,5 +97,19 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/safety.component').then((m) => m.SafetyComponent),
   },
+  {
+    // Public pricing page — used both as marketing landing for
+    // anonymous visitors AND as comparison view for logged-in users
+    // deciding whether to upgrade.
+    path: 'pricing',
+    loadComponent: () =>
+      import('./pages/pricing.component').then((m) => m.PricingComponent),
+  },
+  {
+    path: 'account/billing',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/account-billing.component').then((m) => m.AccountBillingComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

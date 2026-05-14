@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { SubscriptionsService } from '../billing/subscriptions.service';
 import type { User } from '@prisma/client';
 
 export interface AuthTokens {
@@ -70,6 +71,7 @@ function sanitize(patch: Partial<UserPreferences>): Partial<UserPreferences> {
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscriptions: SubscriptionsService,
     private readonly jwt: JwtService,
   ) {}
 
@@ -85,6 +87,9 @@ export class AuthService {
         provider: 'local',
       },
     });
+    // Every new account starts on the 14-day trial. SubscriptionsService
+    // is idempotent — safe even if a duplicate provisioning fires.
+    await this.subscriptions.provisionTrial(user.id);
     return this.issueAndReturn(user);
   }
 
@@ -140,6 +145,7 @@ export class AuthService {
           providerUserId: opts.providerUserId,
         },
       });
+      await this.subscriptions.provisionTrial(user.id);
     } else if (user.provider === 'local' && !user.providerUserId) {
       // link OAuth to existing local account
       user = await this.prisma.user.update({
