@@ -4,12 +4,17 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiService, Character, ModalityInfo, ModalityKey, ProgressBadge } from '../api.service';
 import { AuthService } from '../auth.service';
 import { LogoComponent } from '../logo.component';
+import { WelcomeModalComponent } from '../welcome-modal.component';
 
 @Component({
   selector: 'app-characters-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink, LogoComponent],
+  imports: [CommonModule, DatePipe, RouterLink, LogoComponent, WelcomeModalComponent],
   template: `
+    @if (showWelcome()) {
+      <app-welcome-modal (dismissed)="dismissWelcome()" />
+    }
+
     <!-- Cinematic hero background. Empty by default — drops in once a
          file lands at /hero-bg.webp (or .jpg/.png). The image is fixed,
          dimmed, and fades to transparent at the edges so it lights the
@@ -842,7 +847,21 @@ export class CharactersListComponent implements OnInit {
     return this.characters().filter((c) => c.difficulty === d).length;
   }
 
+  /** Welcome-modal visibility. Set on init if this is the user's first
+   *  visit (no localStorage flag) AND they have not yet started any
+   *  session — gates the modal so existing users don't see it. */
+  showWelcome = signal(false);
+
   async ngOnInit() {
+    // First-time onboarding gate. We use localStorage (per-device) so
+    // returning users on the same browser don't get nagged. New
+    // browser / incognito → repeat — that's fine for now; sync via
+    // user.preferencesJson can land later if it becomes annoying.
+    const onboarded = localStorage.getItem('reflect.onboarded');
+    if (!onboarded) {
+      this.showWelcome.set(true);
+    }
+
     // Modality catalog kicks off in parallel — chips render as soon as
     // the response arrives without blocking the main listing fetch.
     void this.api.listModalities()
@@ -856,6 +875,10 @@ export class CharactersListComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  dismissWelcome() {
+    this.showWelcome.set(false);
   }
 
   open(c: Character) {
