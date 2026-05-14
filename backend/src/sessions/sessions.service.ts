@@ -840,9 +840,16 @@ export class SessionsService {
     const modalitySupervisor = this.prompts.getModalitySupervisorModulator(
       session.character.modality ?? null,
     );
+    // Slim the profile for feedback to keep us under OpenRouter's
+    // free-tier 24K prompt-token cap. Full profile (sections 1-8) runs
+    // ~5-8K tokens per character; we only need diagnosis + presenting
+    // problem + current situation to grade the therapist's technique.
+    // Sections 5-8 (chat persona, hidden layer, behavior cues) are
+    // useful for in-session roleplay but redundant for supervisor.
+    const slimProfile = this.slimProfileForFeedback(session.character.profileText);
     const profileSection = tpl
       .substring(profileIdx, transcriptIdx)
-      .replaceAll('{{PROFILE}}', session.character.profileText)
+      .replaceAll('{{PROFILE}}', slimProfile)
       + modalitySupervisor;
     // Append a brief tests block after the standard NOTES section so
     // the supervisor can reference scores ("PHQ-9 був 9 — легка
@@ -866,6 +873,32 @@ export class SessionsService {
       transcript,
       lineMap,
     };
+  }
+
+  /**
+   * Reduce the character profile to the parts a supervisor actually
+   * needs to grade interview technique:
+   *   - the HTML/MD comment header (diagnosis, severity codes)
+   *   - the leading paragraph if any (the composite disclaimer)
+   *   - sections 1 ("Базові відомості") through 4 ("Що її привело на
+   *     сесію") — these carry the clinical baseline + presenting issue
+   *
+   * Sections 5-8 (how she speaks, hidden layer, first-session
+   * behavior, what Anna doesn't do) are persona/chat hints — useful
+   * for the role-playing model but redundant for grading. Dropping
+   * them halves the profile and keeps us well under the free-tier
+   * 24817-token cap that OpenRouter enforces for shared-credit
+   * accounts.
+   *
+   * If the profile doesn't follow the expected "## N." structure, we
+   * fall back to the full text (better verbose than missing data).
+   */
+  private slimProfileForFeedback(profileText: string): string {
+    // Match header (## N. heading) where N is the section number we
+    // want to drop FROM. We keep everything BEFORE "## 5."
+    const cutMarker = profileText.search(/^##\s*5\.\s/m);
+    if (cutMarker < 0) return profileText;
+    return profileText.slice(0, cutMarker).trimEnd();
   }
 
   private splitFeedback(raw: string): {

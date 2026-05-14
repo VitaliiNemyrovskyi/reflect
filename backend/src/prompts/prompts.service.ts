@@ -35,7 +35,21 @@ export class PromptsService implements OnModuleInit {
       process.env.PROMPTS_DIR ?? resolve(process.cwd(), '..', 'prompts');
     this.annaSystem = this.read(promptsDir, 'anna_system.md');
     this.supervisorSystem = this.read(promptsDir, 'supervisor_system.md');
-    this.supervisorProtocol = this.read(promptsDir, 'supervisor_protocol.md');
+    const protocolRaw = this.read(promptsDir, 'supervisor_protocol.md');
+    // The full protocol prepends ~50 lines of "Джерела протоколу"
+    // (canonical sources) and "Mapping … на канонічні шкали"
+    // (cross-walk to MITI / CTS-R / Carkhuff). Useful for humans
+    // editing the protocol, but the LLM doesn't need these meta
+    // sections at runtime — the eight rubric sections ("## Вимір 1."
+    // … "## Вимір 8.") already encode the grading criteria. Trimming
+    // them saves ~3K tokens per feedback call, which is what keeps us
+    // under OpenRouter's free-tier 24817-token prompt cap.
+    const firstDimensionIdx = protocolRaw.search(/^##\s*Вимір\s*1\./m);
+    this.supervisorProtocol =
+      firstDimensionIdx >= 0
+        ? '# Протокол першої (інтейкової) сесії\n\n' +
+          protocolRaw.slice(firstDimensionIdx).trimEnd()
+        : protocolRaw;
     this.hintSystem = this.read(promptsDir, 'hint_system.md');
     this.patientGenerationSystem = this.read(promptsDir, 'patient_generation_system.md');
     this.criticReviewer = this.read(promptsDir, 'critic_reviewer.md');
