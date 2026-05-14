@@ -1760,6 +1760,17 @@ const SPOILER_PATTERNS: RegExp[] = [
       justify-content: center;
       gap: 8px;
       transition: color .15s ease, filter .2s ease, transform .12s ease;
+      /* When the cell shrinks below the label's natural width on small
+         viewports, ellipsize the label rather than letting it bleed
+         outside the pill background (which made labels look detached
+         from their tabs at 375px). The min-width:0 above is what
+         enables this — without it, flex children refuse to shrink. */
+      overflow: hidden;
+    }
+    .tabs button .tab-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
     }
     /* Hoist the actual text content above the global pseudos. */
     .tabs button > * { position: relative; z-index: 2; }
@@ -1786,8 +1797,12 @@ const SPOILER_PATTERNS: RegExp[] = [
       color: var(--accent);
     }
     @media (max-width: 480px) {
-      .tabs { gap: 6px; }
-      .tabs button { padding: 11px 14px; font-size: 12px; }
+      .tabs { gap: 4px; }
+      .tabs button { padding: 10px 6px; font-size: 11.5px; gap: 4px; }
+      /* On very small viewports the count badge eats the meager
+         content width — hide it for now. The number is still visible
+         once the tab content renders below. */
+      .tabs .tab-count { display: none; }
     }
 
     .tab-content { padding-bottom: 40px; }
