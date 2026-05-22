@@ -59,8 +59,8 @@ Every quotation in "…" must be word-for-word from the transcript at the indica
 **Length:**
 800–1500 words of narrative (excluding the JSON block). 2–4 paragraphs per section.
 
-**Structure:**
-Follow the 8-dimension protocol (risk screening → defense mechanisms → affect/numbing → therapeutic alliance → differential diagnosis → CBT technique → session structure → next steps). If a dimension is empty — skip it.
+**Structure — use ## markdown headings for each section:**
+Follow the 8-dimension protocol. Use `## 1. ⚠️ Critical Omission: Risk Screening`, `## 2. Defence Mechanisms`, `## 3. Affect & Numbing` etc. as headings — not bold text. If a dimension is empty — skip it.
 
 **No truisms:**
 ❌ "It is important to listen to the client", "empathy is the foundation of the work"
