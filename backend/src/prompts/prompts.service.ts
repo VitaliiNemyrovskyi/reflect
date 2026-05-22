@@ -487,10 +487,11 @@ export class PromptsService implements OnModuleInit {
       //      individual patients (the legacy convention).
       //   3. Capitalized slug — last-resort fallback.
       const meta0 = profileText.match(/<!--([\s\S]*?)-->/);
-      // Support both Ukrainian "Назва:" and English "NAME:" in metadata comment
+      // Support both multi-line UA format ("Назва: x\n") and single-line
+      // EN pipe format ("| NAME: Emma Clarke |"). Capture up to | or newline.
       const explicitName =
-        meta0?.[1]?.match(/^\s*Назва:\s*(.+)$/m)?.[1]?.trim() ??
-        meta0?.[1]?.match(/^\s*NAME:\s*(.+)$/im)?.[1]?.trim();
+        meta0?.[1]?.match(/Назва:\s*([^|\n]+)/)?.[1]?.trim() ??
+        meta0?.[1]?.match(/NAME:\s*([^|\n]+)/i)?.[1]?.trim();
       // Support both "Ім'я:" (UA) and "**Name:**" (EN profile body)
       const nameMatch =
         profileText.match(/^[\s-*]*Ім'я:\s*([^\n,]+)/m) ??
@@ -509,24 +510,25 @@ export class PromptsService implements OnModuleInit {
       // -->
       const metaBlock = profileText.match(/<!--([\s\S]*?)-->/);
       const meta = metaBlock?.[1] ?? '';
-      // Support both UA and EN metadata keys
+      // Support both multi-line UA ("KEY: value\n") and single-line EN
+      // pipe format ("| KEY: value |"). No ^ anchor → works in both cases.
       const diagnosisMatch =
-        meta.match(/^\s*Діагноз:\s*(.+)$/m) ??
-        meta.match(/^\s*DIAGNOSIS:\s*(.+)$/im);
+        meta.match(/Діагноз:\s*([^|\n]+)/) ??
+        meta.match(/DIAGNOSIS:\s*([^|\n]+)/i);
       const diagnosisCodeMatch =
-        meta.match(/^\s*Шифр:\s*(.+)$/m) ??
-        meta.match(/^\s*DSM-5:\s*(.+)$/im);
+        meta.match(/Шифр:\s*([^|\n]+)/) ??
+        meta.match(/DSM-5:\s*([^|\n]+)/i);
       const difficultyMatch =
-        meta.match(/^\s*Поведінка:\s*(\d)\b/m) ??
-        meta.match(/^\s*Складність:\s*(\d)\b/m) ??
-        meta.match(/^\s*DIFFICULTY:\s*(\d)\b/im);
+        meta.match(/Поведінка:\s*(\d)\b/) ??
+        meta.match(/Складність:\s*(\d)\b/) ??
+        meta.match(/DIFFICULTY:\s*(\d)\b/i);
       const complexityMatch =
-        meta.match(/^\s*Тяжкість:\s*(\d)\b/m) ??
-        meta.match(/^\s*COMPLEXITY:\s*(\d)\b/im);
-      const avatarMatch = meta.match(/^\s*Avatar:\s*(\S+)/m);
+        meta.match(/Тяжкість:\s*(\d)\b/) ??
+        meta.match(/COMPLEXITY:\s*(\d)\b/i);
+      const avatarMatch = meta.match(/Avatar:\s*(\S+)/);
       const modalityMatch =
-        meta.match(/^\s*Модальність:\s*(\w+)/m) ??
-        meta.match(/^\s*MODALITY:\s*(\w+)/im);
+        meta.match(/Модальність:\s*(\w+)/) ??
+        meta.match(/MODALITY:\s*(\w+)/i);
       const rawModality = modalityMatch?.[1]?.trim().toLowerCase() ?? null;
       const KNOWN = new Set(['individual', 'couples', 'family', 'adolescent', 'crisis']);
       const modality = rawModality && KNOWN.has(rawModality) ? rawModality : null;
