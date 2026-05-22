@@ -5,6 +5,7 @@ import { marked } from 'marked';
 import { ApiService, AssessmentJson } from '../api.service';
 import { SessionStateService } from '../session-state.service';
 import { AnalyticsService } from '../analytics.service';
+import { I18nService } from '../i18n.service';
 
 /**
  * Therapist competency rubric. Each row maps a JSON key from the
@@ -90,7 +91,7 @@ marked.setOptions({
         @if (progressMessage(); as msg) {
           <span class="dot"></span> {{ msg }}
         } @else {
-          Готую фідбек…
+          {{ i18n.t('feedback.loading') }}
         }
       </p>
     } @else {
@@ -577,6 +578,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   private state = inject(SessionStateService);
   private sanitizer = inject(DomSanitizer);
   private analytics = inject(AnalyticsService);
+  readonly i18n = inject(I18nService);
 
   feedback = signal<string>('');
   /** Machine-readable assessment block — drives the rubric UI above

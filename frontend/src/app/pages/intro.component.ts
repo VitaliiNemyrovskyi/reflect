@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../api.service';
+import { I18nService } from '../i18n.service';
 import { SessionStateService } from '../session-state.service';
 import { AnalyticsService } from '../analytics.service';
 
@@ -20,9 +21,9 @@ import { AnalyticsService } from '../analytics.service';
 
       <div class="actions">
         <button class="primary" [disabled]="starting()" (click)="start()">
-          {{ starting() ? 'Анна заходить у кабінет…' : 'Почати' }}
+          {{ starting() ? 'Анна заходить у кабінет…' : i18n.t('chars.start') }}
         </button>
-        <button class="ghost" (click)="back()">Назад</button>
+        <button class="ghost" (click)="back()">{{ i18n.t('general.back') }}</button>
       </div>
 
       @if (error()) {
@@ -55,6 +56,7 @@ export class IntroComponent implements OnInit {
   private api = inject(ApiService);
   private state = inject(SessionStateService);
   private analytics = inject(AnalyticsService);
+  readonly i18n = inject(I18nService);
 
   displayName = signal<string | null>(null);
   starting = signal(false);

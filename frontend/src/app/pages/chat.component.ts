@@ -13,6 +13,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, HintSuggestion, Note, PsychTestSummary, SessionTest } from '../api.service';
+import { I18nService } from '../i18n.service';
 import { SessionStateService } from '../session-state.service';
 import { VoiceService } from '../voice.service';
 import { RecognitionService } from '../recognition.service';
@@ -44,8 +45,8 @@ interface SelectionAnchor {
         <button
           class="ghost icon mobile-only"
           [class.has-notes]="notes().length > 0"
-          [attr.aria-label]="'Нотатки (' + notes().length + ')'"
-          title="Нотатки"
+          [attr.aria-label]="i18n.t('chat.notes') + ' (' + notes().length + ')'"
+          [title]="i18n.t('chat.notes')"
           (click)="toggleNotes()">
           📝{{ notes().length > 0 ? ' ' + notes().length : '' }}
         </button>
@@ -57,11 +58,11 @@ interface SelectionAnchor {
           (click)="voice.toggleMute()">
           {{ voice.muted() ? '🔇' : voice.speaking() ? '🔊' : '🔈' }}
         </button>
-        <button class="ghost end-btn" (click)="openEndDialog()" title="Завершити сесію (з опцією видалити)">
-          Завершити
+        <button class="ghost end-btn" (click)="openEndDialog()" [title]="i18n.t('chat.end_session')">
+          {{ i18n.t('chat.end_session') }}
         </button>
-        <button class="primary feedback-btn" (click)="getFeedback()" title="Зберегти сесію і отримати фідбек супервізора">
-          Отримати фідбек
+        <button class="primary feedback-btn" (click)="getFeedback()" [title]="i18n.t('chat.get_feedback')">
+          {{ i18n.t('chat.get_feedback') }}
         </button>
       </div>
     </header>
@@ -137,7 +138,7 @@ interface SelectionAnchor {
             rows="2"
             [(ngModel)]="draft"
             name="draft"
-            [placeholder]="recognition.listening() ? 'Слухаю…' : 'Напишіть або натисніть мікрофон…'"
+            [placeholder]="i18n.t('chat.placeholder')"
             [disabled]="sending()"
             (ngModelChange)="saveDraft()"
             (keydown.meta.enter)="send()"
@@ -148,8 +149,8 @@ interface SelectionAnchor {
                     [class.active]="hintsOpen()"
                     [class.loading]="hintsLoading()"
                     [disabled]="sending()"
-                    [attr.aria-label]="hintsOpen() ? 'Закрити підказки' : 'Що спитати?'"
-                    title="Що спитати? (підказка від наставника)"
+                    [attr.aria-label]="i18n.t('chat.hint_label')"
+                    [title]="i18n.t('chat.hint_label')"
                     (click)="toggleHints()">
               💡
             </button>
@@ -179,7 +180,7 @@ interface SelectionAnchor {
             </button>
           }
           <button class="primary" type="submit" [disabled]="sending() || !draft.trim()">
-            Надіслати
+            {{ i18n.t('chat.send') }}
           </button>
         </form>
       </section>
@@ -192,7 +193,7 @@ interface SelectionAnchor {
         <button class="sheet-handle mobile-only" (click)="closeNotes()" aria-label="Закрити нотатки">
         </button>
         <header class="notes-header">
-          <h3>Нотатки {{ notes().length ? '(' + notes().length + ')' : '' }}</h3>
+          <h3>{{ i18n.t('chat.notes') }} {{ notes().length ? '(' + notes().length + ')' : '' }}</h3>
           <span class="hint">Виділи текст у репліці, щоб приколоти нотатку</span>
         </header>
 
@@ -223,12 +224,12 @@ interface SelectionAnchor {
             rows="3"
             [(ngModel)]="noteDraft"
             name="noteDraft"
-            placeholder="Робоча гіпотеза, що помітила, на що повернутись…"
+            [placeholder]="i18n.t('chat.note_placeholder')"
             (keydown.meta.enter)="saveNote()"
             (keydown.control.enter)="saveNote()"></textarea>
           <button type="submit" class="primary"
                   [disabled]="!noteDraft.trim() || savingNote()">
-            {{ savingNote() ? 'Зберігаю…' : 'Додати нотатку' }}
+            {{ savingNote() ? '…' : i18n.t('chat.notes') }}
           </button>
         </form>
       </aside>
@@ -247,21 +248,21 @@ interface SelectionAnchor {
     @if (endDialogOpen()) {
       <div class="modal-backdrop" (click)="closeEndDialog()"></div>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="end-dialog-title">
-        <h3 id="end-dialog-title">Завершити сесію</h3>
-        <p>Зберегти цю сесію разом із фідбеком супервізора?</p>
+        <h3 id="end-dialog-title">{{ i18n.t('chat.end_session') }}</h3>
+        <p>{{ i18n.t('chat.end_confirm') }}</p>
         <p class="modal-warning">
           Якщо ні — сесію буде <strong>видалено повністю</strong>:
           транскрипт, нотатки, та пам'ять клієнтки про неї. Так, ніби сесії не було.
         </p>
         <div class="modal-actions">
           <button class="ghost" (click)="closeEndDialog()" [disabled]="discarding()">
-            Скасувати
+            {{ i18n.t('chat.confirm_no') }}
           </button>
           <button class="danger" (click)="discardSession()" [disabled]="discarding()">
-            {{ discarding() ? 'Видаляю…' : 'Видалити сесію' }}
+            {{ discarding() ? '…' : i18n.t('chat.confirm_yes') }}
           </button>
           <button class="primary" (click)="getFeedback()" [disabled]="discarding()">
-            Зберегти і отримати фідбек
+            {{ i18n.t('chat.get_feedback') }}
           </button>
         </div>
       </div>
@@ -842,6 +843,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   protected voice = inject(VoiceService);
   protected recognition = inject(RecognitionService);
   protected prefs = inject(PreferencesService);
+  readonly i18n = inject(I18nService);
 
   @ViewChild('scroll', { static: false })
   private scrollEl?: ElementRef<HTMLElement>;

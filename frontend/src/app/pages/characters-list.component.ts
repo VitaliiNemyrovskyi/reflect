@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, Character, ModalityInfo, ModalityKey, ProgressBadge } from '../api.service';
 import { AuthService } from '../auth.service';
+import { I18nService } from '../i18n.service';
 import { LogoComponent } from '../logo.component';
 import { WelcomeModalComponent } from '../welcome-modal.component';
 
@@ -26,11 +27,11 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
       <div class="title-row">
         <div class="brand-block">
           <app-logo />
-          <p class="subtitle">Картотека пацієнтів</p>
+          <p class="subtitle">{{ i18n.t('chars.page_title') }}</p>
         </div>
         @if (auth.user(); as u) {
           <div class="user-area">
-            <a routerLink="/profile" class="user-name-link" title="Мій профіль">
+            <a routerLink="/profile" class="user-name-link" [title]="i18n.t('nav.profile')">
               {{ u.displayName ?? u.email }}
             </a>
             @if (u.isAdmin) {
@@ -41,9 +42,9 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
             }
             <a routerLink="/settings"
                class="ghost icon small"
-               title="Налаштування"
-               aria-label="Налаштування">⚙</a>
-            <button class="ghost small" (click)="logout()">Вийти</button>
+               [title]="i18n.t('nav.settings')"
+               [attr.aria-label]="i18n.t('nav.settings')">⚙</a>
+            <button class="ghost small" (click)="logout()">{{ i18n.t('nav.logout') }}</button>
           </div>
         }
       </div>
@@ -91,7 +92,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
             }
           }
           <a routerLink="/patient/new" class="chip new-patient-chip">
-            + Створити пацієнтку
+            {{ i18n.t('chars.new_patient') }}
           </a>
         </div>
       }
@@ -121,7 +122,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
     }
 
     @if (loading()) {
-      <div class="hint">Завантаження…</div>
+      <div class="hint">{{ i18n.t('general.loading') }}</div>
     } @else if (error()) {
       <div class="hint danger">{{ error() }}</div>
     } @else if (characters().length === 0) {
@@ -137,7 +138,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
           сесія в кілька кліків.
         </p>
         <a routerLink="/patient/new" class="primary">
-          + Створити пацієнтку
+          {{ i18n.t('chars.new_patient') }}
         </a>
       </section>
     } @else if (filteredCharacters().length === 0) {
@@ -204,15 +205,15 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
               <div class="metrics">
                 @if (c.difficulty != null) {
                   <div class="metric"
-                       [title]="'Поведінка ' + c.difficulty + '/5 — наскільки складно встановити контакт з пацієнткою'">
-                    <span class="metric-label">Поведінка</span>
+                       [title]="i18n.t('chars.difficulty') + ' ' + c.difficulty + '/5'">
+                    <span class="metric-label">{{ i18n.t('chars.difficulty') }}</span>
                     <span class="stars stars-behavior">{{ stars(c.difficulty) }}</span>
                   </div>
                 }
                 @if (c.complexity != null) {
                   <div class="metric"
-                       [title]="'Тяжкість ' + c.complexity + '/5 — клінічна серйозність випадку'">
-                    <span class="metric-label">Тяжкість</span>
+                       [title]="i18n.t('chars.complexity') + ' ' + c.complexity + '/5'">
+                    <span class="metric-label">{{ i18n.t('chars.complexity') }}</span>
                     <span class="dots dots-clinical">{{ dots(c.complexity) }}</span>
                   </div>
                 }
@@ -731,6 +732,7 @@ export class CharactersListComponent implements OnInit {
   private api = inject(ApiService);
   private router = inject(Router);
   protected auth = inject(AuthService);
+  readonly i18n = inject(I18nService);
 
   characters = signal<Character[]>([]);
   loading = signal(true);

@@ -1,12 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { ThemeService } from './theme.service';
+import { I18nService } from './i18n.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, RouterLink],
-  template: `
+  template: `<!-- lang attr set on <html> by I18nService.setLang() -->
     <!-- Ambient "blob" layer: a few fixed, blurred accent orbs that
          drift slowly behind everything. Each one has its own size,
          start position, and animation path so they never sync up
@@ -27,9 +28,15 @@ import { ThemeService } from './theme.service';
            the page content. -->
       <footer class="app-footer">
         <p>
-          Reflect — навчальний тренажер з AI-пацієнтами. Це
-          <strong>не</strong> справжня терапія.
-          <a routerLink="/safety">Безпека та кризові ресурси →</a>
+          @if (i18n.isEn) {
+            Reflect — AI psychotherapy training simulator. This is
+            <strong>not</strong> real therapy.
+            <a routerLink="/safety">{{ i18n.t('nav.safety') }}</a>
+          } @else {
+            Reflect — навчальний тренажер з AI-пацієнтами. Це
+            <strong>не</strong> справжня терапія.
+            <a routerLink="/safety">{{ i18n.t('nav.safety') }}</a>
+          }
         </p>
       </footer>
     </main>
@@ -156,4 +163,7 @@ export class AppComponent {
   // route renders, so the [data-theme] attribute is on <html> in time to
   // avoid a flash of the wrong palette.
   private theme = inject(ThemeService);
+  // I18nService is injected here (in addition to APP_INITIALIZER) so it's
+  // available in the shell template for the footer disclaimer.
+  readonly i18n = inject(I18nService);
 }

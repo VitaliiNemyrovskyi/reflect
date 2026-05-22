@@ -13,6 +13,7 @@ import { AdminModule } from './admin/admin.module';
 import { TestsModule } from './tests/tests.module';
 import { BillingModule } from './billing/billing.module';
 import { EventsModule } from './events/events.module';
+import { AppConfigModule } from './config/config.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { EventsModule } from './events/events.module';
     TestsModule,
     BillingModule,
     EventsModule,
+    AppConfigModule,
   ],
 })
 export class AppModule {}
