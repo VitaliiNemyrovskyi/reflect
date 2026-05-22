@@ -32,6 +32,10 @@ services:
       LLM_MODEL_FEEDBACK_REVIEWER: ${LLM_MODEL_FEEDBACK_REVIEWER:-}
       LLM_MODEL_SKILLS_SYNTHESIZER: ${LLM_MODEL_SKILLS_SYNTHESIZER:-}
       FEEDBACK_MODE: ${FEEDBACK_MODE:-}
+      # Language for supervisor prompts, skill agents, and profiles.
+      # 'uk' = Ukrainian (default), 'en' = English (EU market).
+      # Loads from prompts/{lang}/ with fallback to prompts/ for missing files.
+      REFLECT_LANG: ${REFLECT_LANG:-uk}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}

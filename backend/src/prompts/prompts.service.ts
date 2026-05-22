@@ -19,6 +19,14 @@ interface ProfileFile {
 export class PromptsService implements OnModuleInit {
   private readonly logger = new Logger(PromptsService.name);
 
+  /**
+   * Active language for all prompts and profiles.
+   * Set via REFLECT_LANG env var ('uk' = Ukrainian default, 'en' = English).
+   * When 'en', prompts are loaded from prompts/en/*.md with fallback to
+   * the base Ukrainian prompts/*.md if an English version doesn't exist yet.
+   */
+  readonly lang: string;
+
   readonly annaSystem: string;
   readonly supervisorSystem: string;
   readonly supervisorProtocol: string;
@@ -35,7 +43,8 @@ export class PromptsService implements OnModuleInit {
    * run in parallel (Pass 2) and return JSON; a synthesis model (Pass 3)
    * integrates the JSON findings with the Pass-1 draft → final feedback.
    *
-   * Loaded from prompts/skills/*.md (except synthesis.md).
+   * Language-aware: loads from prompts/{lang}/skills/ with fallback to
+   * prompts/skills/ if the localised version is missing.
    * Key: filename without .md (e.g. 'risk_screening').
    */
   readonly skills: Map<string, string>;
@@ -52,45 +61,73 @@ export class PromptsService implements OnModuleInit {
     this.promptsDir =
       process.env.PROMPTS_DIR ?? resolve(process.cwd(), '..', 'prompts');
     const promptsDir = this.promptsDir;
-    this.annaSystem = this.read(promptsDir, 'anna_system.md');
-    this.supervisorSystem = this.read(promptsDir, 'supervisor_system.md');
-    const protocolRaw = this.read(promptsDir, 'supervisor_protocol.md');
-    // The full protocol prepends ~50 lines of "Джерела протоколу"
-    // (canonical sources) and "Mapping … на канонічні шкали"
-    // (cross-walk to MITI / CTS-R / Carkhuff). Useful for humans
-    // editing the protocol, but the LLM doesn't need these meta
-    // sections at runtime — the eight rubric sections ("## Вимір 1."
-    // … "## Вимір 8.") already encode the grading criteria. Trimming
-    // them saves ~3K tokens per feedback call, which is what keeps us
-    // under OpenRouter's free-tier 24817-token prompt cap.
-    const firstDimensionIdx = protocolRaw.search(/^##\s*Вимір\s*1\./m);
+
+    // Language selection: REFLECT_LANG env var, default 'uk'.
+    // 'en' loads from prompts/en/ with graceful fallback to prompts/.
+    this.lang = (process.env.REFLECT_LANG?.trim().toLowerCase() || 'uk');
+
+    this.annaSystem = this.read(promptsDir, 'anna_system.md'); // not localised yet
+    this.supervisorSystem = this.readLang('supervisor_system.md');
+    const protocolRaw = this.readLang('supervisor_protocol.md');
+    // Strip header sections (sources list, mapping table) before runtime —
+    // the eight dimension sections carry all the grading criteria the LLM
+    // needs. Saves ~3K tokens per feedback call.
+    // Supports both Ukrainian ("Вимір 1.") and English ("Dimension 1.") headings.
+    const firstDimensionIdx = protocolRaw.search(
+      /^##\s*(Вимір|Dimension)\s*1\./m,
+    );
+    const protocolTitle =
+      this.lang === 'en'
+        ? '# First (Intake) Session Protocol\n\n'
+        : '# Протокол першої (інтейкової) сесії\n\n';
     this.supervisorProtocol =
       firstDimensionIdx >= 0
-        ? '# Протокол першої (інтейкової) сесії\n\n' +
-          protocolRaw.slice(firstDimensionIdx).trimEnd()
+        ? protocolTitle + protocolRaw.slice(firstDimensionIdx).trimEnd()
         : protocolRaw;
     this.hintSystem = this.read(promptsDir, 'hint_system.md');
     this.patientGenerationSystem = this.read(promptsDir, 'patient_generation_system.md');
-    this.criticReviewer = this.read(promptsDir, 'critic_reviewer.md');
-    this.profilesDir = resolve(promptsDir, 'profiles');
+    this.criticReviewer = this.readLang('critic_reviewer.md');
 
-    // Load skill prompts from prompts/skills/*.md. Dynamically discovered
-    // so adding a new skill file is enough — no code changes needed.
-    const skillsDir = resolve(promptsDir, 'skills');
+    // Profiles directory: prefer lang-specific, fall back to base.
+    const langProfilesDir = resolve(promptsDir, this.lang, 'profiles');
+    this.profilesDir = existsSync(langProfilesDir)
+      ? langProfilesDir
+      : resolve(promptsDir, 'profiles');
+
+    // Load skill prompts — language-aware with fallback to Ukrainian.
+    const langSkillsDir  = resolve(promptsDir, this.lang, 'skills');
+    const baseSkillsDir  = resolve(promptsDir, 'skills');
+    const skillsDir      = existsSync(langSkillsDir) ? langSkillsDir : baseSkillsDir;
     this.skills = new Map();
     if (existsSync(skillsDir)) {
       for (const file of readdirSync(skillsDir)) {
         if (!file.endsWith('.md')) continue;
-        const name = file.slice(0, -3); // strip .md
-        if (name === 'synthesis') continue; // loaded separately below
+        const name = file.slice(0, -3);
+        if (name === 'synthesis') continue;
         this.skills.set(name, readFileSync(resolve(skillsDir, file), 'utf8'));
-        this.logger.debug(`Loaded skill: ${name}`);
+        this.logger.debug(`Loaded skill [${this.lang}]: ${name}`);
       }
     }
-    this.skillsSynthesis = existsSync(resolve(skillsDir, 'synthesis.md'))
-      ? readFileSync(resolve(skillsDir, 'synthesis.md'), 'utf8')
-      : this.criticReviewer; // graceful fallback to standard reviewer
-    this.logger.log(`Loaded ${this.skills.size} skill prompts from ${skillsDir}`);
+    const synthPath = resolve(skillsDir, 'synthesis.md');
+    this.skillsSynthesis = existsSync(synthPath)
+      ? readFileSync(synthPath, 'utf8')
+      : this.criticReviewer;
+    this.logger.log(
+      `PromptsService lang=${this.lang} skills=${this.skills.size} profiles=${this.profilesDir}`,
+    );
+  }
+
+  /**
+   * Read a prompt file with language-aware fallback.
+   * Tries prompts/{lang}/{name} first, then prompts/{name}.
+   */
+  private readLang(name: string): string {
+    if (this.lang !== 'uk') {
+      const langPath = resolve(this.promptsDir, this.lang, name);
+      if (existsSync(langPath)) return readFileSync(langPath, 'utf8');
+      this.logger.warn(`No ${this.lang} version of ${name}, falling back to Ukrainian`);
+    }
+    return readFileSync(resolve(this.promptsDir, name), 'utf8');
   }
 
   private read(dir: string, name: string): string {
