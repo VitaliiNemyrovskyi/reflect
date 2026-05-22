@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, CharacterShare, ModalityInfo, PatientCard, ProgressBadge } from '../api.service';
+import { I18nService } from '../i18n.service';
 
 /**
  * One section of the patient profile, extracted from `## N. Title` headings.
@@ -53,7 +54,7 @@ const SPOILER_PATTERNS: RegExp[] = [
     } @else if (!patient()) {
       <p class="hint danger">Картку пацієнта не знайдено.</p>
     } @else {
-      <a routerLink="/" class="back">← Усі пацієнти</a>
+      <a routerLink="/" class="back">← {{ i18n.isEn ? 'All clients' : 'Усі пацієнти' }}</a>
 
       <!-- ╔═══ HERO ═══╗
            Portrait photo on the left + identity (name/diagnosis) +
@@ -113,7 +114,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                       (click)="confirmDelete()">🗑</button>
             }
             <button class="primary new-session-btn fx-glow" (click)="newSession()">
-              Нова сесія
+              {{ i18n.isEn ? 'New session' : 'Нова сесія' }}
             </button>
           </div>
         </div>
@@ -127,9 +128,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                   [class.active]="activeSector() === 'sessions'"
                   (mouseenter)="activeSector.set('sessions')"
                   (click)="toggleSector('sessions')">
-            <span class="vital-label">СЕСІЇ</span>
+            <span class="vital-label">{{ i18n.isEn ? 'SESSIONS' : 'СЕСІЇ' }}</span>
             <span class="vital-value">{{ patient()!.sessionCount }}</span>
-            <span class="vital-meta">{{ patient()!.completedCount }} завершено</span>
+            <span class="vital-meta">{{ patient()!.completedCount }} {{ i18n.isEn ? 'completed' : 'завершено' }}</span>
           </button>
 
           <button type="button"
@@ -138,7 +139,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                   [class.vital-warn]="patient()!.progressBadge === 'worsening'"
                   (mouseenter)="activeSector.set('state')"
                   (click)="toggleSector('state')">
-            <span class="vital-label">СТАН</span>
+            <span class="vital-label">{{ i18n.isEn ? 'STATE' : 'СТАН' }}</span>
             <span class="vital-value">{{ stateGlyph(patient()!.progressBadge) }}</span>
             <span class="vital-meta">{{ badgeText(patient()!.progressBadge) }}</span>
           </button>
@@ -149,7 +150,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                     [class.active]="activeSector() === 'behavior'"
                     (mouseenter)="activeSector.set('behavior')"
                     (click)="toggleSector('behavior')">
-              <span class="vital-label">ПОВЕДІНКА</span>
+              <span class="vital-label">{{ i18n.isEn ? 'DIFFICULTY' : 'ПОВЕДІНКА' }}</span>
               <span class="vital-value">{{ patient()!.difficulty }}<small>/5</small></span>
               <span class="vital-meta">{{ stars(patient()!.difficulty!) }}</span>
             </button>
@@ -161,7 +162,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                     [class.active]="activeSector() === 'severity'"
                     (mouseenter)="activeSector.set('severity')"
                     (click)="toggleSector('severity')">
-              <span class="vital-label">ТЯЖКІСТЬ</span>
+              <span class="vital-label">{{ i18n.isEn ? 'COMPLEXITY' : 'ТЯЖКІСТЬ' }}</span>
               <span class="vital-value">{{ patient()!.complexity }}<small>/5</small></span>
               <span class="vital-meta">{{ dots(patient()!.complexity!) }}</span>
             </button>
@@ -195,7 +196,7 @@ const SPOILER_PATTERNS: RegExp[] = [
           </article>
         } @else {
           <div class="sector-detail empty">
-            <span>Наведи на показник справа — побачиш деталі.</span>
+            <span>{{ i18n.isEn ? 'Hover over a metric on the right to see details.' : 'Наведи на показник справа — побачиш деталі.' }}</span>
           </div>
         }
       </section>
@@ -266,7 +267,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                 <header class="panel-head">
                   <h3 class="panel-title">DEMOGRAPHICS</h3>
                   <span class="panel-meta">
-                    <a (click)="tab.set('profile')" class="link-btn">Повний профіль →</a>
+                    <a (click)="tab.set('profile')" class="link-btn">{{ i18n.isEn ? 'Full profile →' : 'Повний профіль →' }}</a>
                   </span>
                 </header>
                 <dl class="facts">
@@ -303,7 +304,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 
         @if (tab() === 'profile') {
           @if (profileSections().length === 0) {
-            <p class="hint">Профіль не парситься у структуру — показую сирий текст.</p>
+            <p class="hint">{{ i18n.isEn ? 'Profile could not be parsed into structure — showing raw text.' : 'Профіль не парситься у структуру — показую сирий текст.' }}</p>
             <article class="card">
               <pre class="profile-fallback">{{ patient()!.profileText }}</pre>
             </article>
@@ -419,7 +420,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 
         @if (tab() === 'progress') {
           @if (chartTrends().length === 0) {
-            <p class="hint">Прогрес-графіки з'являться після першої завершеної сесії з фідбеком.</p>
+            <p class="hint">{{ i18n.isEn ? 'Progress charts appear after the first completed session with feedback.' : "Прогрес-графіки з'являться після першої завершеної сесії з фідбеком." }}</p>
           } @else {
             <div class="charts-section">
               <h3>{{ feminine() ? 'Стан клієнтки' : 'Стан клієнта' }} (1-10)</h3>
@@ -2283,6 +2284,7 @@ export class PatientDetailComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  readonly i18n = inject(I18nService);
 
   loading = signal(true);
   patient = signal<PatientCard | null>(null);
@@ -2304,14 +2306,14 @@ export class PatientDetailComponent implements OnInit {
     return this.modalityCatalog().find((m) => m.key === key) ?? null;
   });
 
-  /** Tabs config — drives the nav rendering with icons + counts. */
-  tabs: { key: TabKey; label: string; icon: string; count?: (p: PatientCard) => number }[] = [
-    { key: 'overview', label: 'Огляд', icon: '📋' },
-    { key: 'profile', label: 'Профіль', icon: '📜' },
-    { key: 'sessions', label: 'Сесії', icon: '💬', count: (p) => p.sessionCount },
-    { key: 'notes', label: 'Нотатки', icon: '🔖', count: (p) => p.notes.length },
-    { key: 'progress', label: 'Прогрес', icon: '📈' },
-  ];
+  /** Tabs config — label is reactive to i18n language. */
+  tabs = computed(() => [
+    { key: 'overview' as TabKey,  label: this.i18n.t('tab.overview'),  icon: '📋' },
+    { key: 'profile'  as TabKey,  label: this.i18n.t('tab.profile'),   icon: '📜' },
+    { key: 'sessions' as TabKey,  label: this.i18n.t('tab.sessions'),  icon: '💬', count: (p: PatientCard) => p.sessionCount },
+    { key: 'notes'    as TabKey,  label: this.i18n.t('tab.notes'),     icon: '🔖', count: (p: PatientCard) => p.notes.length },
+    { key: 'progress' as TabKey,  label: this.i18n.t('tab.progress'),  icon: '📈' },
+  ]);
 
   /** Tracks which collapsible sections are open. Spoiler sections default
    *  to closed; non-spoilers default to open. */
@@ -2614,12 +2616,10 @@ export class PatientDetailComponent implements OnInit {
   // ─── Misc UI helpers ─────────────────────────────────────────────────────
 
   badgeText(b: ProgressBadge): string {
-    return {
-      improving: '↑ покращення',
-      stable: '→ стабільно',
-      worsening: '↓ погіршення',
-      unknown: 'нема даних',
-    }[b];
+    if (this.i18n.isEn) {
+      return { improving: '↑ improving', stable: '→ stable', worsening: '↓ worsening', unknown: 'no data' }[b];
+    }
+    return { improving: '↑ покращення', stable: '→ стабільно', worsening: '↓ погіршення', unknown: 'нема даних' }[b];
   }
 
   /**
