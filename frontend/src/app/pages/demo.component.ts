@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnalyticsService } from '../analytics.service';
+import { I18nService } from '../i18n.service';
 
 /**
  * Public landing demo — shows a real Opus reviewer output on a
@@ -22,189 +23,236 @@ import { AnalyticsService } from '../analytics.service';
     <div class="demo-page">
       <!-- Hero -->
       <header class="hero">
-        <p class="kicker">REFLECT — ДЕМОНСТРАЦІЯ</p>
-        <h1>Як AI-супервізор розбирає твою сесію</h1>
-        <p class="subtitle">
-          Реальний приклад фідбеку від Opus-супервізора на сесію з
-          синтетичною пацієнткою «Олеся» — композит депресивного епізоду
-          з пасивною суїцидальною ідеацією. Студентка-терапевтка
-          пройшла кілька важливих скринінгів, але <strong>проґавила
-          ключове питання про ризик</strong>. Подивись, що бачить
-          супервізор.
-        </p>
+        <p class="kicker">{{ i18n.isEn ? 'REFLECT — DEMO' : 'REFLECT — ДЕМОНСТРАЦІЯ' }}</p>
+        @if (demoContent) {
+          <h1>{{ demoContent.heroTitle }}</h1>
+          <p class="subtitle">{{ demoContent.heroSubtitle }}</p>
+        } @else {
+          <h1>Як AI-супервізор розбирає твою сесію</h1>
+          <p class="subtitle">
+            Реальний приклад фідбеку від Opus-супервізора на сесію з
+            синтетичною пацієнткою «Олеся» — композит депресивного епізоду
+            з пасивною суїцидальною ідеацією. Студентка-терапевтка
+            пройшла кілька важливих скринінгів, але <strong>проґавила
+            ключове питання про ризик</strong>. Подивись, що бачить
+            супервізор.
+          </p>
+        }
       </header>
 
       <!-- Split: transcript | feedback -->
       <div class="split">
-        <section class="transcript-pane">
-          <h2 class="pane-title">Сесія (фрагмент)</h2>
-
-          <div class="bubble therapist">
-            <span class="line-ref">L3</span>
-            <strong>Терапевтка:</strong>
-            <p>Розкажіть детальніше — що саме відбулось 4 місяці тому?</p>
-          </div>
-
-          <div class="bubble client">
-            <span class="line-ref">L4</span>
-            <strong>Олеся:</strong>
-            <p>
-              Ну, Іван пішов. Точніше — поїхав до Польщі, на стажування,
-              а потім вирішив лишитись. Ми були разом три роки. Він
-              сказав, що йому потрібен простір. Я не сперечалась…
-              ну, як не сперечалась — я розуміла, що він вже вирішив.
-              Тож якого сенсу тримати.
-            </p>
-          </div>
-
-          <div class="bubble therapist">
-            <span class="line-ref">L5</span>
-            <strong>Терапевтка:</strong>
-            <p>Як зараз ваш сон? Висипаєтесь?</p>
-          </div>
-
-          <div class="bubble client">
-            <span class="line-ref">L6</span>
-            <strong>Олеся:</strong>
-            <p>
-              Сон… ну, лягаю пізно. Годині в першій-другій. Дивлюсь
-              щось, прокручую телефон, і так і їду. А вранці будильник
-              на восьмій, встаю десятій-одинадцятій.
-            </p>
-          </div>
-
-          <div class="bubble therapist">
-            <span class="line-ref">L13</span>
-            <strong>Терапевтка:</strong>
-            <p>
-              Я бачу, ви дуже структуровано описуєте. Це класична
-              депресія, мабуть, з рисами руминації. Спробуйте дихальні
-              вправи перед сном — 4-7-8 техніка.
-            </p>
-          </div>
-
-          <div class="bubble client">
-            <span class="line-ref">L14</span>
-            <strong>Олеся:</strong>
-            <p>
-              …Так, я знаю цю техніку. Ну, якщо чесно — я не думаю,
-              що дихання тут допоможе. <em>Мені нічого не болить,
-              нічого не тривожить. Просто нічого немає.</em>
-            </p>
-          </div>
-
-          <p class="note">
-            Терапевтка завершила сесію, <strong>не запитавши прямо
-            про суїцидальні думки</strong>. За профілем у Олесі —
-            систематичні пасивні думки «а якщо я просто не прокинусь».
-            Якби запитали — отримали б правду.
-          </p>
-        </section>
-
-        <section class="feedback-pane">
-          <h2 class="pane-title">Фідбек Opus-супервізора</h2>
-
-          <!-- Most striking catch first -->
-          <article class="catch critical">
-            <div class="catch-head">
-              <span class="catch-icon" aria-hidden="true">⚠</span>
-              <span class="catch-label">Найважливіше: пропущено</span>
+        @if (demoContent) {
+          <!-- English demo: Emma Clarke findings -->
+          <section class="transcript-pane">
+            <h2 class="pane-title">Client</h2>
+            <div class="client-card">
+              <p class="client-name">{{ demoContent.clientName }}</p>
+              <p class="client-context">{{ demoContent.clientContext }}</p>
             </div>
-            <h3>Скринінг суїцидального ризику</h3>
-            <p>
-              Це <strong>головна проблема сесії</strong>. За профілем
-              Олеся має систематичні пасивні думки «а якщо я просто не
-              прокинусь». Вона б відповіла правду, якби запитали прямо.
-              Не запитали — і ця інформація залишиться поза терапією
-              щонайменше до наступної сесії, а можливо й довше.
+            <p class="note">
+              The session transcript has been reviewed by the Opus supervisor.
+              <strong>Three representative findings</strong> from the 14-dimension
+              analysis are shown on the right.
             </p>
-            <p>
-              На <span class="line-tag">[L14]</span> клієнтка дає прямий
-              сигнал, який мав би загорітися червоним:
-              «<strong>Мені нічого не болить, нічого не тривожить.
-              Просто нічого немає.</strong>» Це не опис настрою — це
-              опис стану, у якому пасивна суїцидальна ідеація типово
-              й існує.
-            </p>
-            <div class="rewrite">
-              <p class="rewrite-label">Що мало б прозвучати:</p>
-              <blockquote>
-                Олесю, я хочу запитати прямо, бо це важливо. Чи бувають
-                у вас зараз думки про те, що було б легше не прокинутись,
-                не існувати, зникнути? Без планів — просто думки.
-              </blockquote>
-              <p class="rewrite-hint">
-                Це не «травматизує» клієнтку. Навпаки — для людини з
-                пасивною ідеацією прямо названа реальність часто є
-                першим за місяці моментом, коли її <strong>побачили</strong>.
+          </section>
+
+          <section class="feedback-pane">
+            <h2 class="pane-title">Opus Supervisor Feedback</h2>
+            @for (finding of demoContent.findings; track finding.title) {
+              <article class="catch" [class.critical]="finding.icon === '⚠️'">
+                <div class="catch-head">
+                  <span class="catch-icon" aria-hidden="true">{{ finding.icon }}</span>
+                  <span class="catch-label">{{ finding.title }}</span>
+                </div>
+                <p>{{ finding.text }}</p>
+              </article>
+            }
+          </section>
+        } @else {
+          <!-- Ukrainian demo: Olesya session -->
+          <section class="transcript-pane">
+            <h2 class="pane-title">Сесія (фрагмент)</h2>
+
+            <div class="bubble therapist">
+              <span class="line-ref">L3</span>
+              <strong>Терапевтка:</strong>
+              <p>Розкажіть детальніше — що саме відбулось 4 місяці тому?</p>
+            </div>
+
+            <div class="bubble client">
+              <span class="line-ref">L4</span>
+              <strong>Олеся:</strong>
+              <p>
+                Ну, Іван пішов. Точніше — поїхав до Польщі, на стажування,
+                а потім вирішив лишитись. Ми були разом три роки. Він
+                сказав, що йому потрібен простір. Я не сперечалась…
+                ну, як не сперечалась — я розуміла, що він вже вирішив.
+                Тож якого сенсу тримати.
               </p>
             </div>
-          </article>
 
-          <article class="catch">
-            <div class="catch-head">
-              <span class="catch-icon" aria-hidden="true">🔍</span>
-              <span class="catch-label">Помічено + названо</span>
+            <div class="bubble therapist">
+              <span class="line-ref">L5</span>
+              <strong>Терапевтка:</strong>
+              <p>Як зараз ваш сон? Висипаєтесь?</p>
             </div>
-            <h3>Інтелектуалізація як головний захист</h3>
-            <p>
-              На <span class="line-tag">[L11]</span> терапевтка спитала
-              «у вас уже є якась гіпотеза, що з вами відбувається?» —
-              і Олеся радо віддала клінічну формулу
-              («<em>великий депресивний епізод, анедонія, руминація</em>»).
-              За профілем Олеся <strong>інтелектуалізує як головний
-              захист</strong>. Це запитання запросило її саме в цей
-              захист.
+
+            <div class="bubble client">
+              <span class="line-ref">L6</span>
+              <strong>Олеся:</strong>
+              <p>
+                Сон… ну, лягаю пізно. Годині в першій-другій. Дивлюсь
+                щось, прокручую телефон, і так і їду. А вранці будильник
+                на восьмій, встаю десятій-одинадцятій.
+              </p>
+            </div>
+
+            <div class="bubble therapist">
+              <span class="line-ref">L13</span>
+              <strong>Терапевтка:</strong>
+              <p>
+                Я бачу, ви дуже структуровано описуєте. Це класична
+                депресія, мабуть, з рисами руминації. Спробуйте дихальні
+                вправи перед сном — 4-7-8 техніка.
+              </p>
+            </div>
+
+            <div class="bubble client">
+              <span class="line-ref">L14</span>
+              <strong>Олеся:</strong>
+              <p>
+                …Так, я знаю цю техніку. Ну, якщо чесно — я не думаю,
+                що дихання тут допоможе. <em>Мені нічого не болить,
+                нічого не тривожить. Просто нічого немає.</em>
+              </p>
+            </div>
+
+            <p class="note">
+              Терапевтка завершила сесію, <strong>не запитавши прямо
+              про суїцидальні думки</strong>. За профілем у Олесі —
+              систематичні пасивні думки «а якщо я просто не прокинусь».
+              Якби запитали — отримали б правду.
             </p>
-          </article>
+          </section>
 
-          <article class="catch">
-            <div class="catch-head">
-              <span class="catch-icon" aria-hidden="true">📐</span>
-              <span class="catch-label">Виміри протоколу</span>
-            </div>
-            <h3>8 канонічних дімензій інтейку</h3>
-            <p>Reviewer оцінює сесію за 8 вимірами:</p>
-            <ul class="dims">
-              <li>Терапевтичний альянс <span class="dim-tag warn">частково</span></li>
-              <li>Збір презентуючої проблеми <span class="dim-tag warn">поверхневий</span></li>
-              <li>Робота з self-diagnosis <span class="dim-tag bad">відсутня</span></li>
-              <li>Скринінг ризиків <span class="dim-tag bad">КРИТИЧНО</span></li>
-              <li>Робоча гіпотеза <span class="dim-tag bad">не сформульована</span></li>
-              <li>Закриття сесії <span class="dim-tag bad">відсутнє</span></li>
-            </ul>
-          </article>
-        </section>
+          <section class="feedback-pane">
+            <h2 class="pane-title">Фідбек Opus-супервізора</h2>
+
+            <!-- Most striking catch first -->
+            <article class="catch critical">
+              <div class="catch-head">
+                <span class="catch-icon" aria-hidden="true">⚠</span>
+                <span class="catch-label">Найважливіше: пропущено</span>
+              </div>
+              <h3>Скринінг суїцидального ризику</h3>
+              <p>
+                Це <strong>головна проблема сесії</strong>. За профілем
+                Олеся має систематичні пасивні думки «а якщо я просто не
+                прокинусь». Вона б відповіла правду, якби запитали прямо.
+                Не запитали — і ця інформація залишиться поза терапією
+                щонайменше до наступної сесії, а можливо й довше.
+              </p>
+              <p>
+                На <span class="line-tag">[L14]</span> клієнтка дає прямий
+                сигнал, який мав би загорітися червоним:
+                «<strong>Мені нічого не болить, нічого не тривожить.
+                Просто нічого немає.</strong>» Це не опис настрою — це
+                опис стану, у якому пасивна суїцидальна ідеація типово
+                й існує.
+              </p>
+              <div class="rewrite">
+                <p class="rewrite-label">Що мало б прозвучати:</p>
+                <blockquote>
+                  Олесю, я хочу запитати прямо, бо це важливо. Чи бувають
+                  у вас зараз думки про те, що було б легше не прокинутись,
+                  не існувати, зникнути? Без планів — просто думки.
+                </blockquote>
+                <p class="rewrite-hint">
+                  Це не «травматизує» клієнтку. Навпаки — для людини з
+                  пасивною ідеацією прямо названа реальність часто є
+                  першим за місяці моментом, коли її <strong>побачили</strong>.
+                </p>
+              </div>
+            </article>
+
+            <article class="catch">
+              <div class="catch-head">
+                <span class="catch-icon" aria-hidden="true">🔍</span>
+                <span class="catch-label">Помічено + названо</span>
+              </div>
+              <h3>Інтелектуалізація як головний захист</h3>
+              <p>
+                На <span class="line-tag">[L11]</span> терапевтка спитала
+                «у вас уже є якась гіпотеза, що з вами відбувається?» —
+                і Олеся радо віддала клінічну формулу
+                («<em>великий депресивний епізод, анедонія, руминація</em>»).
+                За профілем Олеся <strong>інтелектуалізує як головний
+                захист</strong>. Це запитання запросило її саме в цей
+                захист.
+              </p>
+            </article>
+
+            <article class="catch">
+              <div class="catch-head">
+                <span class="catch-icon" aria-hidden="true">📐</span>
+                <span class="catch-label">Виміри протоколу</span>
+              </div>
+              <h3>8 канонічних дімензій інтейку</h3>
+              <p>Reviewer оцінює сесію за 8 вимірами:</p>
+              <ul class="dims">
+                <li>Терапевтичний альянс <span class="dim-tag warn">частково</span></li>
+                <li>Збір презентуючої проблеми <span class="dim-tag warn">поверхневий</span></li>
+                <li>Робота з self-diagnosis <span class="dim-tag bad">відсутня</span></li>
+                <li>Скринінг ризиків <span class="dim-tag bad">КРИТИЧНО</span></li>
+                <li>Робоча гіпотеза <span class="dim-tag bad">не сформульована</span></li>
+                <li>Закриття сесії <span class="dim-tag bad">відсутнє</span></li>
+              </ul>
+            </article>
+          </section>
+        }
       </div>
 
       <!-- CTA strip -->
       <section class="cta-band">
         <div class="cta-inner">
           <div class="cta-copy">
-            <h2>Запусти власну сесію</h2>
-            <p>
-              14 днів безкоштовно. 3 сесії з тренувальним фідбеком.
-              Без картки.
-            </p>
+            @if (i18n.isEn) {
+              <h2>Start your own session</h2>
+              <p>14 days free. 3 sessions with training feedback. No card required.</p>
+            } @else {
+              <h2>Запусти власну сесію</h2>
+              <p>
+                14 днів безкоштовно. 3 сесії з тренувальним фідбеком.
+                Без картки.
+              </p>
+            }
           </div>
           <div class="cta-actions">
             <a routerLink="/register" class="btn btn-primary">
-              Спробувати безкоштовно
+              {{ i18n.isEn ? 'Start free' : 'Спробувати безкоштовно' }}
             </a>
             <a routerLink="/pricing" class="btn btn-secondary">
-              Тарифи
+              {{ i18n.t('nav.pricing') }}
             </a>
           </div>
         </div>
       </section>
 
       <footer class="demo-footer">
+        @if (i18n.isEn) {
+          <p>
+            Emma Clarke is a <strong>fictional composite</strong> synthesised from
+            public clinical descriptions. Not a real person.
+          </p>
+        } @else {
+          <p>
+            Олеся — <strong>фіктивний композит</strong>, синтезований з
+            публічних клінічних описів. Не реальна особа.
+          </p>
+        }
         <p>
-          Олеся — <strong>фіктивний композит</strong>, синтезований з
-          публічних клінічних описів. Не реальна особа.
-        </p>
-        <p>
-          <a routerLink="/safety">Безпека та кризові ресурси →</a>
+          <a routerLink="/safety">{{ i18n.t('nav.safety') }}</a>
         </p>
       </footer>
     </div>
@@ -495,6 +543,26 @@ import { AnalyticsService } from '../analytics.service';
     .demo-footer a { color: #d8c9ff; text-decoration: none; }
     .demo-footer a:hover { text-decoration: underline; }
 
+    /* English demo: client card */
+    .client-card {
+      background: rgba(216, 201, 255, 0.06);
+      border: 1px solid rgba(216, 201, 255, 0.15);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    .client-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ecebf3;
+      margin: 0 0 6px;
+    }
+    .client-context {
+      font-size: 13px;
+      color: #a9a3bd;
+      margin: 0;
+    }
+
     @media (max-width: 480px) {
       .hero h1 { font-size: 24px; }
       .hero .subtitle { font-size: 14px; }
@@ -507,7 +575,26 @@ import { AnalyticsService } from '../analytics.service';
 })
 export class DemoComponent implements OnInit {
   private analytics = inject(AnalyticsService);
+  i18n = inject(I18nService);
+
   ngOnInit() {
     this.analytics.track('page.demo');
+  }
+
+  get demoContent() {
+    if (this.i18n.isEn) {
+      return {
+        clientName: 'Emma Clarke',
+        clientContext: '29, UX Designer, London — anxiety, grief after breakup',
+        findings: [
+          { icon: '⚠️', title: 'Critical Miss: Safety Screening', text: 'At L12, Emma says «everything feels pointless». This is passive suicidal ideation — requires direct screening. The therapist missed it entirely.' },
+          { icon: '🔍', title: 'Defence Mechanism Named', text: 'Emma uses intellectualisation throughout [L10, L14]. She explains her grief academically to avoid feeling it. The supervisor names this pattern and shows how to work with it.' },
+          { icon: '💔', title: 'Grief Unaddressed', text: 'Emma ended a 3-year relationship out of fear [L16] — the first time she said this out loud. The therapist pivoted to CBT homework instead of staying with the disclosure.' },
+        ],
+        heroTitle: 'Supervisor-level feedback after every session',
+        heroSubtitle: 'Reflect analyses 14 clinical dimensions in parallel — suicidality, defences, alliance, differential diagnosis, CBT technique quality, and more.',
+      };
+    }
+    return null; // use existing Ukrainian content
   }
 }

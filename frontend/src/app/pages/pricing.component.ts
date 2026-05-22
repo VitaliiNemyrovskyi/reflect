@@ -439,7 +439,7 @@ export class PricingComponent implements OnInit {
   status = signal<BillingStatus | null>(null);
   isLoggedIn = computed(() => !!this.auth.accessToken());
 
-  get displayPrices(): Record<string, string> {
+  get displayPrices(): { trial: string; lite: string; pro: string; master: string } {
     if (this.i18n.isEn) {
       return { trial: 'Free', lite: '£6', pro: '£14.50', master: '£36.50' };
     }
