@@ -499,7 +499,11 @@ export class ApiService {
   // ---------------------------------------------------------------
 
   listCharacters(): Promise<Character[]> {
-    return firstValueFrom(this.http.get<Character[]>(`${this.base}/characters`));
+    return firstValueFrom(
+      this.http.get<Character[]>(`${this.base}/characters`, {
+        headers: { 'Accept-Language': this.i18n.lang() },
+      }),
+    );
   }
 
   /**

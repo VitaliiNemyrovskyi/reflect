@@ -22,6 +22,11 @@ model Character {
   // 'individual' keeps existing rows in 1-on-1 mode without backfill.
   // Allowed: individual | couples | family | adolescent | crisis.
   modality       String    @default("individual")
+  /** Locale this character belongs to. 'uk' = Ukrainian (default),
+   *  'en' = English (EU market). Characters API filters by this field
+   *  based on the Accept-Language header so UK users see Olesya/Anna
+   *  and EN users see Emma/Thomas/Sophie. */
+  lang           String    @default("uk")
   avatarUrl      String?   // Link to portrait
   // Creator of a user-defined patient. null for system patients (loaded
   // from prompts/profiles/*.md on startup) — these are visible to all

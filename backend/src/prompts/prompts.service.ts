@@ -473,15 +473,12 @@ export class PromptsService implements OnModuleInit {
    * Each file's slug = filename (without .md). DisplayName extracted from
    * "# Профіль X" header, falls back to capitalized slug.
    */
-  private loadProfileFiles(): ProfileFile[] {
-    if (!existsSync(this.profilesDir)) {
-      this.logger.warn(`profiles directory missing: ${this.profilesDir}`);
-      return [];
-    }
-    const files = readdirSync(this.profilesDir).filter((f) => f.endsWith('.md'));
+  private loadProfileFilesFrom(dir: string): ProfileFile[] {
+    if (!existsSync(dir)) return [];
+    const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
     return files.map((file) => {
       const slug = file.replace(/\.md$/, '').toLowerCase();
-      const profileText = this.read(this.profilesDir, file).trim();
+      const profileText = readFileSync(resolve(dir, file), 'utf8').trim();
       // displayName resolution order, in priority:
       //   1. `Назва:` field in the metadata comment — explicit override.
       //      Use this for non-singular cases (couples, families) where
@@ -490,8 +487,14 @@ export class PromptsService implements OnModuleInit {
       //      individual patients (the legacy convention).
       //   3. Capitalized slug — last-resort fallback.
       const meta0 = profileText.match(/<!--([\s\S]*?)-->/);
-      const explicitName = meta0?.[1]?.match(/^\s*Назва:\s*(.+)$/m)?.[1]?.trim();
-      const nameMatch = profileText.match(/^[\s-*]*Ім'я:\s*([^\n,]+)/m);
+      // Support both Ukrainian "Назва:" and English "NAME:" in metadata comment
+      const explicitName =
+        meta0?.[1]?.match(/^\s*Назва:\s*(.+)$/m)?.[1]?.trim() ??
+        meta0?.[1]?.match(/^\s*NAME:\s*(.+)$/im)?.[1]?.trim();
+      // Support both "Ім'я:" (UA) and "**Name:**" (EN profile body)
+      const nameMatch =
+        profileText.match(/^[\s-*]*Ім'я:\s*([^\n,]+)/m) ??
+        profileText.match(/\*\*Name:\*\*\s*([^\n]+)/m);
       const fullName = nameMatch?.[1]?.trim();
       const firstName = fullName?.split(/\s+/)[0];
       const displayName =
@@ -506,20 +509,24 @@ export class PromptsService implements OnModuleInit {
       // -->
       const metaBlock = profileText.match(/<!--([\s\S]*?)-->/);
       const meta = metaBlock?.[1] ?? '';
-      const diagnosisMatch = meta.match(/^\s*Діагноз:\s*(.+)$/m);
-      // English DSM-5 / ICD code — shown as tooltip on UI for students who
-      // want to look up the original literature.
-      const diagnosisCodeMatch = meta.match(/^\s*Шифр:\s*(.+)$/m);
-      // Accept "Поведінка:" (preferred) or legacy "Складність:"
+      // Support both UA and EN metadata keys
+      const diagnosisMatch =
+        meta.match(/^\s*Діагноз:\s*(.+)$/m) ??
+        meta.match(/^\s*DIAGNOSIS:\s*(.+)$/im);
+      const diagnosisCodeMatch =
+        meta.match(/^\s*Шифр:\s*(.+)$/m) ??
+        meta.match(/^\s*DSM-5:\s*(.+)$/im);
       const difficultyMatch =
         meta.match(/^\s*Поведінка:\s*(\d)\b/m) ??
-        meta.match(/^\s*Складність:\s*(\d)\b/m);
-      const complexityMatch = meta.match(/^\s*Тяжкість:\s*(\d)\b/m);
+        meta.match(/^\s*Складність:\s*(\d)\b/m) ??
+        meta.match(/^\s*DIFFICULTY:\s*(\d)\b/im);
+      const complexityMatch =
+        meta.match(/^\s*Тяжкість:\s*(\d)\b/m) ??
+        meta.match(/^\s*COMPLEXITY:\s*(\d)\b/im);
       const avatarMatch = meta.match(/^\s*Avatar:\s*(\S+)/m);
-      // Optional modality key matching the catalog in modality.ts:
-      // individual | couples | family | adolescent | crisis. Unknown
-      // values are dropped (treated as 'individual' default).
-      const modalityMatch = meta.match(/^\s*Модальність:\s*(\w+)/m);
+      const modalityMatch =
+        meta.match(/^\s*Модальність:\s*(\w+)/m) ??
+        meta.match(/^\s*MODALITY:\s*(\w+)/im);
       const rawModality = modalityMatch?.[1]?.trim().toLowerCase() ?? null;
       const KNOWN = new Set(['individual', 'couples', 'family', 'adolescent', 'crisis']);
       const modality = rawModality && KNOWN.has(rawModality) ? rawModality : null;
@@ -539,31 +546,36 @@ export class PromptsService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    const profiles = this.loadProfileFiles();
-    if (profiles.length === 0) {
-      this.logger.warn(
-        'prompts/profiles/ порожнє. Додай профілі (Анна, Максим тощо), інакше картотека буде порожньою.',
-      );
+    // Load profiles from ALL locale directories so a single deployment
+    // serves both Ukrainian and English students without a restart.
+    //   prompts/profiles/     → lang='uk'  (Olesya, Anna, Daria…)
+    //   prompts/en/profiles/  → lang='en'  (Emma, Thomas, Sophie…)
+    const ukDir = resolve(this.promptsDir, 'profiles');
+    const enDir = resolve(this.promptsDir, 'en', 'profiles');
+
+    const allProfiles: Array<ProfileFile & { lang: string }> = [
+      ...this.loadProfileFilesFrom(ukDir).map((p) => ({ ...p, lang: 'uk' })),
+      ...(existsSync(enDir)
+        ? this.loadProfileFilesFrom(enDir).map((p) => ({ ...p, lang: 'en' }))
+        : []),
+    ];
+
+    if (allProfiles.length === 0) {
+      this.logger.warn('prompts/profiles/ порожнє — картотека буде порожньою.');
       return;
     }
 
-    // Track current slugs so we can clean up DB rows for deleted profile
-    // files. CRITICAL: only touch system patients (createdById === null).
-    // User-created patients live alongside in the same table but their
-    // lifecycle is managed via the API, not the filesystem.
-    const currentSlugs = new Set(profiles.map((p) => p.slug));
-    const dbCharacters = await this.prisma.character.findMany({
-      where: { createdById: null },
-    });
-    for (const c of dbCharacters) {
+    // Remove system characters whose profile files were deleted.
+    const currentSlugs = new Set(allProfiles.map((p) => p.slug));
+    const dbChars = await this.prisma.character.findMany({ where: { createdById: null } });
+    for (const c of dbChars) {
       if (!currentSlugs.has(c.slug)) {
-        await this.prisma.character.delete({ where: { id: c.id } }).catch(() => {
-          // If sessions reference it, leave it; admin can reassign
-        });
+        await this.prisma.character.delete({ where: { id: c.id } }).catch(() => {});
       }
     }
 
-    for (const p of profiles) {
+    // Upsert every profile, including the new `lang` field.
+    for (const p of allProfiles) {
       const data = {
         displayName: p.displayName,
         profileText: p.profileText,
@@ -571,31 +583,27 @@ export class PromptsService implements OnModuleInit {
         diagnosisCode: p.diagnosisCode,
         difficulty: p.difficulty,
         complexity: p.complexity,
-        // Modality falls back to 'individual' for legacy profiles that
-        // don't declare one — keeps existing 1-on-1 cases unchanged.
         modality: p.modality ?? 'individual',
+        lang: p.lang,
         avatarUrl: p.avatarUrl,
       };
       const existing = await this.prisma.character.findUnique({ where: { slug: p.slug } });
       if (existing) {
-        await this.prisma.character.update({
-          where: { id: existing.id },
-          data,
-        });
+        await this.prisma.character.update({ where: { id: existing.id }, data });
       } else {
-        await this.prisma.character.create({
-          data: { slug: p.slug, ...data },
-        });
+        await this.prisma.character.create({ data: { slug: p.slug, ...data } });
       }
       if (this.profileLooksUnfilled(p.profileText)) {
-        this.logger.warn(
-          `prompts/profiles/${p.slug}.md виглядає не заповненим. Заповни перед першою сесією.`,
-        );
+        this.logger.warn(`Profile ${p.slug} looks unfilled — populate before first session.`);
       }
     }
 
-    this.logger.log(
-      `Завантажено ${profiles.length} профіл${profiles.length === 1 ? 'ь' : 'і'}: ${profiles.map((p) => p.displayName).join(', ')}`,
-    );
+    const byLang = allProfiles.reduce<Record<string, string[]>>((acc, p) => {
+      (acc[p.lang] ??= []).push(p.displayName);
+      return acc;
+    }, {});
+    for (const [l, names] of Object.entries(byLang)) {
+      this.logger.log(`[${l}] ${names.length} profiles: ${names.join(', ')}`);
+    }
   }
 }

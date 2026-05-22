@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   NotFoundException,
@@ -151,14 +152,27 @@ export class CharactersController {
   }
 
   @Get()
-  async list(@CurrentUser() user: AuthUser) {
+  async list(
+    @CurrentUser() user: AuthUser,
+    @Headers('accept-language') langHeader?: string,
+  ) {
     const userId = user.id;
+    const lang = langHeader?.split(/[-,;]/)[0].trim().toLowerCase() === 'en' ? 'en' : 'uk';
     const me = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { isAdmin: true },
     });
+    const visibilityFilter = this.characters.visibilityFilter(userId, !!me?.isAdmin);
+    // System characters are filtered by locale; user-created characters
+    // are always shown regardless of lang (they belong to the user).
     const characters = await this.prisma.character.findMany({
-      where: this.characters.visibilityFilter(userId, !!me?.isAdmin),
+      where: {
+        AND: [
+          visibilityFilter,
+          // Show system chars for matching locale OR user-created chars (any locale)
+          { OR: [{ createdById: null, lang }, { createdById: { not: null } }] },
+        ],
+      },
       orderBy: { id: 'asc' },
     });
 
