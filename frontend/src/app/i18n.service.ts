@@ -233,6 +233,18 @@ export class I18nService {
    * Falls back to 'uk' on any error.
    */
   async init(): Promise<void> {
+    // User's explicit preference always wins over the server default.
+    // This lets them switch language once and have it persist across
+    // page refreshes without needing a separate EN deployment.
+    try {
+      const stored = localStorage.getItem('reflect.lang') as Lang | null;
+      if (stored === 'en' || stored === 'uk') {
+        this.setLang(stored);
+        return;
+      }
+    } catch { /* localStorage blocked (private browsing) — ignore */ }
+
+    // No stored preference → fall back to server default (REFLECT_LANG).
     try {
       const cfg = await firstValueFrom(
         this.http.get<{ lang: string }>('/api/config'),
