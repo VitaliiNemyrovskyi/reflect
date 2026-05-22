@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AuthService, type AuthResult, type AuthUser } from './auth.service';
+import { I18nService } from './i18n.service';
 
 export type ProgressBadge = 'improving' | 'stable' | 'worsening' | 'unknown';
 
@@ -462,8 +463,9 @@ export interface BillingStatus {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private http = inject(HttpClient);
-  private auth = inject(AuthService);
+  private http   = inject(HttpClient);
+  private auth   = inject(AuthService);
+  private i18n   = inject(I18nService);
   private base = '/api';
 
   // ---------------------------------------------------------------
@@ -687,6 +689,8 @@ export class ApiService {
     const token = this.auth.accessToken();
     const headers: Record<string, string> = { Accept: 'text/event-stream' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Tell the backend which language to generate feedback in.
+    headers['Accept-Language'] = this.i18n.lang();
 
     const response = await fetch(`${this.base}/sessions/${sessionId}/end-stream`, {
       method: 'POST',

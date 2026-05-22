@@ -44,6 +44,11 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
                class="ghost icon small"
                [title]="i18n.t('nav.settings')"
                [attr.aria-label]="i18n.t('nav.settings')">⚙</a>
+            <button class="ghost small lang-toggle"
+                    (click)="toggleLang()"
+                    [title]="i18n.isEn ? 'Switch to Ukrainian' : 'Switch to English'">
+              {{ i18n.isEn ? '🇺🇦 UK' : '🇬🇧 EN' }}
+            </button>
             <button class="ghost small" (click)="logout()">{{ i18n.t('nav.logout') }}</button>
           </div>
         }
@@ -839,6 +844,10 @@ export class CharactersListComponent implements OnInit {
 
   logout() {
     void this.auth.logout();
+  }
+
+  toggleLang() {
+    this.i18n.setLang(this.i18n.isEn ? 'uk' : 'en');
   }
 
   setDifficulty(d: number) {

@@ -15,45 +15,52 @@ interface ProfileFile {
   avatarUrl: string | null;
 }
 
+/**
+ * Per-language prompt bundle — all runtime-loaded prompts for one locale.
+ * Loaded eagerly at startup for each available language so per-request
+ * language switching adds zero I/O overhead.
+ */
+export interface LangBundle {
+  supervisorSystem: string;
+  supervisorProtocol: string;
+  criticReviewer: string;
+  /** skill name → prompt text */
+  skills: Map<string, string>;
+  skillsSynthesis: string;
+}
+
 @Injectable()
 export class PromptsService implements OnModuleInit {
   private readonly logger = new Logger(PromptsService.name);
 
   /**
-   * Active language for all prompts and profiles.
-   * Set via REFLECT_LANG env var ('uk' = Ukrainian default, 'en' = English).
-   * When 'en', prompts are loaded from prompts/en/*.md with fallback to
-   * the base Ukrainian prompts/*.md if an English version doesn't exist yet.
+   * Server default language (REFLECT_LANG env var, 'uk' fallback).
+   * Existing callers that don't pass a lang get this value implicitly.
    */
   readonly lang: string;
 
   readonly annaSystem: string;
-  readonly supervisorSystem: string;
-  readonly supervisorProtocol: string;
   readonly hintSystem: string;
   readonly patientGenerationSystem: string;
-  /** Second-pass reviewer prompt — the "two-pass feedback" mode loads
-   *  this and feeds the Pass-1 draft + transcript + profile to a
-   *  reviewer agent that returns an improved final version. */
-  readonly criticReviewer: string;
+
+  // ── Default-lang shorthands (backward compat) ──────────────────────────
+  get supervisorSystem():  string            { return this.bundle().supervisorSystem;  }
+  get supervisorProtocol(): string           { return this.bundle().supervisorProtocol; }
+  get criticReviewer():    string            { return this.bundle().criticReviewer;    }
+  get skills():            Map<string, string> { return this.bundle().skills;          }
+  get skillsSynthesis():   string            { return this.bundle().skillsSynthesis;   }
 
   /**
-   * Skill-agent prompts for the "skills" feedback mode. Each skill is a
-   * short, hyper-focused prompt targeting ONE clinical dimension. They
-   * run in parallel (Pass 2) and return JSON; a synthesis model (Pass 3)
-   * integrates the JSON findings with the Pass-1 draft → final feedback.
-   *
-   * Language-aware: loads from prompts/{lang}/skills/ with fallback to
-   * prompts/skills/ if the localised version is missing.
-   * Key: filename without .md (e.g. 'risk_screening').
+   * Return the LangBundle for `lang`, falling back to the default lang.
+   * Callers that care about per-request locale pass the lang explicitly;
+   * existing callers use the zero-arg form which uses `this.lang`.
    */
-  readonly skills: Map<string, string>;
+  bundle(lang?: string): LangBundle {
+    const l = lang || this.lang;
+    return this._bundles.get(l) ?? this._bundles.get('uk')!;
+  }
 
-  /** Synthesis template — combines Pass-1 draft + skill JSON results
-   *  into final coherent feedback. Placeholders: PROFILE, TRANSCRIPT,
-   *  NOTES, DRAFT, SKILL_RESULTS. */
-  readonly skillsSynthesis: string;
-
+  private readonly _bundles = new Map<string, LangBundle>();
   private readonly promptsDir: string;
   private readonly profilesDir: string;
 
@@ -62,31 +69,11 @@ export class PromptsService implements OnModuleInit {
       process.env.PROMPTS_DIR ?? resolve(process.cwd(), '..', 'prompts');
     const promptsDir = this.promptsDir;
 
-    // Language selection: REFLECT_LANG env var, default 'uk'.
-    // 'en' loads from prompts/en/ with graceful fallback to prompts/.
     this.lang = (process.env.REFLECT_LANG?.trim().toLowerCase() || 'uk');
 
-    this.annaSystem = this.read(promptsDir, 'anna_system.md'); // not localised yet
-    this.supervisorSystem = this.readLang('supervisor_system.md');
-    const protocolRaw = this.readLang('supervisor_protocol.md');
-    // Strip header sections (sources list, mapping table) before runtime —
-    // the eight dimension sections carry all the grading criteria the LLM
-    // needs. Saves ~3K tokens per feedback call.
-    // Supports both Ukrainian ("Вимір 1.") and English ("Dimension 1.") headings.
-    const firstDimensionIdx = protocolRaw.search(
-      /^##\s*(Вимір|Dimension)\s*1\./m,
-    );
-    const protocolTitle =
-      this.lang === 'en'
-        ? '# First (Intake) Session Protocol\n\n'
-        : '# Протокол першої (інтейкової) сесії\n\n';
-    this.supervisorProtocol =
-      firstDimensionIdx >= 0
-        ? protocolTitle + protocolRaw.slice(firstDimensionIdx).trimEnd()
-        : protocolRaw;
+    this.annaSystem = this.read(promptsDir, 'anna_system.md');
     this.hintSystem = this.read(promptsDir, 'hint_system.md');
     this.patientGenerationSystem = this.read(promptsDir, 'patient_generation_system.md');
-    this.criticReviewer = this.readLang('critic_reviewer.md');
 
     // Profiles directory: prefer lang-specific, fall back to base.
     const langProfilesDir = resolve(promptsDir, this.lang, 'profiles');
@@ -94,32 +81,70 @@ export class PromptsService implements OnModuleInit {
       ? langProfilesDir
       : resolve(promptsDir, 'profiles');
 
-    // Load skill prompts — language-aware with fallback to Ukrainian.
-    const langSkillsDir  = resolve(promptsDir, this.lang, 'skills');
-    const baseSkillsDir  = resolve(promptsDir, 'skills');
-    const skillsDir      = existsSync(langSkillsDir) ? langSkillsDir : baseSkillsDir;
-    this.skills = new Map();
+    // Eagerly load every locale that has a skills directory so per-request
+    // language switching has zero file I/O at request time.
+    const availableLangs = ['uk', 'en'].filter(l =>
+      l === 'uk'
+        ? true // base always available
+        : existsSync(resolve(promptsDir, l, 'skills')),
+    );
+    for (const l of availableLangs) {
+      this._bundles.set(l, this.buildBundle(l));
+    }
+    this.logger.log(
+      `PromptsService default=${this.lang} bundles=[${[...this._bundles.keys()].join(',')}] ` +
+      `skills=${this.bundle().skills.size}`,
+    );
+  }
+
+  // ── Private: bundle builder ──────────────────────────────────────────────
+
+  private buildBundle(lang: string): LangBundle {
+    const promptsDir = this.promptsDir;
+
+    const readForLang = (name: string): string => {
+      if (lang !== 'uk') {
+        const p = resolve(promptsDir, lang, name);
+        if (existsSync(p)) return readFileSync(p, 'utf8');
+      }
+      return readFileSync(resolve(promptsDir, name), 'utf8');
+    };
+
+    const supervisorSystemRaw = readForLang('supervisor_system.md');
+    const protocolRaw  = readForLang('supervisor_protocol.md');
+    const firstDimIdx  = protocolRaw.search(/^##\s*(Вимір|Dimension)\s*1\./m);
+    const protocolTitle = lang === 'en'
+      ? '# First (Intake) Session Protocol\n\n'
+      : '# Протокол першої (інтейкової) сесії\n\n';
+    const supervisorProtocol = firstDimIdx >= 0
+      ? protocolTitle + protocolRaw.slice(firstDimIdx).trimEnd()
+      : protocolRaw;
+
+    const criticReviewer = readForLang('critic_reviewer.md');
+
+    const langSkillsDir = resolve(promptsDir, lang, 'skills');
+    const baseSkillsDir = resolve(promptsDir, 'skills');
+    const skillsDir     = existsSync(langSkillsDir) ? langSkillsDir : baseSkillsDir;
+    const skills        = new Map<string, string>();
     if (existsSync(skillsDir)) {
       for (const file of readdirSync(skillsDir)) {
         if (!file.endsWith('.md')) continue;
         const name = file.slice(0, -3);
         if (name === 'synthesis') continue;
-        this.skills.set(name, readFileSync(resolve(skillsDir, file), 'utf8'));
-        this.logger.debug(`Loaded skill [${this.lang}]: ${name}`);
+        skills.set(name, readFileSync(resolve(skillsDir, file), 'utf8'));
       }
     }
-    const synthPath = resolve(skillsDir, 'synthesis.md');
-    this.skillsSynthesis = existsSync(synthPath)
+    const synthPath      = resolve(skillsDir, 'synthesis.md');
+    const skillsSynthesis = existsSync(synthPath)
       ? readFileSync(synthPath, 'utf8')
-      : this.criticReviewer;
-    this.logger.log(
-      `PromptsService lang=${this.lang} skills=${this.skills.size} profiles=${this.profilesDir}`,
-    );
+      : criticReviewer;
+
+    return { supervisorSystem: supervisorSystemRaw, supervisorProtocol, criticReviewer, skills, skillsSynthesis };
   }
 
   /**
-   * Read a prompt file with language-aware fallback.
-   * Tries prompts/{lang}/{name} first, then prompts/{name}.
+   * Read a prompt file with language-aware fallback (uses default lang).
+   * @deprecated — internal helper; use buildBundle() for new code.
    */
   private readLang(name: string): string {
     if (this.lang !== 'uk') {

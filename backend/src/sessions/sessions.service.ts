@@ -614,6 +614,8 @@ export class SessionsService {
   async *endStream(
     userId: number,
     sessionId: number,
+    /** Per-request locale. Falls back to server default (REFLECT_LANG). */
+    lang: string = this.prompts.lang,
   ): AsyncGenerator<
     | { type: 'cached'; data: { feedback: string; assessment: unknown } }
     | { type: 'chunk'; data: { text: string } }
@@ -636,7 +638,7 @@ export class SessionsService {
       return;
     }
 
-    const ctx = await this.buildFeedbackContext(session, sessionId);
+    const ctx = await this.buildFeedbackContext(session, sessionId, lang);
 
     let raw = '';
 
@@ -680,7 +682,7 @@ export class SessionsService {
         //   in blind tests) and is 5× cheaper than Opus. We don't stream
         //   it because its output feeds Pass 3 as context, so we need the
         //   full text before starting the next call.
-        const r1Blocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
+        const r1Blocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript, lang);
         this.logger.log(`ensemble pass-2: ${reviewerCfg.primary}`);
         // Non-streaming — we need the full output before starting pass-3.
         // If DeepSeek R1 times out or fails, degrade gracefully: pass-3
@@ -713,7 +715,7 @@ export class SessionsService {
         //   adds verbatim «quote» [L<n>] citations (DeepSeek uses paraphrase
         //   style), catches any remaining missed signals, tightens tone.
         //   Together they cover 8/8 clinical signals empirically.
-        const r2Blocks = await this.buildReviewerContext(session, sessionId, review1, ctx.transcript);
+        const r2Blocks = await this.buildReviewerContext(session, sessionId, review1, ctx.transcript, lang);
         this.logger.log(`ensemble pass-3: ${reviewerCfg.secondary}`);
         for await (const chunk of this.streamFeedbackWithFallback(
           r2Blocks,
@@ -728,7 +730,7 @@ export class SessionsService {
         // Pass 2 = reviewer → use the user's plan-tier model.
         // Falls back to Haiku draft model if reviewer stalls before first
         // chunk so the student still gets SOMETHING instead of a 504.
-        const reviewerBlocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
+        const reviewerBlocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript, lang);
         this.logger.log(`two-pass reviewer: ${reviewerCfg.primary}`);
         for await (const chunk of this.streamFeedbackWithFallback(
           reviewerBlocks,
@@ -757,7 +759,9 @@ export class SessionsService {
         type: 'progress',
         data: {
           stage: 'skills',
-          message: `Чернетка + ${this.prompts.skills.size} спеціалізованих агентів паралельно…`,
+          message: lang === 'en'
+            ? `Draft + ${this.prompts.bundle(lang).skills.size} specialist agents in parallel…`
+            : `Чернетка + ${this.prompts.bundle(lang).skills.size} спеціалізованих агентів паралельно…`,
         },
       };
 
@@ -783,7 +787,7 @@ export class SessionsService {
           model: this.llm.modelFeedback,
           maxTokens: 3072,
         }),
-        this.runSkillChecks(ctx.transcript, slimProf, notesText),
+        this.runSkillChecks(ctx.transcript, slimProf, notesText, lang),
       ]);
 
       yield {
@@ -799,7 +803,7 @@ export class SessionsService {
       // skill JSONs → final coherent feedback streaming to client.
       // Uses a dedicated synthesizer model (not the tier-based reviewer)
       // so ALL users get the same quality regardless of plan tier.
-      const synthesisFilled = this.prompts.fill(this.prompts.skillsSynthesis, {
+      const synthesisFilled = this.prompts.fill(this.prompts.bundle(lang).skillsSynthesis, {
         PROFILE: slimProf,
         TRANSCRIPT: ctx.transcript,
         NOTES: notesText,
@@ -854,9 +858,15 @@ export class SessionsService {
     transcript: string,
     slimProfile: string,
     notesText: string,
+    lang: string = this.prompts.lang,
   ): Promise<string> {
-    const skills = [...this.prompts.skills.entries()];
+    const bundle = this.prompts.bundle(lang);
+    const skills = [...bundle.skills.entries()];
     if (skills.length === 0) return '_(skill prompts not loaded)_';
+
+    const analyseInstruction = lang === 'en'
+      ? 'Analyse the transcript according to the instructions above. Return only JSON.'
+      : 'Проаналізуй транскрипт згідно інструкції вище. Поверни тільки JSON.';
 
     const results = await Promise.allSettled(
       skills.map(async ([name, template]) => {
@@ -867,7 +877,7 @@ export class SessionsService {
         });
         const raw = await this.llm.chat({
           systemPrompt: filled,
-          history: [{ role: 'user', content: 'Проаналізуй транскрипт згідно інструкції вище. Поверни тільки JSON.' }],
+          history: [{ role: 'user', content: analyseInstruction }],
           model: this.llm.modelFeedback, // cheap draft model — focused single-dimension tasks
           // 800 tokens: Gemini Flash needs 436 avg (max 757 observed).
           // Haiku needs 1200+ and still truncates 4/14 skills — Gemini
@@ -984,6 +994,7 @@ export class SessionsService {
     sessionId: number,
     draft: string,
     transcript: string,
+    lang: string = this.prompts.lang,
   ): Promise<{ text: string; cache?: boolean }[]> {
     const notes = await this.prisma.note.findMany({
       where: { sessionId },
@@ -999,7 +1010,7 @@ export class SessionsService {
           .join('\n')
       : '_(нотаток терапевта на цій сесії немає)_';
 
-    const filled = this.prompts.fill(this.prompts.criticReviewer, {
+    const filled = this.prompts.fill(this.prompts.bundle(lang).criticReviewer, {
       PROFILE: session.character.profileText,
       TRANSCRIPT: transcript,
       NOTES: notesText,
@@ -1011,6 +1022,7 @@ export class SessionsService {
   private async buildFeedbackContext(
     session: { character: { profileText: string; displayName: string; modality?: string | null } },
     sessionId: number,
+    lang: string = this.prompts.lang,
   ): Promise<{
     systemBlocks: { text: string; cache?: boolean }[];
     transcript: string;
@@ -1085,14 +1097,15 @@ export class SessionsService {
     // two consecutive feedbacks for the same character within the 5-min
     // ephemeral TTL get both [A] and [B] from cache; for different
     // characters, only [A] is shared.
-    const tpl = this.prompts.supervisorSystem;
+    const b   = this.prompts.bundle(lang);
+    const tpl = b.supervisorSystem;
     const profileIdx = tpl.indexOf('{{PROFILE}}');
     const transcriptIdx = tpl.indexOf('{{TRANSCRIPT}}');
     if (profileIdx < 0 || transcriptIdx < 0 || profileIdx >= transcriptIdx) {
       // Template structure changed — fall back to a single uncached block
       // rather than mis-cutting the prompt.
       const flat = this.prompts.fill(tpl, {
-        PROTOCOL: this.prompts.supervisorProtocol,
+        PROTOCOL: b.supervisorProtocol,
         PROFILE: session.character.profileText,
         TRANSCRIPT: transcript,
         NOTES: notesText,
@@ -1103,7 +1116,7 @@ export class SessionsService {
     const supervisorAndProtocol =
       tpl
         .substring(0, profileIdx)
-        .replaceAll('{{PROTOCOL}}', this.prompts.supervisorProtocol)
+        .replaceAll('{{PROTOCOL}}', b.supervisorProtocol)
       // Append the supervisor brevity instruction to block A — it's
       // stable across ALL sessions, so it stays cache-friendly. Caps
       // narrative at 800-1500 words and forbids generic truisms.

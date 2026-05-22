@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -111,6 +112,9 @@ export class SessionsController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthUser,
     @Res() res: Response,
+    /** Accept-Language: en | uk — drives which locale the feedback is
+     *  generated in. Sent by the frontend based on I18nService.lang. */
+    @Headers('accept-language') langHeader?: string,
   ) {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -130,7 +134,9 @@ export class SessionsController {
     };
 
     try {
-      for await (const event of this.sessions.endStream(user.id, id)) {
+      // Normalise: 'en-GB', 'en-US' → 'en'; anything else → 'uk'.
+      const lang = langHeader?.split(/[-,;]/)[0].trim().toLowerCase() === 'en' ? 'en' : 'uk';
+      for await (const event of this.sessions.endStream(user.id, id, lang)) {
         send(event.type, event.data);
       }
     } catch (e: unknown) {
