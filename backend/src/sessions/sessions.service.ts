@@ -869,7 +869,10 @@ export class SessionsService {
           systemPrompt: filled,
           history: [{ role: 'user', content: 'Проаналізуй транскрипт згідно інструкції вище. Поверни тільки JSON.' }],
           model: this.llm.modelFeedback, // cheap draft model — focused single-dimension tasks
-          maxTokens: 350, // JSON skills need ~200-300 tokens; 350 is safe headroom
+          // 800 tokens: Gemini Flash needs 436 avg (max 757 observed).
+          // Haiku needs 1200+ and still truncates 4/14 skills — Gemini
+          // is the right model here (set via LLM_MODEL_FEEDBACK env var).
+          maxTokens: 800,
         });
         return { name, raw };
       }),
