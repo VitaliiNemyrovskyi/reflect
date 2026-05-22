@@ -228,7 +228,9 @@ const SPOILER_PATTERNS: RegExp[] = [
               <p class="quote-body">{{ presentingComplaint() }}</p>
               <footer class="quote-foot">
                 <span class="quote-bar"></span>
-                @if (feminine()) {
+                @if (i18n.isEn) {
+                  How the client might frame this in their first session
+                } @else if (feminine()) {
                   Як пацієнтка озвучила б це сама на першій сесії
                 } @else {
                   Як пацієнт озвучив би це сам на першій сесії
@@ -252,7 +254,9 @@ const SPOILER_PATTERNS: RegExp[] = [
               </header>
               <p class="memory-body">{{ memory.text }}</p>
               <footer class="memory-foot">
-                @if (feminine()) {
+                @if (i18n.isEn) {
+                  What they will carry into the next session
+                } @else if (feminine()) {
                   Те, з чим вона прийде на наступну сесію
                 } @else {
                   Те, з чим він прийде на наступну сесію
@@ -2355,12 +2359,16 @@ export class PatientDetailComponent implements OnInit {
    *  the full markdown lives in the Profile tab; here we extract a few
    *  fields as a compact summary so the two tabs don't show the same
    *  thing twice. */
-  basicsSection = computed(() => this.profileSections().find((s) => /базов/i.test(s.title)));
+  basicsSection = computed(() =>
+    this.profileSections().find((s) => /базов|basic\s+info/i.test(s.title)),
+  );
 
   /** Section "5. Як вона говорить" — affect/voice/body description.
    *  Used elsewhere; the Overview tab does NOT render this anymore (was
    *  a duplicate of the Profile-tab section). */
-  voiceSection = computed(() => this.profileSections().find((s) => /говорит|голос|афект/i.test(s.title)));
+  voiceSection = computed(() =>
+    this.profileSections().find((s) => /говорит|голос|афект|communication|voice|affect/i.test(s.title)),
+  );
 
   /**
    * Compact key-value pairs extracted from the basics section bullets
@@ -2371,34 +2379,46 @@ export class PatientDetailComponent implements OnInit {
   quickFacts = computed<{ label: string; value: string }[]>(() => {
     const body = this.basicsSection()?.bodyText;
     if (!body) return [];
-    const wanted: { key: RegExp; label: string }[] = [
-      { key: /^вік$/i, label: 'Вік' },
+    const isEn = this.i18n.isEn;
+    const wanted: { key: RegExp; label: string }[] = isEn ? [
+      { key: /^age$/i,             label: 'Age' },
+      { key: /^location$/i,        label: 'Location' },
+      { key: /^occupation$/i,      label: 'Occupation' },
+      { key: /^living\s+sit/i,     label: 'Living situation' },
+      { key: /^referral$/i,        label: 'Referral' },
+    ] : [
+      { key: /^вік$/i,             label: 'Вік' },
       { key: /^місто.*район|^місто$/i, label: 'Місто' },
-      { key: /^сімейний стан$/i, label: 'Сімейний стан' },
-      { key: /^освіта$/i, label: 'Освіта' },
-      { key: /^робота($|\s|\b)/i, label: 'Робота' },
+      { key: /^сімейний стан$/i,   label: 'Сімейний стан' },
+      { key: /^освіта$/i,          label: 'Освіта' },
+      { key: /^робота($|\s|\b)/i,  label: 'Робота' },
     ];
     const facts: { label: string; value: string }[] = [];
     for (const raw of body.split('\n')) {
-      const m = raw.match(/^[-*]\s+([^:]+):\s*(.+)$/);
+      // Support both UA bullet style "- Key: val" and EN bold style "**Key:** val"
+      const m = raw.match(/^[-*]\s+([^:]+):\s*(.+)$/)
+              ?? raw.match(/^\*{1,2}([^*:]+)\*{0,2}:\*{0,2}\s*(.+)$/);
       if (!m) continue;
-      const [, key, value] = m;
-      const cleanKey = key.trim();
+      const cleanKey = m[1].trim();
+      const value    = m[2].trim();
       const w = wanted.find((x) => x.key.test(cleanKey));
       if (!w) continue;
-      // Don't repeat if we already grabbed this label (some profiles
-      // have "Робота до 2022" + "Робота зараз" — keep first match).
       if (facts.some((f) => f.label === w.label)) continue;
-      facts.push({ label: w.label, value: value.trim() });
+      facts.push({ label: w.label, value });
     }
     return facts;
   });
 
-  /** True if avatar style is `lorelei` — used as a gender proxy so the
-   *  presenting-complaint sub-caption agrees with the patient's gender. */
+  /** True if the patient presents as female — used for gendered pronouns
+   *  in Ukrainian captions. For Ukrainian profiles: avatar URL contains
+   *  '/lorelei/'. For English profiles: check profileText for 'she/her'
+   *  or 'her ' in the first 300 characters (EN profiles use "she/her"). */
   feminine = computed(() => {
     const url = this.patient()?.avatarUrl ?? '';
-    return url.includes('/lorelei/');
+    if (url.includes('/lorelei/')) return true;
+    // EN profiles: detect from pronoun hints in the opening section
+    const text = (this.patient()?.profileText ?? '').slice(0, 400).toLowerCase();
+    return /\bshe\b|\bher\b/.test(text);
   });
 
   // ─── Hero sectors (radial vital readouts) ───────────────────────────
@@ -2554,7 +2574,9 @@ export class PatientDetailComponent implements OnInit {
    *  the student sees the "presenting" version, not the "honest under-the-
    *  hood" version which is a spoiler. */
   presentingComplaint = computed<string | null>(() => {
-    const sec = this.profileSections().find((s) => /приве|запит/i.test(s.title));
+    const sec = this.profileSections().find((s) =>
+      /приве|запит|brought|presenting\s+problem|what\s+brought/i.test(s.title),
+    );
     if (!sec) return null;
     return extractPresentingComplaint(sec.bodyText);
   });
