@@ -90,6 +90,16 @@ const T: Record<Lang, Record<string, string>> = {
     'pricing.upgrade':   'Оновити',
     'pricing.choose':    'Обрати',
 
+    // Modality labels
+    'modality.individual': 'Індивідуальна',
+    'modality.couples':    'Парна',
+    'modality.family':     'Сімейна',
+    'modality.adolescent': 'Підліткова',
+    'modality.crisis':     'Кризова',
+
+    // Session labels
+    'session.no_sessions': 'сесій ще не було',
+
     // General
     'general.loading':   'Завантаження…',
     'general.error':     'Щось пішло не так',
@@ -122,6 +132,16 @@ const T: Record<Lang, Record<string, string>> = {
     'chars.new_patient':  '+ New client',
     'chars.complexity':   'Complexity',
     'chars.modality':     'Modality',
+
+    // Modality labels (EN)
+    'modality.individual': 'Individual',
+    'modality.couples':    'Couples',
+    'modality.family':     'Family',
+    'modality.adolescent': 'Adolescent',
+    'modality.crisis':     'Crisis',
+
+    // Session labels (EN)
+    'session.no_sessions': 'no sessions yet',
 
     // Chat
     'chat.placeholder':   'Therapist response…',

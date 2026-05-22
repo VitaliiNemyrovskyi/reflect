@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, Character, ModalityInfo, ModalityKey, ProgressBadge } from '../api.service';
 import { AuthService } from '../auth.service';
@@ -65,7 +65,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
               class="chip"
               [class.active]="modalityFilter() === null"
               (click)="modalityFilter.set(null)">
-              Усі типи ({{ characters().length }})
+              {{ i18n.isEn ? 'All types' : 'Усі типи' }} ({{ characters().length }})
             </button>
             @for (m of visibleModalities(); track m.key) {
               <button
@@ -74,7 +74,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
                 [title]="m.description"
                 (click)="toggleModality(m.key)">
                 <span class="modality-icon">{{ m.icon }}</span>
-                {{ m.label }} ({{ countByModality(m.key) }})
+                {{ i18n.t('modality.' + m.key) }} ({{ countByModality(m.key) }})
               </button>
             }
           </div>
@@ -84,7 +84,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
             class="chip"
             [class.active]="difficultyFilter() === null"
             (click)="difficultyFilter.set(null)">
-            Усі ({{ characters().length }})
+            {{ i18n.isEn ? 'All' : 'Усі' }} ({{ characters().length }})
           </button>
           @for (d of [1, 2, 3, 4, 5]; track d) {
             @if (countByDifficulty(d) > 0) {
@@ -112,15 +112,15 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
     @if (stats(); as st) {
       <section class="stats-strip fx-fade-up">
         <div class="stat-cell">
-          <span class="stat-label">Сесій усього</span>
+          <span class="stat-label">{{ i18n.isEn ? 'Sessions total' : 'Сесій усього' }}</span>
           <span class="stat-value">{{ st.totalSessions }}</span>
         </div>
         <div class="stat-cell">
-          <span class="stat-label">Активних кейсів</span>
+          <span class="stat-label">{{ i18n.isEn ? 'Active cases' : 'Активних кейсів' }}</span>
           <span class="stat-value">{{ st.activeCases }}<small> / {{ characters().length }}</small></span>
         </div>
         <div class="stat-cell">
-          <span class="stat-label">Остання сесія</span>
+          <span class="stat-label">{{ i18n.isEn ? 'Last session' : 'Остання сесія' }}</span>
           <span class="stat-value">{{ st.lastSessionAgo }}</span>
         </div>
       </section>
@@ -235,7 +235,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
                     </span>
                   }
                 } @else {
-                  <span class="meta-stat dim">сесій ще не було</span>
+                  <span class="meta-stat dim">{{ i18n.t('session.no_sessions') }}</span>
                 }
               </div>
             </div>
@@ -740,6 +740,27 @@ export class CharactersListComponent implements OnInit {
   readonly i18n = inject(I18nService);
 
   characters = signal<Character[]>([]);
+
+  constructor() {
+    // Re-fetch the character list whenever the locale changes so the
+    // card grid immediately shows the right-language patients without
+    // a manual page refresh.
+    effect(() => {
+      void this.i18n.lang(); // subscribe — runs again on every lang change
+      void this.loadCharacters();
+    });
+  }
+
+  private async loadCharacters() {
+    this.loading.set(true);
+    try {
+      this.characters.set(await this.api.listCharacters());
+    } catch {
+      // Keep existing list; error surface stays in ngOnInit
+    } finally {
+      this.loading.set(false);
+    }
+  }
   loading = signal(true);
   error = signal<string | null>(null);
   difficultyFilter = signal<number | null>(null);
@@ -880,9 +901,14 @@ export class CharactersListComponent implements OnInit {
       .catch(() => { /* silent: filter row + badges fall back to "no labels" */ });
 
     try {
+      // loadCharacters() is also called by the lang effect, but that
+      // fires after the first render; here we explicitly load on init
+      // to satisfy the loading → character list flow.
       this.characters.set(await this.api.listCharacters());
     } catch {
-      this.error.set('Сервер недоступний. Перевір, чи API запущений на :3000.');
+      this.error.set(this.i18n.isEn
+        ? 'Server unavailable. Check that the API is running.'
+        : 'Сервер недоступний. Перевір, чи API запущений на :3000.');
     } finally {
       this.loading.set(false);
     }
