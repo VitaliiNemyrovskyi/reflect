@@ -10,7 +10,17 @@
  */
 
 export type PlanId = 'trial' | 'lite' | 'pro' | 'master';
-export type ReviewerModelTier = 'sonnet' | 'opus';
+/**
+ * Reviewer model tier for Pass-2 (and optional Pass-3 in ensemble):
+ *  sonnet     — Claude Sonnet 4.6 via OpenRouter (Trial/Lite)
+ *  deepseek-r1 — DeepSeek R1 via OpenRouter; 5× cheaper than Opus,
+ *               same 7/8 clinical-signal coverage in blind comparison
+ *  opus       — Claude Opus 4.7 via OpenRouter (legacy, high cost)
+ *  ensemble   — 3-pass chain: Haiku draft → DeepSeek R1 → Qwen 3.7 Max
+ *               Catches 8/8 signals (each model sees different gaps).
+ *               Sequential: Qwen reads and refines DeepSeek's review.
+ */
+export type ReviewerModelTier = 'sonnet' | 'deepseek-r1' | 'opus' | 'ensemble';
 
 export interface PlanConfig {
   id: PlanId;
@@ -37,8 +47,12 @@ export interface PlanConfig {
   /** Pro tier "soft cap" — at this count, user sees an upgrade nudge
    *  but is NOT blocked. Protects margin without blocking power users. */
   softCap: number | null;
-  /** Reviewer pass model. trial+lite → Sonnet (good enough), pro+master
-   *  → Opus (deep). The draft model (Pass 1) stays Haiku for all tiers. */
+  /** Reviewer pass model tier (see ReviewerModelTier). Trial+Lite get
+   *  Sonnet (good enough for basics). Pro gets DeepSeek R1 (same 7/8
+   *  clinical signal coverage as Opus at 5× lower cost — $0.040 vs
+   *  $0.157). Master gets ensemble (3-pass chain: DeepSeek R1 then
+   *  Qwen 3.7 Max) for maximum coverage at still slightly cheaper
+   *  cost than Opus alone ($0.142 vs $0.157). */
   reviewerModel: ReviewerModelTier;
   /** Trial limits to first N system characters (sorted by display
    *  order). Paid tiers see all. */
@@ -167,7 +181,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     trialDays: null,
     sessionLimit: null,
     softCap: null,
-    reviewerModel: 'opus',
+    reviewerModel: 'ensemble',
     charactersAccessibleCount: null,
     modalitiesAllAccess: true,
     features: {
@@ -182,6 +196,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     },
     highlights: [
       'Все з Pro',
+      'Ensemble-фідбек (3 AI-агенти: DeepSeek R1 + Qwen) — максимальна глибина',
       'Створи власних персонажів під свою практику',
       'Advanced analytics: alliance tracking, heatmaps',
       'Експорт сесій у Notion',
@@ -199,17 +214,61 @@ export function planRank(id: PlanId): number {
   return PLAN_ORDER.indexOf(id);
 }
 
-/** Map a plan ID to the OpenRouter/Anthropic model identifier for
- *  the Pass-2 reviewer. The draft model (Pass 1) is unaffected — it
- *  uses LlmService.modelFeedback for everyone, regardless of plan. */
+/**
+ * Reviewer configuration for two-pass (and optional three-pass ensemble)
+ * feedback generation. `secondary` is non-null only for 'ensemble' tier —
+ * it represents the Pass-3 refinement model (Qwen 3.7 Max). When non-null
+ * the session service runs a 3-pass chain:
+ *   Pass 1 → Haiku draft
+ *   Pass 2 → primary reviewer (DeepSeek R1) — non-streaming, blocking
+ *   Pass 3 → secondary reviewer (Qwen 3.7 Max) — streaming to client
+ *
+ * For non-OpenRouter providers the DeepSeek/Qwen models are unavailable —
+ * they fall back to Sonnet (primary) / null (secondary) gracefully.
+ */
+export interface ReviewerConfig {
+  primary: string;
+  secondary: string | null; // null = 2-pass mode
+}
+
+/** Map a plan ID to the reviewer model config.
+ *  The draft model (Pass 1) is unaffected — it uses
+ *  LlmService.modelFeedback for everyone, regardless of plan. */
+export function resolveReviewerConfig(
+  plan: PlanId,
+  provider: 'anthropic' | 'openrouter',
+): ReviewerConfig {
+  const tier = PLANS[plan].reviewerModel;
+
+  if (provider === 'anthropic') {
+    // Anthropic-native doesn't route DeepSeek/Qwen; degrade gracefully.
+    if (tier === 'opus' || tier === 'ensemble') {
+      return { primary: 'claude-opus-4-7', secondary: null };
+    }
+    return { primary: 'claude-sonnet-4-6', secondary: null };
+  }
+
+  // OpenRouter — full model menu available.
+  switch (tier) {
+    case 'ensemble':
+      return {
+        primary: 'deepseek/deepseek-r1',
+        secondary: 'qwen/qwen3.7-max',
+      };
+    case 'deepseek-r1':
+      return { primary: 'deepseek/deepseek-r1', secondary: null };
+    case 'opus':
+      return { primary: 'anthropic/claude-opus-4-7', secondary: null };
+    default: // 'sonnet'
+      return { primary: 'anthropic/claude-sonnet-4-6', secondary: null };
+  }
+}
+
+/** @deprecated Use resolveReviewerConfig instead. Kept for any callers
+ *  that haven't been updated yet — returns the primary model ID. */
 export function resolveReviewerModelId(
   plan: PlanId,
   provider: 'anthropic' | 'openrouter',
 ): string {
-  const tier = PLANS[plan].reviewerModel;
-  if (provider === 'anthropic') {
-    return tier === 'opus' ? 'claude-opus-4-7' : 'claude-sonnet-4-6';
-  }
-  // openrouter
-  return tier === 'opus' ? 'anthropic/claude-opus-4-7' : 'anthropic/claude-sonnet-4-6';
+  return resolveReviewerConfig(plan, provider).primary;
 }

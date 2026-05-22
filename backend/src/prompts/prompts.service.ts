@@ -28,11 +28,30 @@ export class PromptsService implements OnModuleInit {
    *  this and feeds the Pass-1 draft + transcript + profile to a
    *  reviewer agent that returns an improved final version. */
   readonly criticReviewer: string;
+
+  /**
+   * Skill-agent prompts for the "skills" feedback mode. Each skill is a
+   * short, hyper-focused prompt targeting ONE clinical dimension. They
+   * run in parallel (Pass 2) and return JSON; a synthesis model (Pass 3)
+   * integrates the JSON findings with the Pass-1 draft → final feedback.
+   *
+   * Loaded from prompts/skills/*.md (except synthesis.md).
+   * Key: filename without .md (e.g. 'risk_screening').
+   */
+  readonly skills: Map<string, string>;
+
+  /** Synthesis template — combines Pass-1 draft + skill JSON results
+   *  into final coherent feedback. Placeholders: PROFILE, TRANSCRIPT,
+   *  NOTES, DRAFT, SKILL_RESULTS. */
+  readonly skillsSynthesis: string;
+
+  private readonly promptsDir: string;
   private readonly profilesDir: string;
 
   constructor(private readonly prisma: PrismaService) {
-    const promptsDir =
+    this.promptsDir =
       process.env.PROMPTS_DIR ?? resolve(process.cwd(), '..', 'prompts');
+    const promptsDir = this.promptsDir;
     this.annaSystem = this.read(promptsDir, 'anna_system.md');
     this.supervisorSystem = this.read(promptsDir, 'supervisor_system.md');
     const protocolRaw = this.read(promptsDir, 'supervisor_protocol.md');
@@ -54,6 +73,24 @@ export class PromptsService implements OnModuleInit {
     this.patientGenerationSystem = this.read(promptsDir, 'patient_generation_system.md');
     this.criticReviewer = this.read(promptsDir, 'critic_reviewer.md');
     this.profilesDir = resolve(promptsDir, 'profiles');
+
+    // Load skill prompts from prompts/skills/*.md. Dynamically discovered
+    // so adding a new skill file is enough — no code changes needed.
+    const skillsDir = resolve(promptsDir, 'skills');
+    this.skills = new Map();
+    if (existsSync(skillsDir)) {
+      for (const file of readdirSync(skillsDir)) {
+        if (!file.endsWith('.md')) continue;
+        const name = file.slice(0, -3); // strip .md
+        if (name === 'synthesis') continue; // loaded separately below
+        this.skills.set(name, readFileSync(resolve(skillsDir, file), 'utf8'));
+        this.logger.debug(`Loaded skill: ${name}`);
+      }
+    }
+    this.skillsSynthesis = existsSync(resolve(skillsDir, 'synthesis.md'))
+      ? readFileSync(resolve(skillsDir, 'synthesis.md'), 'utf8')
+      : this.criticReviewer; // graceful fallback to standard reviewer
+    this.logger.log(`Loaded ${this.skills.size} skill prompts from ${skillsDir}`);
   }
 
   private read(dir: string, name: string): string {

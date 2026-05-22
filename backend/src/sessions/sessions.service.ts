@@ -671,16 +671,145 @@ export class SessionsService {
         },
       };
 
-      const reviewerBlocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
-      // Pass 2 = REVIEWER → use the user's plan-tier model (Opus for
-      // Pro/Master, Sonnet for Trial/Lite). Falls back to Pass-1 draft
-      // model if the reviewer stalls before first chunk so the student
-      // still gets SOMETHING (downgraded review) instead of a 504.
-      const reviewerModel = await this.featureGate.getReviewerModelId(userId);
+      const reviewerCfg = await this.featureGate.getReviewerConfig(userId);
+
+      if (reviewerCfg.secondary) {
+        // ── ENSEMBLE (3-pass) ────────────────────────────────────────────
+        // Pass 2: primary reviewer (DeepSeek R1) — non-streaming, blocking.
+        //   DeepSeek is excellent at catching clinical-signal misses (7/8
+        //   in blind tests) and is 5× cheaper than Opus. We don't stream
+        //   it because its output feeds Pass 3 as context, so we need the
+        //   full text before starting the next call.
+        const r1Blocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
+        this.logger.log(`ensemble pass-2: ${reviewerCfg.primary}`);
+        // Non-streaming — we need the full output before starting pass-3.
+        // If DeepSeek R1 times out or fails, degrade gracefully: pass-3
+        // (Qwen) will review the Haiku draft directly instead of DeepSeek's
+        // analysis. Still 2-pass quality, not 3-pass, but no 504 for the user.
+        let review1 = draft;
+        try {
+          review1 = await this.llm.chat({
+            systemBlocks: r1Blocks,
+            history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
+            model: reviewerCfg.primary,
+            maxTokens: 3072,
+          });
+        } catch (passErr) {
+          this.logger.warn(
+            `ensemble pass-2 (${reviewerCfg.primary}) failed — using draft for pass-3: ${passErr}`,
+          );
+        }
+
+        yield {
+          type: 'progress',
+          data: {
+            stage: 'refining',
+            message: 'Третій супервізор шліфує і перевіряє цитати…',
+          },
+        };
+
+        // Pass 3: secondary reviewer (Qwen 3.7 Max) — streams to client.
+        //   Qwen sees DeepSeek's full review as the "draft" and refines it:
+        //   adds verbatim «quote» [L<n>] citations (DeepSeek uses paraphrase
+        //   style), catches any remaining missed signals, tightens tone.
+        //   Together they cover 8/8 clinical signals empirically.
+        const r2Blocks = await this.buildReviewerContext(session, sessionId, review1, ctx.transcript);
+        this.logger.log(`ensemble pass-3: ${reviewerCfg.secondary}`);
+        for await (const chunk of this.streamFeedbackWithFallback(
+          r2Blocks,
+          reviewerCfg.secondary,
+          reviewerCfg.primary, // fallback to primary if secondary stalls
+        )) {
+          raw += chunk;
+          yield { type: 'chunk', data: { text: chunk } };
+        }
+      } else {
+        // ── TWO-PASS (standard) ──────────────────────────────────────────
+        // Pass 2 = reviewer → use the user's plan-tier model.
+        // Falls back to Haiku draft model if reviewer stalls before first
+        // chunk so the student still gets SOMETHING instead of a 504.
+        const reviewerBlocks = await this.buildReviewerContext(session, sessionId, draft, ctx.transcript);
+        this.logger.log(`two-pass reviewer: ${reviewerCfg.primary}`);
+        for await (const chunk of this.streamFeedbackWithFallback(
+          reviewerBlocks,
+          reviewerCfg.primary,
+          this.llm.modelFeedback,
+        )) {
+          raw += chunk;
+          yield { type: 'chunk', data: { text: chunk } };
+        }
+      }
+    } else if (this.llm.feedbackMode === 'skills') {
+      // ── SKILLS mode ────────────────────────────────────────────────────
+      // Three-stage pipeline using specialised skill agents:
+      //   Pass 1: Haiku draft (same as two-pass; $0.005)
+      //   Pass 2: 6 parallel skill checks using Haiku (each ~$0.003, run
+      //           in parallel → total time = slowest skill ~6s)
+      //   Pass 3: Qwen 3.7 Max synthesis — receives draft + skill JSON
+      //           → final feedback (streaming to client; ~$0.02)
+      //
+      // Each skill targets ONE clinical dimension and returns JSON:
+      //   risk_screening, defenses, affect, alliance, ddx, technique.
+      // Total cost: ~$0.03/session. Quality goal: 8/8 clinical signals
+      // (suicidality skill catches passive SI that monolithic reviewers miss).
+
+      yield {
+        type: 'progress',
+        data: {
+          stage: 'skills',
+          message: `Чернетка + ${this.prompts.skills.size} спеціалізованих агентів паралельно…`,
+        },
+      };
+
+      // Build slim profile + notes text for skill calls.
+      const notes = await this.prisma.note.findMany({
+        where: { sessionId },
+        orderBy: { id: 'asc' },
+      });
+      const notesText = notes.length
+        ? notes.map(n => n.anchorText ? `- («${n.anchorText}») ${n.noteText}` : `- ${n.noteText}`).join('\n')
+        : '_(нотаток немає)_';
+      const slimProf = this.slimProfileForFeedback(session.character.profileText);
+
+      // ── KEY OPTIMISATION: draft + all skill checks run IN PARALLEL ──
+      // Skill agents only need the transcript (not the draft), so we
+      // fire them at the same time as the Haiku draft call. Total
+      // wait = max(draft_time, slowest_skill) ≈ draft_time (~36s).
+      // Sequential would add the skill wall-clock (~8s) on top.
+      const [skillDraft, skillResults] = await Promise.all([
+        this.llm.chat({
+          systemBlocks: ctx.systemBlocks,
+          history: [{ role: 'user', content: FEEDBACK_USER_PROMPT }],
+          model: this.llm.modelFeedback,
+          maxTokens: 3072,
+        }),
+        this.runSkillChecks(ctx.transcript, slimProf, notesText),
+      ]);
+
+      yield {
+        type: 'progress',
+        data: {
+          stage: 'synthesizing',
+          message: 'Синтезую знахідки агентів у фінальний фідбек…',
+        },
+      };
+
+      // Pass 3: synthesis — modelSkillsSynthesizer (Qwen 3.7 Max on
+      // OpenRouter, Sonnet on Anthropic-native) reads the draft + all
+      // skill JSONs → final coherent feedback streaming to client.
+      // Uses a dedicated synthesizer model (not the tier-based reviewer)
+      // so ALL users get the same quality regardless of plan tier.
+      const synthesisFilled = this.prompts.fill(this.prompts.skillsSynthesis, {
+        PROFILE: slimProf,
+        TRANSCRIPT: ctx.transcript,
+        NOTES: notesText,
+        DRAFT: skillDraft,
+        SKILL_RESULTS: skillResults,
+      });
       for await (const chunk of this.streamFeedbackWithFallback(
-        reviewerBlocks,
-        reviewerModel,
-        this.llm.modelFeedback,
+        [{ text: synthesisFilled }],
+        this.llm.modelSkillsSynthesizer,
+        this.llm.modelFeedback, // Haiku fallback if synthesizer stalls
       )) {
         raw += chunk;
         yield { type: 'chunk', data: { text: chunk } };
@@ -708,6 +837,77 @@ export class SessionsService {
     });
 
     yield { type: 'done', data: { feedback, assessment: json } };
+  }
+
+  /**
+   * Run all loaded skill agents in PARALLEL against the transcript.
+   * Each skill targets a single clinical dimension (suicidality, defenses,
+   * affect, alliance, ddx, technique) and returns a JSON analysis.
+   * Cheap Haiku calls — each is 300-400 tokens output, takes ~5-8s.
+   * Parallelism means total latency = slowest skill, not sum.
+   *
+   * Returns a formatted string summarising all results for injection
+   * into the synthesis prompt. Failures are caught individually so
+   * one flaky skill never blocks the others.
+   */
+  private async runSkillChecks(
+    transcript: string,
+    slimProfile: string,
+    notesText: string,
+  ): Promise<string> {
+    const skills = [...this.prompts.skills.entries()];
+    if (skills.length === 0) return '_(skill prompts not loaded)_';
+
+    const results = await Promise.allSettled(
+      skills.map(async ([name, template]) => {
+        const filled = this.prompts.fill(template, {
+          TRANSCRIPT: transcript,
+          PROFILE: slimProfile,
+          NOTES: notesText,
+        });
+        const raw = await this.llm.chat({
+          systemPrompt: filled,
+          history: [{ role: 'user', content: 'Проаналізуй транскрипт згідно інструкції вище. Поверни тільки JSON.' }],
+          model: this.llm.modelFeedback, // Haiku — focused tasks, cheap
+          maxTokens: 512,
+        });
+        return { name, raw };
+      }),
+    );
+
+    // Programmatically extract critical misses and pin them to the TOP
+    // of the skill results block so the synthesis model sees them
+    // FIRST regardless of how many skills ran. Without this, attention
+    // dilutes across 14+ JSON blocks and Qwen can miss a criticalMiss
+    // signal buried in the middle. We check for both spellings because
+    // models sometimes write the key with slightly different casing.
+    const criticals: string[] = [];
+    const allBlocks: string[] = [];
+
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        const { name, raw } = r.value;
+        const block = `### Skill: ${name}\n\`\`\`json\n${raw.trim()}\n\`\`\``;
+        allBlocks.push(block);
+        if (/"criticalMiss"\s*:\s*true/i.test(raw)) {
+          // Extract the recommendation string if present; otherwise just tag the skill name.
+          const recMatch = raw.match(/"recommendation"\s*:\s*"([^"]{10,300})"/i);
+          const rec = recMatch ? recMatch[1] : `${name} flagged a critical miss — see skill result below.`;
+          criticals.push(`- **${name}**: ${rec}`);
+          this.logger.warn(`skill ${name}: criticalMiss=true`);
+        }
+      } else {
+        this.logger.warn(`skill failed: ${(r as PromiseRejectedResult).reason}`);
+        allBlocks.push(`### Skill: (error — ${String((r as PromiseRejectedResult).reason).slice(0, 80)})`);
+      }
+    }
+
+    const priorityHeader =
+      criticals.length > 0
+        ? `## ⚠️ КРИТИЧНІ ПРОПУСКИ — ОБОВ'ЯЗКОВО ПЕРШИМИ У ФІДБЕКУ\n\n${criticals.join('\n')}\n\n---\n\n`
+        : '';
+
+    return priorityHeader + allBlocks.join('\n\n');
   }
 
   /**

@@ -13,10 +13,11 @@ import OpenAI from 'openai';
  * Hard wall-clock cap for a non-streaming LLM call. Free OpenRouter
  * stealth tiers (owl-alpha & co) sometimes spend 30-60s on first byte
  * for long-context calls (full transcript + protocol + profile in the
- * feedback flow). 120s gives that headroom while still failing clean
- * well before Caddy's outer 300s. Frontend shows a "⏳" the whole time.
+ * feedback flow). DeepSeek R1 uses extended chain-of-thought and has
+ * been observed at 47-144s; 180s gives safe headroom while still
+ * failing cleanly well before Caddy's outer 300s timeout.
  */
-const CHAT_TIMEOUT_MS = 120_000;
+const CHAT_TIMEOUT_MS = 180_000;
 
 /**
  * Explicit per-request timeout on the OpenAI Node SDK client. Without
@@ -67,20 +68,27 @@ export class LlmService {
    *  upstream 5xx / connection reset), the supervisor retry uses
    *  this one. Empty / unset = no fallback, errors bubble up. */
   readonly modelFeedbackFallback: string | null;
-  /** Model for the two-pass REVIEWER stage (Pass 2). Pass 1 drafts
-   *  with `modelFeedback` (cheap Haiku). Pass 2 critic-reviews with
-   *  this — by default a stronger model (Opus) that catches deep
-   *  patterns + barely hallucinates citations. Override via
-   *  LLM_MODEL_FEEDBACK_REVIEWER. If unset, falls back to
-   *  `modelFeedback` (single-model mode). */
+  /** Model for the two-pass REVIEWER stage (Pass 2). Used only in
+   *  'two-pass' mode. In 'skills' mode, modelSkillsSynthesizer is used
+   *  instead. Override via LLM_MODEL_FEEDBACK_REVIEWER env var. */
   readonly modelFeedbackReviewer: string;
+  /** Synthesis model for 'skills' feedback mode. Receives Haiku draft +
+   *  all parallel skill-check JSONs → produces final coherent feedback.
+   *  Qwen 3.7 Max is the recommended default — fast streaming, good at
+   *  integrating structured JSON, strong Ukrainian. ~$0.023/session.
+   *  Override via LLM_MODEL_SKILLS_SYNTHESIZER env var. */
+  readonly modelSkillsSynthesizer: string;
   /** Feedback generation mode:
-   *  - 'single' — one supervisor pass (legacy, fast, ~$0.02/sess).
-   *  - 'two-pass' — first supervisor drafts, second supervisor
-   *    reviews+amends. ~2× cost and latency but catches misses,
-   *    cuts truisms, calibrates tone. Default.
+   *  - 'skills' — production default. 14 parallel Haiku skill checks
+   *    (each targeting ONE clinical dimension) + Qwen synthesis.
+   *    ~$0.08/session, 14 clinical dimensions, ~35s to first chunk.
+   *    No Opus required. Covers suicidality, shame, cognitive
+   *    distortions, validation, trauma, nonverbal cues and more.
+   *  - 'two-pass' — Haiku draft → tier-based reviewer (Opus/Sonnet).
+   *    Reliable fallback if skills mode has issues. ~$0.08-0.16.
+   *  - 'single' — legacy one-pass, fast but shallow.
    *  Override via FEEDBACK_MODE env var. */
-  readonly feedbackMode: 'single' | 'two-pass';
+  readonly feedbackMode: 'single' | 'two-pass' | 'skills';
 
   constructor() {
     this.provider = (process.env.LLM_PROVIDER as LlmProvider) || 'anthropic';
@@ -93,13 +101,17 @@ export class LlmService {
     const envFeedback = process.env.LLM_MODEL_FEEDBACK?.trim();
     const envFeedbackFallback = process.env.LLM_MODEL_FEEDBACK_FALLBACK?.trim();
     const envFeedbackReviewer = process.env.LLM_MODEL_FEEDBACK_REVIEWER?.trim();
+    const envSkillsSynth = process.env.LLM_MODEL_SKILLS_SYNTHESIZER?.trim();
 
-    // FEEDBACK_MODE drives whether feedback uses single supervisor or
-    // a draft → reviewer 2-pass pipeline. Default 'two-pass' since
-    // the reviewer catches enough misses + truisms to justify the
-    // ~2× cost in this domain. Set FEEDBACK_MODE=single to revert.
+    // FEEDBACK_MODE drives the feedback pipeline strategy.
+    // Default is now 'skills' — the multi-agent pipeline covers 14
+    // clinical dimensions at ~$0.08/session without any Opus calls.
+    // Set FEEDBACK_MODE=two-pass to revert to the Haiku→reviewer flow.
     const envFeedbackMode = process.env.FEEDBACK_MODE?.trim().toLowerCase();
-    this.feedbackMode = envFeedbackMode === 'single' ? 'single' : 'two-pass';
+    this.feedbackMode =
+      envFeedbackMode === 'two-pass' ? 'two-pass' :
+      envFeedbackMode === 'single'   ? 'single'   :
+      'skills'; // default
 
     if (this.provider === 'anthropic') {
       this.anthropic = new Anthropic();
@@ -111,10 +123,10 @@ export class LlmService {
       this.modelChat = envChat || 'claude-haiku-4-5';
       this.modelFeedback = envFeedback || 'claude-haiku-4-5';
       this.modelFeedbackFallback = envFeedbackFallback || 'claude-haiku-4-5';
-      // Reviewer defaults to Opus for deep critique. ~$0.20/call, 5× the
-      // Sonnet cost; the offset is fewer hallucinations + sharper pattern
-      // detection. Fall back to modelFeedback for single-model setups.
+      // Reviewer for two-pass mode only. Skills mode uses Sonnet as
+      // synthesizer since Anthropic-native doesn't have Qwen.
       this.modelFeedbackReviewer = envFeedbackReviewer || 'claude-opus-4-7';
+      this.modelSkillsSynthesizer = envSkillsSynth || 'claude-sonnet-4-6';
     } else if (this.provider === 'openrouter') {
       const apiKey = process.env.OPENROUTER_API_KEY;
       if (!apiKey) {
@@ -135,23 +147,25 @@ export class LlmService {
       });
       this.modelChat = envChat || 'openrouter/owl-alpha';
       this.modelFeedback = envFeedback || 'openrouter/owl-alpha';
-      // Fallback for slow / unstable stealth feedback model. Haiku via
-      // OpenRouter is fast and cheap (~$0.01/call), pays off as the
-      // safety net the moment primary is overloaded.
+      // Fallback for slow / unstable stealth feedback model.
       this.modelFeedbackFallback = envFeedbackFallback || 'anthropic/claude-haiku-4-5';
-      // Reviewer routed to Opus via OpenRouter — same model identifier
-      // shape as Haiku/Sonnet. If overloaded, falls back to Haiku via
-      // modelFeedbackFallback (deep critique downgraded → flat critique
-      // but still verbatim citations + 8 dimensions).
+      // Reviewer for two-pass mode only (legacy).
+      // In skills mode, modelSkillsSynthesizer is used instead.
       this.modelFeedbackReviewer = envFeedbackReviewer || 'anthropic/claude-opus-4-7';
+      // Skills synthesizer: Qwen 3.7 Max — fast streaming, strong JSON
+      // integration, solid Ukrainian, ~$0.023 per synthesis call.
+      // Change via LLM_MODEL_SKILLS_SYNTHESIZER if preferred.
+      this.modelSkillsSynthesizer = envSkillsSynth || 'qwen/qwen3.7-max';
     } else {
       throw new Error(`Невідомий LLM_PROVIDER: ${this.provider}`);
     }
 
     this.logger.log(
-      `LLM provider=${this.provider} chat=${this.modelChat} ` +
-        `feedback=${this.modelFeedback} reviewer=${this.modelFeedbackReviewer} ` +
-        `mode=${this.feedbackMode}`,
+      `LLM provider=${this.provider} mode=${this.feedbackMode} ` +
+        `chat=${this.modelChat} draft=${this.modelFeedback} ` +
+        (this.feedbackMode === 'skills'
+          ? `synthesizer=${this.modelSkillsSynthesizer}`
+          : `reviewer=${this.modelFeedbackReviewer}`),
     );
   }
 

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LlmService } from '../llm/llm.service';
-import { PLANS, PlanId, resolveReviewerModelId } from './plans.config';
+import { PLANS, PlanId, ReviewerConfig, resolveReviewerConfig, resolveReviewerModelId } from './plans.config';
 import { SubscriptionsService } from './subscriptions.service';
 
 /**
@@ -93,10 +93,20 @@ export class FeatureGateService {
   }
 
   /** Which reviewer model to use for THIS user's two-pass feedback.
-   *  Free + Lite get Sonnet (good enough), Pro + Master get Opus. */
+   *  Free + Lite get Sonnet, Pro gets DeepSeek R1, Master gets ensemble.
+   *  @deprecated — prefer getReviewerConfig which also returns secondary. */
   async getReviewerModelId(userId: number): Promise<string> {
     const { plan } = await this.resolvePlan(userId);
     return resolveReviewerModelId(plan, this.llm.provider);
+  }
+
+  /** Full reviewer configuration for this user. Returns `{ primary,
+   *  secondary }` where secondary is non-null only for Master (ensemble
+   *  3-pass mode). The sessions service uses secondary's presence to
+   *  decide whether to run a 2-pass or 3-pass feedback chain. */
+  async getReviewerConfig(userId: number): Promise<ReviewerConfig> {
+    const { plan } = await this.resolvePlan(userId);
+    return resolveReviewerConfig(plan, this.llm.provider);
   }
 
   /** Lookup-style feature check. */
