@@ -1,0 +1,49 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd /opt/reflect
+
+            echo "=== Pull ==="
+            git pull origin main
+
+            echo "=== Build ==="
+            docker compose -f docker-compose.prod.yml build
+
+            echo "=== Restart ==="
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "=== Wait for health ==="
+            for i in $(seq 1 12); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' reflect_api 2>/dev/null || echo "starting")
+              echo "  attempt $i: $STATUS"
+              if [ "$STATUS" = "healthy" ]; then
+                echo "=== Healthy ==="
+                break
+              fi
+              if [ $i -eq 12 ]; then
+                echo "=== Health check timed out ==="
+                docker logs reflect_api --tail 30
+                exit 1
+              fi
+              sleep 10
+            done
+
+            echo "=== Done: $(git log --oneline -1) ==="
