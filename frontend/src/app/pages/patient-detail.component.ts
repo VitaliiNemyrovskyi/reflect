@@ -202,7 +202,7 @@ const SPOILER_PATTERNS: RegExp[] = [
       </section>
 
       <nav class="tabs" role="tablist">
-        @for (t of tabs; track t.key) {
+        @for (t of tabs(); track t.key) {
           <button [class.active]="tab() === t.key"
                   (click)="tab.set(t.key)"
                   [attr.role]="'tab'"
