@@ -868,8 +868,8 @@ export class SessionsService {
         const raw = await this.llm.chat({
           systemPrompt: filled,
           history: [{ role: 'user', content: 'Проаналізуй транскрипт згідно інструкції вище. Поверни тільки JSON.' }],
-          model: this.llm.modelFeedback, // Haiku — focused tasks, cheap
-          maxTokens: 512,
+          model: this.llm.modelFeedback, // cheap draft model — focused single-dimension tasks
+          maxTokens: 350, // JSON skills need ~200-300 tokens; 350 is safe headroom
         });
         return { name, raw };
       }),
