@@ -556,7 +556,12 @@ export class ApiService {
 
   createCharacter(dto: CreateCharacterDto): Promise<Character> {
     return firstValueFrom(
-      this.http.post<Character>(`${this.base}/characters`, dto),
+      this.http.post<Character>(`${this.base}/characters`, dto, {
+        // Backend reads Accept-Language to stamp Character.lang — so a
+        // user creating a patient in EN mode gets a character that
+        // stays in the EN roster (and out of the UA roster).
+        headers: { 'Accept-Language': this.i18n.lang() },
+      }),
     );
   }
 

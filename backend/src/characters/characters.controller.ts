@@ -97,8 +97,14 @@ export class CharactersController {
   create(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateCharacterDto,
+    @Headers('accept-language') langHeader?: string,
   ) {
-    return this.characters.create(user.id, dto);
+    // Stamp lang from the request's Accept-Language so new patients
+    // created in EN mode appear in the EN roster (and stay out of the
+    // UA roster). The frontend i18n.service sends this header on every
+    // mutating call. Default 'uk' matches the schema default.
+    const lang = langHeader?.split(/[-,;]/)[0].trim().toLowerCase() === 'en' ? 'en' : 'uk';
+    return this.characters.create(user.id, { ...dto, lang });
   }
 
   @Patch(':id')
@@ -163,16 +169,13 @@ export class CharactersController {
       select: { isAdmin: true },
     });
     const visibilityFilter = this.characters.visibilityFilter(userId, !!me?.isAdmin);
-    // System characters are filtered by locale; user-created characters
-    // are always shown regardless of lang (they belong to the user).
+    // Lang filter applies to ALL characters — system and user-created alike.
+    // User-created characters carry the lang set at creation time, so
+    // Ukrainian custom clients stay in 🇺🇦 mode and EN clients in 🇬🇧 mode.
+    // Admins bypass the lang filter so they can see everything.
+    const langFilter = me?.isAdmin ? {} : { lang };
     const characters = await this.prisma.character.findMany({
-      where: {
-        AND: [
-          visibilityFilter,
-          // Show system chars for matching locale OR user-created chars (any locale)
-          { OR: [{ createdById: null, lang }, { createdById: { not: null } }] },
-        ],
-      },
+      where: { AND: [visibilityFilter, langFilter] },
       orderBy: { id: 'asc' },
     });
 
