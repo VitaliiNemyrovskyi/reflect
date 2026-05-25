@@ -169,13 +169,14 @@ export class CharactersController {
       select: { isAdmin: true },
     });
     const visibilityFilter = this.characters.visibilityFilter(userId, !!me?.isAdmin);
-    // Lang filter applies to ALL characters — system and user-created alike.
-    // User-created characters carry the lang set at creation time, so
-    // Ukrainian custom clients stay in 🇺🇦 mode and EN clients in 🇬🇧 mode.
-    // Admins bypass the lang filter so they can see everything.
-    const langFilter = me?.isAdmin ? {} : { lang };
+    // Lang filter applies to EVERYONE, admins included. The locale a user
+    // is browsing in is a UI-consistency concern, not an access-control one
+    // — when an admin switches to EN, they want to see exactly what an EN
+    // user sees (otherwise they can't validate the EN roster). Cross-locale
+    // visibility for admins belongs in a dedicated admin panel, not on the
+    // user-facing list.
     const characters = await this.prisma.character.findMany({
-      where: { AND: [visibilityFilter, langFilter] },
+      where: { AND: [visibilityFilter, { lang }] },
       orderBy: { id: 'asc' },
     });
 
