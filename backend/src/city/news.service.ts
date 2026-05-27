@@ -20,10 +20,16 @@ interface NewsSource {
 
 const NEWS_SOURCES: NewsSource[] = [
   // ── Ukraine (Kyiv) ──────────────────────────────────────────────
+  // RSS landscape for UA mainstream media is fragmented in 2026 —
+  // hromadske.ua, suspilne.media, ukrinform, censor.net, lb.ua all
+  // either dropped their feeds or block bots. These five remain
+  // reliably reachable + parseable. Add new ones here if they expose
+  // a working RSS/Atom URL (probe with curl first).
   { source: 'pravda', url: 'https://www.pravda.com.ua/rss/', cityKey: 'kyiv' },
-  { source: 'hromadske', url: 'https://hromadske.ua/feed/rss', cityKey: 'kyiv' },
-  { source: 'suspilne', url: 'https://suspilne.media/rss/all.rss', cityKey: 'kyiv' },
-  { source: 'texty', url: 'https://texty.org.ua/feed/', cityKey: 'kyiv' },
+  { source: 'texty', url: 'https://texty.org.ua/articles/feed.xml', cityKey: 'kyiv' },
+  { source: 'nv', url: 'https://nv.ua/rss', cityKey: 'kyiv' },
+  { source: '24tv', url: 'https://24tv.ua/rss/all.rss', cityKey: 'kyiv' },
+  { source: 'tsn', url: 'https://tsn.ua/rss', cityKey: 'kyiv' },
 
   // ── UK / EN (London) ────────────────────────────────────────────
   { source: 'bbc', url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', cityKey: 'london' },
@@ -40,7 +46,15 @@ const MAX_PER_SOURCE = 8;
 @Injectable()
 export class NewsService {
   private readonly logger = new Logger(NewsService.name);
-  private readonly parser = new Parser({ timeout: 15_000 });
+  private readonly parser = new Parser({
+    timeout: 15_000,
+    // Some feeds (Espreso, Censor, others) 403 the default "node-fetch"
+    // UA. A browser-style UA passes most of them.
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (compatible; ReflectNewsBot/1.0; +https://reflect.swift-mail.app)',
+    },
+  });
 
   constructor(
     private readonly prisma: PrismaService,
