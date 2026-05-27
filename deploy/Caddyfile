@@ -19,9 +19,30 @@ reflect.swift-mail.app {
         dns cloudflare {env.CADDY_CF_API_TOKEN}
     }
 
-    # Backend API + auth + SSE-streaming feedback.
+    # Backend API + auth + SSE-streaming feedback. Load-balanced across
+    # two replicas (reflect_api, reflect_api_2) so a rolling redeploy
+    # never leaves the API offline:
+    #   - lb_policy round_robin distributes evenly under normal load
+    #   - health_uri /api/health polls each backend every 5s. When a
+    #     replica receives SIGTERM it flips its health endpoint to 503,
+    #     so within ~5s Caddy stops routing new traffic there while
+    #     in-flight feedback streams (up to ~110s) drain.
+    #   - lb_try_duration 10s retries on the sibling if a request fails
+    #     to connect (e.g. landed in the SIGTERM→503 gap). Retries only
+    #     fire when nothing was received yet — once a backend started
+    #     responding (even with 5xx) we don't double-fire, so the SSE
+    #     feedback stream can never get duplicated.
     handle /api/* {
-        reverse_proxy reflect_api:3000 {
+        reverse_proxy reflect_api:3000 reflect_api_2:3000 {
+            lb_policy round_robin
+            lb_try_duration 10s
+            lb_try_interval 250ms
+
+            health_uri /api/health
+            health_interval 5s
+            health_timeout 3s
+            health_status 200
+
             # Streaming feedback (/api/sessions/:id/end-stream) needs
             # HTTP/1.1 + chunked + no buffering for tokens to reach the
             # client immediately. Caddy disables buffering automatically

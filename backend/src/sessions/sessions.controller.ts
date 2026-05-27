@@ -15,10 +15,14 @@ import type { Response } from 'express';
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto, SendMessageDto } from './dto';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
+import { HealthService } from '../health/health.service';
 
 @Controller('sessions')
 export class SessionsController {
-  constructor(private readonly sessions: SessionsService) {}
+  constructor(
+    private readonly sessions: SessionsService,
+    private readonly health: HealthService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateSessionDto, @CurrentUser() user: AuthUser) {
@@ -133,6 +137,12 @@ export class SessionsController {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
 
+    // Tell HealthService this replica has a long-running stream open so
+    // graceful-shutdown waits for the feedback to finish before letting
+    // the process exit. The token is freed in the finally block whether
+    // we ended cleanly, threw, or the client disconnected.
+    const streamToken = this.health.registerStream(`endStream session=${id}`);
+
     try {
       // Normalise: 'en-GB', 'en-US' → 'en'; anything else → 'uk'.
       const lang = langHeader?.split(/[-,;]/)[0].trim().toLowerCase() === 'en' ? 'en' : 'uk';
@@ -145,6 +155,7 @@ export class SessionsController {
       send('error', { message });
     } finally {
       clearInterval(heartbeat);
+      this.health.unregisterStream(streamToken);
       res.end();
     }
   }

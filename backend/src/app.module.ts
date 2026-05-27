@@ -14,6 +14,7 @@ import { TestsModule } from './tests/tests.module';
 import { BillingModule } from './billing/billing.module';
 import { EventsModule } from './events/events.module';
 import { AppConfigModule } from './config/config.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AppConfigModule } from './config/config.module';
     BillingModule,
     EventsModule,
     AppConfigModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

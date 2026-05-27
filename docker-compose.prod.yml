@@ -10,59 +10,86 @@
 #    `proxy` net used by bober/swiftmail. Cross-project isolation.
 #
 # SQLite lives on a docker volume (`reflect_data`) so deploys don't
-# nuke patient data.
+# nuke patient data. WAL mode is enabled at boot by PrismaService so
+# two API replicas can write to the same file without SQLITE_BUSY
+# contention.
+#
+# Zero-downtime deploys: api runs as TWO replicas (api + api_2) behind
+# Caddy's load-balancer with active health-checks. Rolling redeploy
+# (handled by .github/workflows/deploy.yml) restarts them one at a time,
+# so therapists never hit a moment when neither is serving.
+
+# Shared definition for both api replicas — same image, same env, same
+# volume mount. Only container_name differs. YAML anchor + merge keeps
+# them in lockstep — change one env var, both pick it up.
+x-api: &api
+  image: reflect/api:${IMAGE_TAG:-latest}
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+  restart: unless-stopped
+  environment:
+    NODE_ENV: production
+    API_PORT: 3000
+    DATABASE_URL: file:/data/reflect.db
+    PROMPTS_DIR: /app/prompts
+    LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+    LLM_MODEL_CHAT: ${LLM_MODEL_CHAT:-}
+    LLM_MODEL_CHAT_FALLBACK: ${LLM_MODEL_CHAT_FALLBACK:-}
+    LLM_MODEL_FEEDBACK: ${LLM_MODEL_FEEDBACK:-}
+    LLM_MODEL_FEEDBACK_FALLBACK: ${LLM_MODEL_FEEDBACK_FALLBACK:-}
+    LLM_MODEL_FEEDBACK_REVIEWER: ${LLM_MODEL_FEEDBACK_REVIEWER:-}
+    LLM_MODEL_SKILLS_SYNTHESIZER: ${LLM_MODEL_SKILLS_SYNTHESIZER:-}
+    FEEDBACK_MODE: ${FEEDBACK_MODE:-}
+    # Language for supervisor prompts, skill agents, and profiles.
+    # 'uk' = Ukrainian (default), 'en' = English (EU market).
+    # Loads from prompts/{lang}/ with fallback to prompts/ for missing files.
+    REFLECT_LANG: ${REFLECT_LANG:-uk}
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+    JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+    JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+    JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+    API_BASE_URL: https://reflect.swift-mail.app
+    FRONTEND_URL: https://reflect.swift-mail.app
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+    FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+    # Comma-separated bootstrap allow-list. AuthService.reconcileAdmin()
+    # ADDITIVELY promotes these emails to admin on login if they aren't
+    # already (never demotes). Day-to-day admin management lives in the
+    # admin panel — this var is the recovery mechanism if the panel ever
+    # loses all admins.
+    ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+  volumes:
+    - reflect_data:/data
+  # 120s drain budget for SIGTERM → SIGKILL. Inside, the app does:
+  #  - 6s LB drain (so Caddy marks unhealthy)
+  #  - app.close() and lifecycle hooks (~instant)
+  #  - up to 110s waiting for active SSE feedback streams to finish
+  # If the feedback stream is somehow stuck past 110s, Docker SIGKILLs
+  # at 120s — which is still better than the old behaviour where any
+  # in-flight stream was killed instantly.
+  stop_grace_period: 120s
+  healthcheck:
+    # Hit /api/health which returns 503 when shutdown started → Docker
+    # marks unhealthy → matches the LB's view. 200 = ready to serve.
+    test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 30s
 
 services:
   api:
-    image: reflect/api:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    <<: *api
     container_name: reflect_api
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      API_PORT: 3000
-      DATABASE_URL: file:/data/reflect.db
-      PROMPTS_DIR: /app/prompts
-      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
-      LLM_MODEL_CHAT: ${LLM_MODEL_CHAT:-}
-      LLM_MODEL_CHAT_FALLBACK: ${LLM_MODEL_CHAT_FALLBACK:-}
-      LLM_MODEL_FEEDBACK: ${LLM_MODEL_FEEDBACK:-}
-      LLM_MODEL_FEEDBACK_FALLBACK: ${LLM_MODEL_FEEDBACK_FALLBACK:-}
-      LLM_MODEL_FEEDBACK_REVIEWER: ${LLM_MODEL_FEEDBACK_REVIEWER:-}
-      LLM_MODEL_SKILLS_SYNTHESIZER: ${LLM_MODEL_SKILLS_SYNTHESIZER:-}
-      FEEDBACK_MODE: ${FEEDBACK_MODE:-}
-      # Language for supervisor prompts, skill agents, and profiles.
-      # 'uk' = Ukrainian (default), 'en' = English (EU market).
-      # Loads from prompts/{lang}/ with fallback to prompts/ for missing files.
-      REFLECT_LANG: ${REFLECT_LANG:-uk}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
-      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
-      API_BASE_URL: https://reflect.swift-mail.app
-      FRONTEND_URL: https://reflect.swift-mail.app
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
-      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
-      # Comma-separated bootstrap allow-list. AuthService.reconcileAdmin()
-      # ADDITIVELY promotes these emails to admin on login if they aren't
-      # already (never demotes). Day-to-day admin management lives in the
-      # admin panel — this var is the recovery mechanism if the panel ever
-      # loses all admins.
-      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
-    volumes:
-      - reflect_data:/data
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+
+  api_2:
+    <<: *api
+    container_name: reflect_api_2
 
   web:
     image: reflect/web:${IMAGE_TAG:-latest}
@@ -93,6 +120,7 @@ services:
       - caddy_config:/config
     depends_on:
       - api
+      - api_2
       - web
 
 volumes:
@@ -101,8 +129,8 @@ volumes:
   caddy_config:
 
 # Private network — only reflect's containers. NOT the shared `proxy`
-# network used by bober/swiftmail. Caddy resolves `reflect_api` and
-# `reflect_web` by container name on this internal net.
+# network used by bober/swiftmail. Caddy resolves `reflect_api`,
+# `reflect_api_2`, and `reflect_web` by container name on this net.
 networks:
   default:
     name: reflect_net

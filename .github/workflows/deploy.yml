@@ -27,23 +27,67 @@ jobs:
             echo "=== Build ==="
             docker compose -f docker-compose.prod.yml build
 
-            echo "=== Restart ==="
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Helper: wait until the named container reports healthy.
+            # Polls every 5s, gives up after 18 tries (90s). Fails the
+            # whole deploy on timeout so we don't proceed to restarting
+            # the second replica if the first never came back.
+            wait_healthy() {
+              local name="$1"
+              for i in $(seq 1 18); do
+                STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$name" 2>/dev/null || echo "missing")
+                echo "  $name attempt $i: $STATUS"
+                if [ "$STATUS" = "healthy" ]; then
+                  return 0
+                fi
+                sleep 5
+              done
+              echo "=== $name failed to become healthy ==="
+              docker logs "$name" --tail 50
+              return 1
+            }
 
-            echo "=== Wait for health ==="
-            for i in $(seq 1 12); do
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' reflect_api 2>/dev/null || echo "starting")
-              echo "  attempt $i: $STATUS"
-              if [ "$STATUS" = "healthy" ]; then
-                echo "=== Healthy ==="
-                break
-              fi
-              if [ $i -eq 12 ]; then
-                echo "=== Health check timed out ==="
-                docker logs reflect_api --tail 30
-                exit 1
-              fi
-              sleep 10
-            done
+            # Step 1: Ensure api_2 exists and is healthy BEFORE touching
+            # the existing api. On the very first run of this workflow
+            # api_2 doesn't exist yet — create it now so there's a healthy
+            # replica to absorb traffic when we restart api below.
+            # On subsequent runs, `up -d` only recreates if the image or
+            # config changed (idempotent no-op otherwise).
+            echo "=== Ensure api_2 ==="
+            docker compose -f docker-compose.prod.yml up -d --no-deps api_2
+            wait_healthy reflect_api_2
+
+            # Step 2: Hot-reload Caddy so it picks up any Caddyfile change
+            # (e.g. the LB upstream pool gaining api_2 on first deploy)
+            # WITHOUT dropping active connections. If reload fails — for
+            # example Caddy isn't running yet — fall back to a normal
+            # recreate. The Caddyfile is mounted from the host so the
+            # reload sees the new content immediately.
+            echo "=== Caddy reload ==="
+            if docker exec reflect_caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null; then
+              echo "  hot-reloaded"
+            else
+              echo "  hot-reload failed — recreating Caddy"
+              docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans caddy
+            fi
+
+            # Step 3: Rolling restart of api. api_2 keeps serving while
+            # api's graceful-shutdown drains active feedback streams
+            # (up to 110s) and the new container boots.
+            echo "=== Rolling redeploy: api ==="
+            docker compose -f docker-compose.prod.yml up -d --no-deps api
+            wait_healthy reflect_api
+
+            # Step 4: Now restart api_2 with the new image too. api keeps
+            # serving during this swap. If api_2 was already on the new
+            # image from step 1, this is a no-op.
+            echo "=== Rolling redeploy: api_2 ==="
+            docker compose -f docker-compose.prod.yml up -d --no-deps api_2
+            wait_healthy reflect_api_2
+
+            # Step 5: Static SPA. Browsers cache the Angular bundle so an
+            # existing session doesn't refetch during the brief restart.
+            # Caddy's lb_try_duration retries any in-flight web request.
+            echo "=== Web ==="
+            docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans web
 
             echo "=== Done: $(git log --oneline -1) ==="
