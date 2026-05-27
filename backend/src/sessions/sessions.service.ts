@@ -6,6 +6,7 @@ import { TestsService } from '../tests/tests.service';
 import { cleanFeedback } from './feedback-cleaner';
 import { FeatureGateService, GateReason } from '../billing/feature-gate.service';
 import { SubscriptionsService } from '../billing/subscriptions.service';
+import { CityService } from '../city/city.service';
 
 export type HintKind =
   | 'open-question'
@@ -101,6 +102,7 @@ export class SessionsService {
     private readonly tests: TestsService,
     private readonly featureGate: FeatureGateService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly city: CityService,
   ) {}
 
   async create(userId: number, characterId?: number) {
@@ -170,6 +172,8 @@ export class SessionsService {
       priorMemories,
       character.difficulty,
       character.modality,
+      character.cityId,
+      character.lang,
     );
 
     await this.prisma.message.create({
@@ -360,6 +364,8 @@ export class SessionsService {
       priorMemories,
       session.character.difficulty,
       session.character.modality,
+      session.character.cityId,
+      session.character.lang,
     );
 
     await this.prisma.message.create({
@@ -1312,6 +1318,8 @@ export class SessionsService {
     priorMemories: string[] = [],
     difficulty: number | null = null,
     modality: string | null = null,
+    cityId: number | null = null,
+    lang: string = 'uk',
   ): Promise<string> {
     const filled = this.prompts.fill(this.prompts.annaSystem, {
       CHARACTER_NAME: displayName,
@@ -1325,6 +1333,13 @@ export class SessionsService {
           .map((m, i) => `**Сесія ${i + 1}:** ${m}`)
           .join('\n\n')}\n\nНа першій репліці нової сесії ти можеш (але не зобов'язана) згадати щось із минулого — як зробила б реальна людина, що повертається до знайомого терапевта.`
       : '';
+
+    // World context: a paragraph about what's happening in the
+    // character's city this week. The character may or may not bring it
+    // up — instructed to weave it in only if naturally relevant, not as
+    // a forced segue. Sourced from City.weeklyDigest (cron-generated).
+    const citySection = await this.buildCitySection(cityId, lang);
+
     const difficultyModulator = this.prompts.getDifficultyModulator(difficulty);
     // Modality modulator goes LAST so it's the strongest steering — the
     // model sees baseline persona → difficulty → modality framing right
@@ -1335,9 +1350,42 @@ export class SessionsService {
     // subsequent turns — double-savings on long sessions.
     const brevityInstruction = this.prompts.getBrevityInstruction(difficulty, modality);
     return this.llm.chat({
-      systemPrompt: filled + warning + memorySection + difficultyModulator + modalityModulator + brevityInstruction,
+      systemPrompt: filled + warning + memorySection + citySection + difficultyModulator + modalityModulator + brevityInstruction,
       history,
       cacheSystem: true,
     });
+  }
+
+  /**
+   * Build the "world around you" section for a character's chat prompt.
+   * Returns empty string if no cityId or no fresh digest — never throws,
+   * because city context is enhancement-not-required: a missing digest
+   * shouldn't break the chat. Wrapped with a clear instruction so the
+   * model doesn't dump the digest verbatim; it's a background awareness.
+   */
+  private async buildCitySection(cityId: number | null, lang: string): Promise<string> {
+    let city: { displayName: string; weeklyDigest: string | null; weatherSummary: string | null; lang?: string } | null = null;
+    if (cityId) {
+      city = await this.prisma.city.findUnique({
+        where: { id: cityId },
+        select: { displayName: true, weeklyDigest: true, weatherSummary: true, lang: true },
+      });
+    } else {
+      // Legacy character without cityId — fall back to lang lookup.
+      city = await this.city.getForLang(lang);
+    }
+    if (!city?.weeklyDigest) return '';
+
+    const isUk = (city.lang ?? lang) === 'uk';
+    const header = isUk
+      ? `\n\n# Світ навколо тебе цього тижня (${city.displayName})`
+      : `\n\n# The world around you this week (${city.displayName})`;
+    const instruction = isUk
+      ? '\n\nЦе фон твого щоденного життя. Не переказуй цей блок — лише органічно вплети у репліку, ЯКЩО це доречно (наприклад, терапевт спитав про настрій, погоду, як справи). Не починай з "цього тижня у нас було..." — це сухо. Лише природне зерно: "ой, ще й це блекаут вчора", "та й погода ця доконує".'
+      : '\n\nThis is the everyday backdrop of your life. Don\'t recite this — weave it in naturally ONLY when relevant (e.g. therapist asks about mood, the week, how you are). No "this week we had..." openers — it\'s flat. Just natural grains: "and that blackout yesterday on top of it", "this weather is wearing me down".';
+    const weather = city.weatherSummary
+      ? `\n\n*Погода:* ${city.weatherSummary}`
+      : '';
+    return `${header}\n\n${city.weeklyDigest}${weather}${instruction}`;
   }
 }

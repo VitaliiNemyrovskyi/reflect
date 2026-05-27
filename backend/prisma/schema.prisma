@@ -7,6 +7,68 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/**
+ * Shared virtual world that characters live in. Singleton per locale —
+ * UA characters share Kyiv, EN characters share London/Edinburgh.
+ * The PromptsService.onModuleInit seeds the rows. The news ingester
+ * appends NewsItem rows under each city; CityService periodically
+ * regenerates `weeklyDigest` — a short LLM summary of recent news +
+ * weather that gets injected into every character's chat prompt so
+ * patients organically reference what's happening in their city.
+ */
+model City {
+  id              Int       @id @default(autoincrement())
+  /** stable lookup key — 'kyiv', 'london', 'edinburgh' */
+  key             String    @unique
+  /** which locale this city serves — 'uk' or 'en' */
+  lang            String
+  /** display name shown to users — 'Київ', 'London' */
+  displayName     String
+  /** ISO 3166 country code for weather APIs etc. — 'UA', 'GB' */
+  country         String
+  /** Aggregated LLM summary of the past 7d of news, used in every
+   *  character's chat system prompt. Plaintext paragraph, no markdown.
+   *  Regenerated daily by CityService. null = not yet generated. */
+  weeklyDigest    String?
+  /** Short weather snapshot. Updated by CityService alongside digest. */
+  weatherSummary  String?
+  digestUpdatedAt DateTime?
+  characters      Character[]
+  newsItems       NewsItem[]
+
+  @@index([lang])
+}
+
+/**
+ * One ingested news article. Fetched from RSS sources (configured in
+ * news.service.ts) every hour by NewsService.ingest(). Each gets an
+ * LLM summary + topic extraction so the digest step can prioritise.
+ * Deduped on (cityId, sourceUrl).
+ */
+model NewsItem {
+  id          Int      @id @default(autoincrement())
+  city        City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId      Int
+  /** RSS source identifier — 'pravda', 'bbc', 'guardian'. */
+  source      String
+  /** Original article URL — used for dedup and for trace-back. */
+  sourceUrl   String
+  /** Original headline. */
+  title       String
+  /** 1-2 sentence LLM rewrite — what a city resident would say if asked
+   *  about it casually. Reads as conversational summary, not a headline. */
+  summary     String
+  /** JSON array of topic tags extracted by LLM, e.g.
+   *  ["blackout","energy","kyiv"] — used by character.interests matching
+   *  to decide which items each character is "aware of". */
+  topics      String
+  publishedAt DateTime
+  ingestedAt  DateTime @default(now())
+
+  @@unique([cityId, sourceUrl])
+  @@index([cityId, publishedAt])
+}
+
 model Character {
   id             Int       @id @default(autoincrement())
   slug           String    @unique
@@ -27,6 +89,20 @@ model Character {
    *  based on the Accept-Language header so UK users see Olesya/Anna
    *  and EN users see Emma/Thomas/Sophie. */
   lang           String    @default("uk")
+  /** Which shared City this character lives in. Drives the news-digest
+   *  injection into chat prompts. Optional so legacy rows survive
+   *  schema push; service layer fills in based on lang as a fallback. */
+  city           City?     @relation(fields: [cityId], references: [id])
+  cityId         Int?
+  /** Neighborhood/district within city — 'Печерськ', 'Soho'. Surfaced
+   *  in prompts so news items about specific neighborhoods can resonate
+   *  more strongly for residents. */
+  neighborhood   String?
+  /** JSON array of topic tags this character cares about, used to
+   *  weight which news items make it into their awareness. E.g. an
+   *  artist might care about ["culture","exhibitions"] while an IT
+   *  worker might track ["energy","blackouts","tech"]. */
+  interests      String?
   avatarUrl      String?   // Link to portrait
   // Creator of a user-defined patient. null for system patients (loaded
   // from prompts/profiles/*.md on startup) — these are visible to all
