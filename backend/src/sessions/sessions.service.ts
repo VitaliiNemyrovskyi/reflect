@@ -651,7 +651,26 @@ export class SessionsService {
       where: { id: sessionId },
       include: { character: true },
     });
-    if (!session || session.userId !== userId) throw new NotFoundException('session not found');
+    if (!session) throw new NotFoundException('session not found');
+
+    // Permission model: owner can do everything. Admins can READ cached
+    // feedback (same rule as getForView) so they can review another
+    // user's completed session — but CANNOT initiate a fresh feedback
+    // generation for someone else (LLM cost + intent should belong to
+    // the owner). Non-owner non-admin → 404.
+    const isOwner = session.userId === userId;
+    let isAdminViewer = false;
+    if (!isOwner) {
+      const viewer = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { isAdmin: true },
+      });
+      if (!viewer?.isAdmin) {
+        throw new NotFoundException('session not found');
+      }
+      isAdminViewer = true;
+    }
+
     if (session.endedAt && session.feedback) {
       // Replay both the markdown narrative AND the machine-readable
       // assessment for cached/already-ended sessions so the competency
@@ -659,6 +678,12 @@ export class SessionsService {
       const assessment = session.feedbackJson ? safeParseJson(session.feedbackJson) : null;
       yield { type: 'cached', data: { feedback: session.feedback, assessment } };
       return;
+    }
+
+    // No cached feedback → would have to GENERATE. Admins viewing
+    // someone else's session aren't allowed to spend LLM budget on it.
+    if (isAdminViewer) {
+      throw new NotFoundException('session has no feedback yet — only owner can generate');
     }
 
     const ctx = await this.buildFeedbackContext(session, sessionId, lang);
