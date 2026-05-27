@@ -24,8 +24,17 @@ jobs:
             echo "=== Pull ==="
             git pull origin main
 
+            # Build only api + web — these change every commit. Caddy
+            # builds from ./deploy/caddy and rarely changes; rebuilding
+            # it each deploy would bump its image hash, which makes
+            # `docker compose up -d caddy` recreate the container and
+            # introduces a ~4-5s blip. Skip the rebuild so Caddy stays
+            # untouched on routine deploys. When Caddy itself needs to
+            # change (e.g. new plugin in xcaddy), run a one-off
+            # `docker compose build caddy && docker compose up -d caddy`
+            # by hand — that's a rare event.
             echo "=== Build ==="
-            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml build api web
 
             # Helper: wait until the named container reports healthy.
             # Polls every 5s, gives up after 18 tries (90s). Fails the
