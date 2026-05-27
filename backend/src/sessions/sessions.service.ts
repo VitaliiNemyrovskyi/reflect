@@ -1239,13 +1239,104 @@ export class SessionsService {
     let m: RegExpExecArray | null;
     while ((m = re.exec(raw)) !== null) lastMatch = m;
     if (!lastMatch) return { narrative: raw, json: null };
+
+    const content = lastMatch[1];
+    const before = raw.slice(0, lastMatch.index).trim();
+
+    // Happy path: strict JSON.parse succeeds.
     try {
-      const parsed = JSON.parse(lastMatch[1]);
-      const before = raw.slice(0, lastMatch.index).trim();
-      return { narrative: before, json: parsed };
+      return { narrative: before, json: JSON.parse(content) };
     } catch {
-      return { narrative: raw, json: null };
+      // Fall through to lenient extractor.
     }
+
+    // Lenient extractor — handles the LLM's common failure mode of
+    // leaving inner double-quotes unescaped in string values (esp.
+    // patientMemory: «у своїй "сірій" коробці» breaks JSON because
+    // the inner `"` closes the string early). Rather than losing the
+    // whole assessment, we pull out the fields we care about via
+    // regex / span-anchored substring extraction.
+    const lenient = this.extractLenient(content);
+    if (lenient) {
+      this.logger.warn(
+        `splitFeedback: strict JSON.parse failed, used lenient extractor (likely unescaped inner quotes)`,
+      );
+      return { narrative: before, json: lenient };
+    }
+    return { narrative: raw, json: null };
+  }
+
+  /**
+   * Tolerant assessment-block extractor. Pulls numeric metrics under
+   * `patient` and `therapist` via key-anchored regex (skipping the
+   * surrounding JSON structure), then grabs `patientMemory` as the
+   * substring between its first opening quote and the last quote
+   * before the final closing brace — which is correct even when the
+   * value itself contains unescaped `"` characters.
+   */
+  private extractLenient(content: string): {
+    patient?: Record<string, number | null>;
+    therapist?: Record<string, number | null>;
+    patientMemory?: string;
+  } | null {
+    const num = (key: string): number | null | undefined => {
+      const re = new RegExp(`"${key}"\\s*:\\s*(\\d+(?:\\.\\d+)?|null)`);
+      const m = content.match(re);
+      if (!m) return undefined;
+      return m[1] === 'null' ? null : Number(m[1]);
+    };
+    const patientKeys = ['symptomSeverity', 'insight', 'alliance', 'defensiveness', 'hopefulness'];
+    const therapistKeys = ['empathy', 'collaboration', 'guidedDiscovery', 'strategyForChange'];
+
+    const patient: Record<string, number | null> = {};
+    for (const k of patientKeys) {
+      const v = num(k);
+      if (v !== undefined) patient[k] = v;
+    }
+    const therapist: Record<string, number | null> = {};
+    for (const k of therapistKeys) {
+      const v = num(k);
+      if (v !== undefined) therapist[k] = v;
+    }
+
+    let patientMemory: string | undefined;
+    const pmIdx = content.indexOf('"patientMemory"');
+    if (pmIdx >= 0) {
+      const colon = content.indexOf(':', pmIdx);
+      const openQuote = content.indexOf('"', colon + 1);
+      if (openQuote > 0) {
+        // Find the last `"` before the final `}` of the block — that
+        // robustly closes off the patientMemory string even when the
+        // body has stray unescaped quotes.
+        const lastBrace = content.lastIndexOf('}');
+        const closeQuote = content.lastIndexOf('"', lastBrace - 1);
+        if (closeQuote > openQuote) {
+          patientMemory = content
+            .slice(openQuote + 1, closeQuote)
+            // Best-effort: unescape any actually-escaped quotes the
+            // LLM did manage to write. Other escapes (newlines etc)
+            // probably weren't present in the original anyway.
+            .replace(/\\"/g, '"')
+            .trim();
+        }
+      }
+    }
+
+    const anyField =
+      Object.keys(patient).length > 0 ||
+      Object.keys(therapist).length > 0 ||
+      !!patientMemory;
+    if (!anyField) return null;
+
+    const out: {
+      patient?: Record<string, number | null>;
+      therapist?: Record<string, number | null>;
+      patientMemory?: string;
+    } = {};
+    if (Object.keys(patient).length) out.patient = patient;
+    if (Object.keys(therapist).length) out.therapist = therapist;
+    if (patientMemory) out.patientMemory = patientMemory;
+    return out;
   }
 
   /**
