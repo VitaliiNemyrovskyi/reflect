@@ -20,6 +20,7 @@ import { MemoryModule } from './memory/memory.module';
 import { NetworkModule } from './network/network.module';
 import { NpcModule } from './npc/npc.module';
 import { DiaryModule } from './diary/diary.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { DiaryModule } from './diary/diary.module';
     NetworkModule,
     NpcModule,
     DiaryModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

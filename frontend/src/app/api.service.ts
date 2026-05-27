@@ -163,6 +163,61 @@ export interface ProgressTrend {
  *  - 'diary'    — between-session diary note (Phase 4)
  *  - 'seed'     — biographical context seeded with the character
  */
+// ── Dashboard (home page) ─────────────────────────────────────────────
+
+export interface DashboardCity {
+  displayName: string;
+  weeklyDigest: string | null;
+  weatherSummary: string | null;
+}
+
+export interface DashboardActiveSession {
+  id: number;
+  startedAt: string;
+  character: { id: number; displayName: string; avatarUrl: string | null; diagnosis: string | null };
+  messageCount: number;
+}
+
+export interface DashboardPendingFeedback {
+  id: number;
+  endedAt: string;
+  character: { id: number; displayName: string; avatarUrl: string | null };
+}
+
+export interface DashboardDiaryEntry {
+  id: number;
+  characterId: number;
+  character: { id: number; displayName: string; avatarUrl: string | null; lang: string };
+  content: string;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface DashboardPatient {
+  id: number;
+  displayName: string;
+  avatarUrl: string | null;
+  diagnosis: string | null;
+  difficulty: number | null;
+  modality: ModalityKey;
+  lastSessionAt: string | null;
+  isMine: boolean;
+}
+
+export interface DashboardResponse {
+  city: DashboardCity | null;
+  activeSessions: DashboardActiveSession[];
+  pendingFeedback: DashboardPendingFeedback[];
+  recentDiary: DashboardDiaryEntry[];
+  weekStats: {
+    sessions: number;
+    withFeedback: number;
+    avgAlliance: number | null;
+  };
+  patientGrid: DashboardPatient[];
+  hasMorePatients: boolean;
+}
+
 // ── Network graph ─────────────────────────────────────────────────────
 
 export type NetworkNodeType = 'city' | 'character' | 'user' | 'npc';
@@ -576,6 +631,20 @@ export class ApiService {
   listModalities(): Promise<ModalityInfo[]> {
     return firstValueFrom(
       this.http.get<ModalityInfo[]>(`${this.base}/characters/modalities`),
+    );
+  }
+
+  /**
+   * One-shot aggregate for the logged-in home page — city pulse,
+   * active sessions, pending feedback, recent diary, week stats,
+   * compact patient grid. Backend builds it in indexed queries so
+   * the home page lands in one round-trip.
+   */
+  dashboard(): Promise<DashboardResponse> {
+    return firstValueFrom(
+      this.http.get<DashboardResponse>(`${this.base}/dashboard`, {
+        headers: { 'Accept-Language': this.i18n.lang() },
+      }),
     );
   }
 

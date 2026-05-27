@@ -20,7 +20,19 @@ export const routes: Routes = [
       import('./pages/oauth-callback.component').then((m) => m.OAuthCallbackComponent),
   },
   {
+    // Logged-in home: "living world dashboard" — city pulse, diary
+    // feed, pending feedback, week stats, compact patient grid.
     path: '',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/home.component').then((m) => m.HomeComponent),
+  },
+  {
+    // Power-user route: full character grid with all filters
+    // (modality, difficulty). Reachable from the home page's
+    // "Усі пацієнти →" link when there are more than fit in the
+    // compact grid.
+    path: 'clients',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/characters-list.component').then((m) => m.CharactersListComponent),

@@ -32,6 +32,20 @@ const T: Record<Lang, Record<string, string>> = {
     'network.legend.user':       'Терапевт',
     'network.legend.npc':        'Близькі',
 
+    // Home dashboard
+    'home.continue':       'Продовжити сесію',
+    'home.replies':        'реплік',
+    'home.pending_feedback':'Чекають на фідбек',
+    'home.get_feedback':   'Отримати фідбек',
+    'home.session':        'сесія',
+    'home.diary_title':    'Як справи у твоїх пацієнтів',
+    'home.diary_sub':      'Між сесіями — що в них на думці',
+    'home.week_sessions':  'Сесій за тиждень',
+    'home.week_feedback':  'З фідбеком',
+    'home.week_alliance':  'Середній альянс',
+    'home.patients':       'Твої пацієнти',
+    'home.see_all':        'Усі пацієнти',
+
     // Characters list
     'chars.page_title':   'Вибери клієнта для тренування',
     'chars.start':        'Почати сесію',
@@ -182,6 +196,20 @@ const T: Record<Lang, Record<string, string>> = {
     'network.legend.character':  'Patient',
     'network.legend.user':       'Therapist',
     'network.legend.npc':        'Close ones',
+
+    // Home dashboard
+    'home.continue':       'Continue session',
+    'home.replies':        'replies',
+    'home.pending_feedback':'Awaiting feedback',
+    'home.get_feedback':   'Get feedback',
+    'home.session':        'session',
+    'home.diary_title':    "How your patients are doing",
+    'home.diary_sub':      "Between sessions — what's on their minds",
+    'home.week_sessions':  'Sessions this week',
+    'home.week_feedback':  'With feedback',
+    'home.week_alliance':  'Avg alliance',
+    'home.patients':       'Your patients',
+    'home.see_all':        'All patients',
 
     // Characters list
     'chars.page_title':   'Choose a client to practise with',
