@@ -1,4 +1,4 @@
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -29,7 +29,7 @@ import { LogoComponent } from '../logo.component';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink, LogoComponent],
+  imports: [CommonModule, RouterLink, LogoComponent],
   template: `
     <header class="home-header">
       <div class="brand-row">
@@ -147,8 +147,8 @@ import { LogoComponent } from '../logo.component';
                     {{ entry.character.displayName }}
                   </a>
                   <span class="diary-dot dim">·</span>
-                  <span class="diary-date dim">{{ entry.createdAt | date: 'd MMM' : '' : (i18n.isEn ? 'en' : 'uk') }}</span>
-                  @for (t of entry.tags; track t) {
+                  <span class="diary-date dim">{{ formatShortDate(entry.createdAt) }}</span>
+                  @for (t of entry.tags; track $index) {
                     <span class="diary-tag">{{ t }}</span>
                   }
                 </div>
@@ -664,6 +664,25 @@ export class HomeComponent implements OnInit {
       day: 'numeric',
       month: 'long',
     });
+  }
+
+  /**
+   * Localized short date — "27 трав." / "27 May". Uses native
+   * Intl.DateTimeFormat so we don't depend on Angular's
+   * registerLocaleData (which would be required for the date pipe
+   * with locale 'uk' — without it the pipe silently broke the
+   * surrounding template bindings, blanking every diary card after
+   * the first one).
+   */
+  formatShortDate(iso: string): string {
+    try {
+      return new Date(iso).toLocaleDateString(
+        this.i18n.isEn ? 'en-GB' : 'uk-UA',
+        { day: 'numeric', month: 'short' },
+      );
+    } catch {
+      return iso.slice(0, 10);
+    }
   }
 
   initials(name: string): string {
