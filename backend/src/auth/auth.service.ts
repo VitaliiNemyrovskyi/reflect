@@ -18,7 +18,14 @@ export interface AuthResult extends AuthTokens {
   user: { id: number; email: string; displayName: string | null; isAdmin: boolean };
 }
 
-/** Admin email allow-list, sourced from ADMIN_EMAILS env var. */
+/**
+ * Initial admin email allow-list, sourced from ADMIN_EMAILS env var.
+ * BOOTSTRAP ONLY — used to grant admin on first login, never to revoke.
+ * Day-to-day admin management is in the admin panel (see admin.controller
+ * grant/revoke endpoints), so removing an email from the env var won't
+ * lock the user out, and adding one only takes effect if they're not
+ * already an admin in the DB.
+ */
 function adminEmailSet(): Set<string> {
   const raw = process.env.ADMIN_EMAILS ?? '';
   return new Set(
@@ -241,20 +248,30 @@ export class AuthService {
   }
 
   /**
-   * Bootstraps admin status from `ADMIN_EMAILS` env var. Called on every
-   * profile fetch and login — so adding/removing emails takes effect on
-   * the next request, no DB poke needed. Persists the change to DB so
-   * AdminGuard can rely on the column directly without re-checking env.
+   * Bootstraps admin status from `ADMIN_EMAILS` env var — but only ADDITIVELY.
+   *
+   * If the user's email appears in ADMIN_EMAILS and they're not currently an
+   * admin, promote them. If they ARE an admin (either via env bootstrap or
+   * via a manual grant from another admin), leave them alone — removing an
+   * email from the env var no longer auto-revokes.
+   *
+   * Day-to-day admin grants/revokes happen through the admin panel
+   * (admin.controller). The env var stays as a recovery mechanism: if the
+   * DB ever loses every admin (manual revoke loop, accidental delete),
+   * an operator can re-grant by setting ADMIN_EMAILS and triggering a login.
+   *
+   * Called on every login/refresh and `getProfile` so the bootstrap path
+   * runs as soon as the user touches the API.
    */
   private async reconcileAdmin(user: User): Promise<boolean> {
+    if (user.isAdmin) return true;
     const allowList = adminEmailSet();
-    const shouldBeAdmin = allowList.has(user.email.toLowerCase());
-    if (shouldBeAdmin === user.isAdmin) return user.isAdmin;
+    if (!allowList.has(user.email.toLowerCase())) return false;
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { isAdmin: shouldBeAdmin },
+      data: { isAdmin: true },
     });
-    return shouldBeAdmin;
+    return true;
   }
 
   /**

@@ -826,6 +826,28 @@ export class ApiService {
     return firstValueFrom(this.http.delete<void>(`${this.base}/admin/sessions/${id}`));
   }
 
+  /** Grant admin rights to a user. Idempotent — re-granting is a no-op. */
+  adminGrantAdmin(userId: number): Promise<{ id: number; email: string; isAdmin: boolean }> {
+    return firstValueFrom(
+      this.http.post<{ id: number; email: string; isAdmin: boolean }>(
+        `${this.base}/admin/users/${userId}/admin`,
+        {},
+      ),
+    );
+  }
+
+  /**
+   * Revoke admin rights from a user. Backend refuses when the target is
+   * the last remaining admin — caller should surface that error to the UI.
+   */
+  adminRevokeAdmin(userId: number): Promise<{ id: number; email: string; isAdmin: boolean }> {
+    return firstValueFrom(
+      this.http.delete<{ id: number; email: string; isAdmin: boolean }>(
+        `${this.base}/admin/users/${userId}/admin`,
+      ),
+    );
+  }
+
   adminListErrors(opts?: { limit?: number; userId?: number }): Promise<AdminErrorLog[]> {
     const params: Record<string, string> = {};
     if (opts?.limit != null) params['limit'] = String(opts.limit);

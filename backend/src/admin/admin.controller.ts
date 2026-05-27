@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
+import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { AdminService } from './admin.service';
 import { SubscriptionsService } from '../billing/subscriptions.service';
 import { PLANS, PlanId } from '../billing/plans.config';
@@ -61,6 +62,31 @@ export class AdminController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteSession(@Param('id', ParseIntPipe) id: number) {
     await this.admin.deleteSession(id);
+  }
+
+  /**
+   * Grant / revoke admin rights. Day-to-day admin management lives here
+   * — the ADMIN_EMAILS env var only bootstraps the first admin on cold
+   * deploys and acts as a recovery mechanism.
+   *
+   * Both endpoints are admin-only (AdminGuard). Revoke refuses to remove
+   * the last admin so the panel can never lock itself out. Self-revoke
+   * is allowed when another admin exists — caller's id flows in via
+   * @CurrentUser for a clearer error if they ARE the last admin.
+   */
+  @Post('users/:id/admin')
+  @HttpCode(HttpStatus.OK)
+  async grantAdmin(@Param('id', ParseIntPipe) id: number) {
+    return this.admin.grantAdmin(id);
+  }
+
+  @Delete('users/:id/admin')
+  @HttpCode(HttpStatus.OK)
+  async revokeAdmin(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() caller: AuthUser,
+  ) {
+    return this.admin.revokeAdmin(id, caller.id);
   }
 
   @Get('errors')

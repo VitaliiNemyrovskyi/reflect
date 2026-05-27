@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -110,6 +110,65 @@ export class AdminService {
     if (!session) throw new NotFoundException('session not found');
     await this.prisma.session.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  /**
+   * Grant admin to a user by id. Idempotent — re-granting a user who's
+   * already an admin is a no-op (returns the unchanged row). The grant
+   * persists in the DB regardless of ADMIN_EMAILS env var, so a manual
+   * grant survives env-var changes.
+   */
+  async grantAdmin(targetUserId: number): Promise<{ id: number; email: string; isAdmin: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, email: true, isAdmin: true },
+    });
+    if (!user) throw new NotFoundException('user not found');
+    if (user.isAdmin) return user;
+    const updated = await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { isAdmin: true },
+      select: { id: true, email: true, isAdmin: true },
+    });
+    return updated;
+  }
+
+  /**
+   * Revoke admin from a user by id. Refuses when:
+   *  - the target is the last remaining admin (would lock everyone out)
+   *  - the target isn't an admin (idempotent — returns unchanged row)
+   *
+   * Self-revoke IS allowed as long as another admin still exists. The
+   * caller is responsible for confirming with the user before sending.
+   * Caller's userId is required so we can surface a clearer error if
+   * they try to demote themselves and they're the last admin.
+   */
+  async revokeAdmin(
+    targetUserId: number,
+    callerUserId: number,
+  ): Promise<{ id: number; email: string; isAdmin: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, email: true, isAdmin: true },
+    });
+    if (!user) throw new NotFoundException('user not found');
+    if (!user.isAdmin) return user;
+
+    const adminCount = await this.prisma.user.count({ where: { isAdmin: true } });
+    if (adminCount <= 1) {
+      throw new BadRequestException(
+        targetUserId === callerUserId
+          ? 'Не можна відкликати власні адмін-права — ти зараз єдиний адмін'
+          : 'Не можна відкликати останнього адміна',
+      );
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { isAdmin: false },
+      select: { id: true, email: true, isAdmin: true },
+    });
+    return updated;
   }
 
   /**

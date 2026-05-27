@@ -23,7 +23,8 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
       <a routerLink="/" class="back">← На головну</a>
       <h1>Admin panel</h1>
       <p class="subtitle dim">
-        Доступ для адмінів. Налаштуй <code>ADMIN_EMAILS</code> у серверному <code>.env</code>.
+        Доступ для адмінів. Гранти й ревоки керуються тут — у вкладці «Користувачі».
+        Змінна оточення <code>ADMIN_EMAILS</code> лишається як аварійний bootstrap.
       </p>
 
       <nav class="tabs">
@@ -73,9 +74,31 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
                 <td>{{ u.displayName || '—' }}</td>
                 <td><code class="provider">{{ u.provider }}</code></td>
                 <td class="num">{{ u.sessionCount }}</td>
-                <td>@if (u.isAdmin) { <span class="badge admin-badge">admin</span> }</td>
+                <td>
+                  @if (u.isAdmin) {
+                    <span class="badge admin-badge">admin</span>
+                    @if (u.id === currentUserId()) { <span class="self-tag">(ти)</span> }
+                  }
+                </td>
                 <td class="dim">{{ u.createdAt | date: 'dd.MM.yyyy' }}</td>
-                <td><button class="link-btn" (click)="filterByUser(u.id)">сесії →</button></td>
+                <td class="row-actions">
+                  <button class="link-btn" (click)="filterByUser(u.id)">сесії →</button>
+                  @if (u.isAdmin) {
+                    <button
+                      class="link-btn danger"
+                      [disabled]="adminBusy() === u.id"
+                      (click)="revokeAdmin(u)">
+                      {{ adminBusy() === u.id ? '…' : '× admin' }}
+                    </button>
+                  } @else {
+                    <button
+                      class="link-btn"
+                      [disabled]="adminBusy() === u.id"
+                      (click)="grantAdmin(u)">
+                      {{ adminBusy() === u.id ? '…' : '+ admin' }}
+                    </button>
+                  }
+                </td>
               </tr>
             }
             @if (users().length === 0) {
@@ -440,6 +463,18 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
       min-height: auto;
     }
     .link-btn:hover { text-decoration: underline; }
+    .link-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+    .link-btn.danger { color: var(--danger); }
+    .self-tag {
+      font-size: 10px;
+      color: var(--fg-dim);
+      margin-left: 4px;
+      font-style: italic;
+    }
 
     .session-detail {
       margin-top: 18px;
@@ -630,7 +665,12 @@ export class AdminComponent implements OnInit {
 
   sessionFilter = signal<{ userId?: number }>({});
 
+  /** id of the user whose admin toggle is currently in-flight — used to
+   *  disable just that row's button without locking the rest of the table. */
+  adminBusy = signal<number | null>(null);
+
   isAdmin = computed(() => this.auth.user()?.isAdmin === true);
+  currentUserId = computed(() => this.auth.user()?.id ?? null);
 
   ngOnInit() {
     if (!this.isAdmin()) {
@@ -719,5 +759,52 @@ export class AdminComponent implements OnInit {
 
   toggleErrorExpand(id: number) {
     this.expandedError.set(this.expandedError() === id ? null : id);
+  }
+
+  /**
+   * Grant admin rights to the target user. Confirms first so a misclick
+   * on someone's row doesn't quietly hand them the keys. Updates the
+   * local row in-place — no full reload, the rest of the table stays put.
+   */
+  async grantAdmin(user: AdminUser) {
+    if (!confirm(`Зробити ${user.email} адміністратором?\n\nВін отримає доступ до сесій усіх користувачів, помилок та може видавати/відкликати адмін-права іншим.`)) return;
+    this.adminBusy.set(user.id);
+    try {
+      const updated = await this.api.adminGrantAdmin(user.id);
+      this.users.update((list) =>
+        list.map((u) => (u.id === user.id ? { ...u, isAdmin: updated.isAdmin } : u)),
+      );
+    } catch (e: unknown) {
+      const msg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось видати права.';
+      alert(msg);
+    } finally {
+      this.adminBusy.set(null);
+    }
+  }
+
+  /**
+   * Revoke admin rights. Confirms because losing admin is non-trivial
+   * (the user is signed in right now and will lose access on next
+   * /admin* request). Backend refuses to remove the last admin — that
+   * error bubbles up via alert so the caller sees why nothing happened.
+   */
+  async revokeAdmin(user: AdminUser) {
+    const isSelf = user.id === this.currentUserId();
+    const msg = isSelf
+      ? 'Відкликати власні адмін-права? Ти більше не зможеш керувати адмінкою.'
+      : `Відкликати адмін-права в ${user.email}?`;
+    if (!confirm(msg)) return;
+    this.adminBusy.set(user.id);
+    try {
+      const updated = await this.api.adminRevokeAdmin(user.id);
+      this.users.update((list) =>
+        list.map((u) => (u.id === user.id ? { ...u, isAdmin: updated.isAdmin } : u)),
+      );
+    } catch (e: unknown) {
+      const errMsg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось відкликати права.';
+      alert(errMsg);
+    } finally {
+      this.adminBusy.set(null);
+    }
   }
 }
