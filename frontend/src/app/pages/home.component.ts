@@ -3,10 +3,6 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   ApiService,
-  DashboardActiveSession,
-  DashboardDiaryEntry,
-  DashboardPatient,
-  DashboardPendingFeedback,
   DashboardResponse,
 } from '../api.service';
 import { AuthService } from '../auth.service';
@@ -14,20 +10,21 @@ import { I18nService } from '../i18n.service';
 import { LogoComponent } from '../logo.component';
 
 /**
- * Logged-in home page — the "living world dashboard". Replaces the
- * old direct-to-characters-grid landing with a richer surface that
- * leverages every back-end phase we built:
+ * Logged-in home page — the living world dashboard.
  *
- *   1. City pulse banner (Phase 1)
- *   2. Continue / pending CTAs (active sessions + feedback retry)
- *   3. Diary feed (Phase 4) — the unique value prop, takes center stage
- *   4. Week stats (Phase 2 alliance pulled from feedbackJson)
- *   5. Compact patient grid (full filtered grid still lives at /clients)
+ * Visual hierarchy:
+ *   1. Compact top bar: greeting + date + city pill (city pulse
+ *      expandable on click, NOT dominating the page)
+ *   2. Continue / pending CTAs as slim banners (only if relevant)
+ *   3. Diary feed — masonry grid of patient first-person cards. THIS
+ *      is the centerpiece. Avatars + character names + tagged content.
+ *   4. Stats strip — inline pills at the bottom, not big cards
+ *   5. Patient grid — avatar-first mosaic
  *
- * One API call (api.dashboard) backs the entire page so the cold
- * landing is snappy. Each section gracefully hides when its data
- * source is empty (no active sessions → no continue card; no diary
- * → fall through to grid).
+ * Backed by a single /api/dashboard call. ngOnInit fires it; the
+ * language toggle calls load() explicitly so we don't depend on an
+ * effect (an earlier effect-based approach caused a load→loading→
+ * load infinite loop because the effect read `loading()`).
  */
 @Component({
   selector: 'app-home',
@@ -42,13 +39,9 @@ import { LogoComponent } from '../logo.component';
             <a routerLink="/profile" class="user-name-link" [title]="i18n.t('nav.profile')">
               {{ u.displayName ?? u.email }}
             </a>
-            <a routerLink="/network"
-               class="ghost icon small"
-               [title]="i18n.t('nav.network')">🕸</a>
+            <a routerLink="/network" class="ghost icon small" [title]="i18n.t('nav.network')">🕸</a>
             @if (u.isAdmin) {
-              <a routerLink="/admin"
-                 class="ghost icon small admin-link"
-                 title="Admin">🛡</a>
+              <a routerLink="/admin" class="ghost icon small admin-link" title="Admin">🛡</a>
             }
             <a routerLink="/settings" class="ghost icon small" [title]="i18n.t('nav.settings')">⚙</a>
             <button class="ghost small lang-toggle" (click)="toggleLang()">
@@ -59,160 +52,171 @@ import { LogoComponent } from '../logo.component';
         }
       </div>
 
-      <!-- City pulse — slim banner at the top so it's ambient context,
-           not a content card competing with the diary feed below. -->
-      @if (data()?.city; as city) {
-        <section class="city-pulse synapse-panel">
-          <span class="city-icon">📍</span>
-          <div class="city-text">
-            <strong>{{ city.displayName }}</strong>
+      <div class="title-row">
+        <div class="greeting">
+          @if (auth.user(); as u) {
+            <h1>
+              {{ i18n.t('home.greeting') }}{{ greetingName() }}<span class="comma">,</span>
+            </h1>
+          }
+          <p class="date dim">{{ today() }}</p>
+        </div>
+
+        <!-- City pill: one-line ambient pulse. Click expands to show the
+             full week digest as a small popover-style panel. Default
+             collapsed so the digest doesn't dominate the screen. -->
+        @if (data()?.city; as city) {
+          <button
+            class="city-pill"
+            [class.expanded]="cityExpanded()"
+            (click)="cityExpanded.set(!cityExpanded())"
+            [attr.aria-expanded]="cityExpanded()">
+            <span class="city-icon">📍</span>
+            <span class="city-name">{{ city.displayName }}</span>
             @if (city.weatherSummary) {
-              <span class="dim"> · {{ city.weatherSummary }}</span>
+              <span class="city-weather dim">· {{ city.weatherSummary }}</span>
             }
             @if (city.weeklyDigest) {
-              <p class="city-digest">{{ city.weeklyDigest }}</p>
+              <span class="city-toggle">{{ cityExpanded() ? '–' : i18n.t('home.city_expand') }}</span>
             }
-          </div>
-        </section>
-      }
+          </button>
+          @if (cityExpanded() && city.weeklyDigest) {
+            <p class="city-digest synapse-panel">{{ city.weeklyDigest }}</p>
+          }
+        }
+      </div>
     </header>
 
-    @if (loading()) {
+    @if (loading() && !data()) {
       <p class="hint">{{ i18n.t('general.loading') }}</p>
     }
-    @if (!loading() && data(); as d) {
 
-      <!-- Continue active session — hero CTA at the very top when
-           there's unfinished work. Skipped entirely otherwise. -->
+    @if (data(); as d) {
+
+      <!-- Continue session: slim accent banner. -->
       @if (d.activeSessions.length > 0) {
-        <section class="continue-section">
-          <h2 class="section-head">{{ i18n.t('home.continue') }}</h2>
-          @for (s of d.activeSessions; track s.id) {
-            <a [routerLink]="['/session', s.id]" class="continue-card synapse-panel">
-              @if (s.character.avatarUrl) {
-                <img [src]="s.character.avatarUrl" [alt]="s.character.displayName" class="avatar" />
-              } @else {
-                <div class="avatar-fallback">{{ initials(s.character.displayName) }}</div>
-              }
-              <div class="continue-body">
-                <div class="continue-name">{{ s.character.displayName }}</div>
-                <div class="continue-meta dim">
-                  {{ s.messageCount }} {{ i18n.t('home.replies') }} · {{ relativeTime(s.startedAt) }}
-                </div>
-              </div>
-              <span class="continue-arrow">→</span>
-            </a>
-          }
-        </section>
-      }
-
-      <!-- Pending feedback — ended sessions without feedback. Compact
-           inline cards so they're visible but don't dominate. -->
-      @if (d.pendingFeedback.length > 0) {
-        <section class="pending-section">
-          <h2 class="section-head">{{ i18n.t('home.pending_feedback') }}</h2>
-          <ul class="pending-list">
-            @for (s of d.pendingFeedback; track s.id) {
-              <li>
-                <a [routerLink]="['/session', s.id, 'feedback']" class="pending-row">
-                  <span>{{ s.character.displayName }} · {{ i18n.t('home.session') }} #{{ s.id }}</span>
-                  <span class="pending-action">{{ i18n.t('home.get_feedback') }} →</span>
-                </a>
-              </li>
+        @for (s of d.activeSessions; track s.id) {
+          <a [routerLink]="['/session', s.id]" class="continue-bar">
+            <div class="continue-icon">▶</div>
+            @if (s.character.avatarUrl) {
+              <img [src]="s.character.avatarUrl" [alt]="s.character.displayName" class="avatar" />
+            } @else {
+              <div class="avatar-fallback">{{ initials(s.character.displayName) }}</div>
             }
-          </ul>
-        </section>
+            <div class="continue-body">
+              <strong>{{ i18n.t('home.continue') }}</strong> ·
+              <span>{{ s.character.displayName }}</span>
+              <span class="dim"> · {{ s.messageCount }} {{ i18n.t('home.replies') }}, {{ relativeTime(s.startedAt) }}</span>
+            </div>
+            <span class="continue-arrow">→</span>
+          </a>
+        }
       }
 
-      <!-- Diary feed — Phase 4 centerpiece. Each card is a first-person
-           snippet, tagged. Click on character name → patient detail. -->
+      <!-- Pending feedback: even slimmer, secondary. -->
+      @if (d.pendingFeedback.length > 0) {
+        <div class="pending-strip">
+          <span class="pending-icon">🆕</span>
+          <span class="pending-label">{{ i18n.t('home.pending_feedback') }}:</span>
+          @for (s of d.pendingFeedback; track s.id; let last = $last) {
+            <a [routerLink]="['/session', s.id, 'feedback']" class="pending-link">
+              {{ s.character.displayName }} #{{ s.id }}
+            </a>
+            @if (!last) {<span class="dim sep">·</span>}
+          }
+        </div>
+      }
+
+      <!-- DIARY FEED — the centerpiece. Wider than other sections,
+           card-grid with bigger type, avatars on top. -->
       @if (d.recentDiary.length > 0) {
         <section class="diary-section">
-          <header class="diary-head">
-            <h2 class="section-head">{{ i18n.t('home.diary_title') }}</h2>
-            <p class="diary-sub dim">{{ i18n.t('home.diary_sub') }}</p>
-          </header>
-          <ul class="diary-list">
+          <h2 class="section-head">
+            <span class="head-icon">📖</span>
+            {{ i18n.t('home.diary_title') }}
+          </h2>
+          <p class="diary-sub dim">{{ i18n.t('home.diary_sub') }}</p>
+          <ul class="diary-grid">
             @for (entry of d.recentDiary; track entry.id) {
-              <li class="diary-card synapse-panel">
-                <header class="diary-card-head">
+              <li class="diary-card">
+                <div class="diary-card-header">
                   @if (entry.character.avatarUrl) {
-                    <img [src]="entry.character.avatarUrl" [alt]="entry.character.displayName" class="avatar small" />
+                    <img [src]="entry.character.avatarUrl" [alt]="entry.character.displayName" class="diary-avatar" />
                   } @else {
-                    <div class="avatar-fallback small">{{ initials(entry.character.displayName) }}</div>
+                    <div class="avatar-fallback diary-avatar">{{ initials(entry.character.displayName) }}</div>
                   }
-                  <a [routerLink]="['/patient', entry.character.id]" class="diary-character">
-                    {{ entry.character.displayName }}
-                  </a>
-                  <span class="diary-date dim">{{ entry.createdAt | date: 'd MMMM' : '' : (i18n.isEn ? 'en' : 'uk') }}</span>
-                </header>
+                  <div class="diary-author">
+                    <a [routerLink]="['/patient', entry.character.id]" class="diary-name">
+                      {{ entry.character.displayName }}
+                    </a>
+                    <div class="diary-date dim">
+                      {{ entry.createdAt | date: 'd MMM' : '' : (i18n.isEn ? 'en' : 'uk') }}
+                      @if (entry.tags.length > 0) {
+                        <span class="diary-tags-inline">
+                          @for (t of entry.tags; track t) {
+                            <span class="diary-tag">{{ t }}</span>
+                          }
+                        </span>
+                      }
+                    </div>
+                  </div>
+                </div>
                 <p class="diary-content">{{ entry.content }}</p>
-                @if (entry.tags.length > 0) {
-                  <footer class="diary-tags">
-                    @for (t of entry.tags; track t) {
-                      <span class="diary-tag">{{ t }}</span>
-                    }
-                  </footer>
-                }
               </li>
             }
           </ul>
         </section>
+      } @else {
+        <p class="empty-hint dim">{{ i18n.t('home.diary_empty') }}</p>
       }
 
-      <!-- Week stats — small KPI strip below diary. -->
-      <section class="week-stats">
-        <div class="stat-card">
-          <div class="stat-num">{{ d.weekStats.sessions }}</div>
-          <div class="stat-label">{{ i18n.t('home.week_sessions') }}</div>
+      <!-- Inline stats pills — one row, compact. -->
+      <div class="stats-row">
+        <div class="stat-pill">
+          <span class="stat-num">{{ d.weekStats.sessions }}</span>
+          <span class="stat-label dim">{{ i18n.t('home.week_sessions') }}</span>
         </div>
-        <div class="stat-card">
-          <div class="stat-num">{{ d.weekStats.withFeedback }}</div>
-          <div class="stat-label">{{ i18n.t('home.week_feedback') }}</div>
+        <div class="stat-pill">
+          <span class="stat-num">{{ d.weekStats.withFeedback }}</span>
+          <span class="stat-label dim">{{ i18n.t('home.week_feedback') }}</span>
         </div>
-        <div class="stat-card">
-          <div class="stat-num">
+        <div class="stat-pill">
+          <span class="stat-num">
             @if (d.weekStats.avgAlliance !== null) {
-              {{ d.weekStats.avgAlliance | number: '1.1-1' }}
-              <span class="stat-suffix">/10</span>
+              {{ d.weekStats.avgAlliance | number: '1.1-1' }}<span class="stat-of dim">/10</span>
             } @else {
               —
             }
-          </div>
-          <div class="stat-label">{{ i18n.t('home.week_alliance') }}</div>
+          </span>
+          <span class="stat-label dim">{{ i18n.t('home.week_alliance') }}</span>
         </div>
-      </section>
+      </div>
 
-      <!-- Patient grid — compact rolodex. Full filtered view at /clients. -->
+      <!-- Patient grid — avatar-first mosaic. Click goes to detail. -->
       <section class="patient-section">
         <header class="patient-section-head">
-          <h2 class="section-head">{{ i18n.t('home.patients') }}</h2>
+          <h2 class="section-head no-icon">{{ i18n.t('home.patients') }}</h2>
           @if (d.hasMorePatients) {
             <a routerLink="/clients" class="see-all">{{ i18n.t('home.see_all') }} →</a>
           }
         </header>
         <div class="patient-grid">
           @for (p of d.patientGrid; track p.id) {
-            <a [routerLink]="['/patient', p.id]" class="patient-card synapse-panel">
+            <a [routerLink]="['/patient', p.id]" class="patient-card">
               @if (p.avatarUrl) {
                 <img [src]="p.avatarUrl" [alt]="p.displayName" class="patient-avatar" />
               } @else {
                 <div class="avatar-fallback patient">{{ initials(p.displayName) }}</div>
               }
               <div class="patient-name">{{ p.displayName }}</div>
-              @if (p.diagnosis) {
-                <div class="patient-dx dim">{{ p.diagnosis }}</div>
-              }
               @if (p.lastSessionAt) {
                 <div class="patient-last dim">{{ relativeTime(p.lastSessionAt) }}</div>
-              } @else {
-                <div class="patient-last dim">{{ i18n.t('session.no_sessions') }}</div>
               }
             </a>
           }
           <a routerLink="/patient/new" class="patient-card new-card">
             <div class="new-icon">+</div>
-            <div>{{ i18n.t('chars.new_patient') }}</div>
+            <div class="dim">{{ i18n.t('chars.new_patient') }}</div>
           </a>
         </div>
       </section>
@@ -221,211 +225,295 @@ import { LogoComponent } from '../logo.component';
   styles: [`
     :host { display: block; }
 
-    .home-header { margin-bottom: 28px; }
+    .home-header { margin-bottom: 24px; }
+
     .brand-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 18px;
+      gap: 12px;
+      margin-bottom: 22px;
       flex-wrap: wrap;
     }
-    .user-area { display: flex; gap: 6px; align-items: center; }
+    .user-area { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .user-name-link {
       color: var(--fg);
       text-decoration: none;
-      font-size: 14px;
+      font-size: 13px;
       padding: 4px 10px;
       border-radius: 6px;
+      white-space: nowrap;
     }
     .user-name-link:hover { background: var(--user-bg); }
-    .lang-toggle, .admin-link { white-space: nowrap; }
 
-    .city-pulse {
+    /* Title row: greeting on the left, city pill on the right. The
+       greeting anchors the page in time + identity; the city pill is
+       ambient context, click to expand. */
+    .title-row {
       display: flex;
-      gap: 14px;
-      align-items: flex-start;
-      padding: 14px 18px;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
     }
-    .city-icon { font-size: 20px; line-height: 1; margin-top: 1px; }
-    .city-text { flex: 1; min-width: 0; }
-    .city-text strong { font-size: 14px; }
-    .dim { color: var(--fg-dim); }
-    .city-digest {
+    .greeting h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 400;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+    }
+    .greeting h1 .comma { color: var(--fg-dim); }
+    .greeting .date {
       margin: 6px 0 0;
       font-size: 13px;
-      line-height: 1.55;
+    }
+    .dim { color: var(--fg-dim); }
+
+    .city-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: color-mix(in srgb, var(--bg) 70%, transparent);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 13px;
       color: var(--fg);
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease;
+      max-width: 100%;
     }
-
-    .section-head {
-      margin: 0 0 14px;
-      font-size: 12px;
-      font-weight: 500;
+    .city-pill:hover {
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+      background: var(--bg);
+    }
+    .city-pill.expanded {
+      border-color: var(--accent);
+    }
+    .city-icon { font-size: 13px; line-height: 1; }
+    .city-name { font-weight: 500; }
+    .city-weather { font-size: 12px; }
+    .city-toggle {
+      margin-left: 4px;
+      font-size: 11px;
+      color: var(--accent);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--fg-dim);
+      letter-spacing: 0.04em;
+    }
+    .city-digest {
+      margin: 12px 0 0;
+      padding: 14px 18px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--fg);
+      animation: slideDown .2s ease-out;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Continue section — hero card, accent border */
-    .continue-section { margin-bottom: 28px; }
-    .continue-card {
+    /* Continue bar — slim, accent. */
+    .continue-bar {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 14px 18px;
+      gap: 12px;
+      padding: 12px 16px;
+      background: color-mix(in srgb, var(--accent) 6%, var(--assistant-bg));
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+      border-radius: 10px;
       text-decoration: none;
       color: var(--fg);
-      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      margin-bottom: 12px;
+      font-size: 14px;
       transition: border-color .15s ease, transform .15s ease;
     }
-    .continue-card:hover {
+    .continue-bar:hover {
       border-color: var(--accent);
       transform: translateX(2px);
     }
-    .continue-card + .continue-card { margin-top: 8px; }
-    .avatar, .patient-avatar {
-      width: 44px;
-      height: 44px;
+    .continue-icon {
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
-      object-fit: cover;
-      background: var(--user-bg);
-      flex-shrink: 0;
-    }
-    .avatar.small, .avatar-fallback.small { width: 28px; height: 28px; font-size: 11px; }
-    .patient-avatar { width: 56px; height: 56px; margin-bottom: 8px; }
-    .avatar-fallback {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: color-mix(in srgb, var(--accent) 15%, var(--user-bg));
-      color: var(--accent);
+      background: var(--accent);
+      color: var(--bg);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 500;
-      font-size: 14px;
+      font-size: 11px;
       flex-shrink: 0;
     }
-    .avatar-fallback.patient { width: 56px; height: 56px; font-size: 16px; }
-    .continue-body { flex: 1; min-width: 0; }
-    .continue-name { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
-    .continue-meta { font-size: 12px; }
-    .continue-arrow {
+    .avatar, .avatar-fallback {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .avatar-fallback {
+      background: color-mix(in srgb, var(--accent) 15%, var(--user-bg));
       color: var(--accent);
-      font-size: 18px;
-      transition: transform .15s ease;
-    }
-    .continue-card:hover .continue-arrow { transform: translateX(3px); }
-
-    /* Pending feedback list */
-    .pending-section { margin-bottom: 28px; }
-    .pending-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
-    .pending-row {
-      display: flex;
-      justify-content: space-between;
+      display: inline-flex;
       align-items: center;
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-      border-left: 3px solid color-mix(in srgb, var(--accent) 50%, transparent);
-      border-radius: 8px;
-      text-decoration: none;
-      color: var(--fg);
-      font-size: 13px;
+      justify-content: center;
+      font-weight: 500;
+      font-size: 12px;
     }
-    .pending-row:hover {
-      background: color-mix(in srgb, var(--accent) 4%, var(--bg));
-      border-left-color: var(--accent);
-    }
-    .pending-action { color: var(--accent); font-size: 12px; }
+    .continue-body { flex: 1; min-width: 0; }
+    .continue-arrow { color: var(--accent); font-size: 16px; flex-shrink: 0; }
 
-    /* Diary feed — the centerpiece */
-    .diary-section { margin-bottom: 28px; }
-    .diary-head { margin-bottom: 14px; }
-    .diary-head .section-head { margin-bottom: 4px; }
-    .diary-sub { font-size: 12px; margin: 0; }
-    .diary-list {
+    /* Pending strip — inline, tight. */
+    .pending-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--user-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .pending-icon { font-size: 14px; }
+    .pending-label { font-weight: 500; }
+    .pending-link {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .pending-link:hover { text-decoration: underline; }
+    .sep { font-size: 10px; }
+
+    /* DIARY — the centerpiece. */
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: -0.005em;
+    }
+    .section-head.no-icon { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-dim); font-weight: 500; }
+    .head-icon { font-size: 18px; }
+    .diary-sub { font-size: 13px; margin: 0 0 16px; }
+    .diary-section { margin-bottom: 32px; }
+    .diary-grid {
       list-style: none;
       padding: 0;
       margin: 0;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 12px;
     }
     .diary-card {
-      padding: 14px 16px;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
+      transition: border-color .15s ease, transform .15s ease;
     }
-    .diary-card-head {
+    .diary-card:hover {
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      transform: translateY(-1px);
+    }
+    .diary-card-header {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .diary-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .diary-author { flex: 1; min-width: 0; }
+    .diary-name {
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      display: block;
+    }
+    .diary-name:hover { color: var(--accent); }
+    .diary-date {
+      font-size: 11px;
+      margin-top: 2px;
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 12px;
+      flex-wrap: wrap;
     }
-    .diary-character {
-      color: var(--accent);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 13px;
+    .diary-tags-inline {
+      display: inline-flex;
+      gap: 4px;
     }
-    .diary-character:hover { text-decoration: underline; }
-    .diary-date { font-size: 11px; margin-left: auto; }
-    .diary-content {
-      margin: 0;
-      font-size: 13px;
-      line-height: 1.55;
-      color: var(--fg);
-    }
-    .diary-tags { display: flex; gap: 4px; flex-wrap: wrap; }
     .diary-tag {
       font-size: 10px;
       text-transform: lowercase;
       letter-spacing: 0.04em;
-      color: var(--fg-dim);
-      background: var(--user-bg);
-      padding: 2px 8px;
+      background: color-mix(in srgb, var(--accent) 10%, var(--user-bg));
+      color: var(--accent);
+      padding: 1px 7px;
       border-radius: 999px;
     }
-
-    /* Week stats — three KPI cards */
-    .week-stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 28px;
+    .diary-content {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--fg);
     }
-    .stat-card {
-      background: var(--assistant-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
+
+    .empty-hint {
       text-align: center;
+      padding: 32px;
+      font-size: 13px;
+      margin-bottom: 32px;
+    }
+
+    /* Stats — inline pills, slim. */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--user-bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 12px;
     }
     .stat-num {
-      font-size: 24px;
+      font-size: 18px;
       font-weight: 500;
       color: var(--fg);
-      line-height: 1;
     }
-    .stat-suffix { color: var(--fg-dim); font-size: 14px; font-weight: 400; }
+    .stat-of { font-size: 12px; }
     .stat-label {
       font-size: 11px;
-      color: var(--fg-dim);
-      margin-top: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      text-transform: lowercase;
+      letter-spacing: 0.02em;
     }
 
-    /* Patient grid — compact below diary */
+    /* Patient grid — avatar mosaic. */
     .patient-section-head {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
       margin-bottom: 14px;
     }
-    .patient-section-head .section-head { margin: 0; }
     .see-all {
       color: var(--accent);
       text-decoration: none;
@@ -434,54 +522,75 @@ import { LogoComponent } from '../logo.component';
     .see-all:hover { text-decoration: underline; }
     .patient-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       gap: 10px;
     }
     .patient-card {
-      padding: 14px;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 8px;
       text-decoration: none;
       color: var(--fg);
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
+      gap: 6px;
       transition: transform .15s ease, border-color .15s ease;
     }
     .patient-card:hover {
       transform: translateY(-2px);
-      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
     }
-    .patient-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
-    .patient-dx, .patient-last { font-size: 11px; }
-    .patient-dx {
+    .patient-avatar, .avatar-fallback.patient {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .avatar-fallback.patient {
+      font-size: 16px;
+    }
+    .patient-name {
+      font-size: 13px;
+      font-weight: 500;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: 100%;
     }
+    .patient-last { font-size: 10px; }
     .new-card {
       border-style: dashed;
       justify-content: center;
       min-height: 100%;
     }
     .new-icon {
-      font-size: 28px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--accent) 10%, var(--user-bg));
       color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
       line-height: 1;
-      margin-bottom: 6px;
     }
 
-    .hint { color: var(--fg-dim); font-size: 13px; }
+    .hint { color: var(--fg-dim); font-size: 13px; margin-top: 16px; }
 
     @media (max-width: 720px) {
       .brand-row { gap: 8px; }
-      .user-area { flex-wrap: wrap; justify-content: flex-end; }
-      .week-stats { grid-template-columns: repeat(3, 1fr); gap: 6px; }
-      .stat-card { padding: 10px 8px; }
-      .stat-num { font-size: 20px; }
-      .stat-label { font-size: 10px; }
-      .diary-list { grid-template-columns: 1fr; }
-      .patient-grid { grid-template-columns: repeat(2, 1fr); }
+      .user-area { gap: 4px; }
+      .greeting h1 { font-size: 22px; }
+      .title-row { flex-direction: column; align-items: flex-start; }
+      .diary-grid { grid-template-columns: 1fr; }
+      .patient-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+      .stats-row { gap: 6px; }
+      .stat-pill { padding: 6px 12px; }
+      .stat-num { font-size: 16px; }
     }
   `],
 })
@@ -493,6 +602,7 @@ export class HomeComponent implements OnInit {
 
   data = signal<DashboardResponse | null>(null);
   loading = signal(true);
+  cityExpanded = signal(false);
 
   async ngOnInit() {
     await this.load();
@@ -511,10 +621,6 @@ export class HomeComponent implements OnInit {
 
   toggleLang(): void {
     this.i18n.setLang(this.i18n.isEn ? 'uk' : 'en');
-    // Diary + city digest are locale-scoped — re-fetch with the new
-    // Accept-Language so the dashboard matches the UI language.
-    // Manual trigger (not via effect) avoids the loading <-> data
-    // re-render loop the earlier effect-based approach caused.
     void this.load();
   }
 
@@ -523,8 +629,25 @@ export class HomeComponent implements OnInit {
     void this.router.navigate(['/login']);
   }
 
-  /** Initials fallback for missing avatars. Mostly for non-DiceBear
-   *  characters (older system rows that haven't been back-filled). */
+  /** "Доброго дня, Vitalii" — strip the surname for warmth. */
+  greetingName(): string {
+    const u = this.auth.user();
+    if (!u) return '';
+    const full = u.displayName ?? u.email;
+    // Take just the first token — surname-less greeting feels more
+    // personal, like a friend addressing you.
+    const first = full.split(/[\s,@]/)[0];
+    return ` ${first}`;
+  }
+
+  today(): string {
+    return new Date().toLocaleDateString(this.i18n.isEn ? 'en-GB' : 'uk-UA', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+  }
+
   initials(name: string): string {
     return name
       .split(/\s+/)
@@ -534,9 +657,6 @@ export class HomeComponent implements OnInit {
       .toUpperCase();
   }
 
-  /** Human-friendly relative time — "23 хв тому", "вчора", "3 дні тому".
-   *  Kept simple instead of pulling a full i18n date library; we cover
-   *  what the home page actually needs. */
   relativeTime(iso: string): string {
     const date = new Date(iso);
     const diffMs = Date.now() - date.getTime();
