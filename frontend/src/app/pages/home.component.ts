@@ -127,8 +127,11 @@ import { LogoComponent } from '../logo.component';
         </div>
       }
 
-      <!-- DIARY FEED — the centerpiece. Wider than other sections,
-           card-grid with bigger type, avatars on top. -->
+      <!-- DIARY FEED — the centerpiece. Simple text-first structure
+           to guarantee content always renders: bold name + dot + dim
+           date in a header line, then content as a plain paragraph,
+           then tags as small chips. No nested flex / image branching
+           to misbehave. -->
       @if (d.recentDiary.length > 0) {
         <section class="diary-section">
           <h2 class="section-head">
@@ -139,27 +142,15 @@ import { LogoComponent } from '../logo.component';
           <ul class="diary-grid">
             @for (entry of d.recentDiary; track entry.id) {
               <li class="diary-card">
-                <div class="diary-card-header">
-                  @if (entry.character.avatarUrl) {
-                    <img [src]="entry.character.avatarUrl" [alt]="entry.character.displayName" class="diary-avatar" />
-                  } @else {
-                    <div class="avatar-fallback diary-avatar">{{ initials(entry.character.displayName) }}</div>
+                <div class="diary-meta">
+                  <a [routerLink]="['/patient', entry.character.id]" class="diary-name">
+                    {{ entry.character.displayName }}
+                  </a>
+                  <span class="diary-dot dim">·</span>
+                  <span class="diary-date dim">{{ entry.createdAt | date: 'd MMM' : '' : (i18n.isEn ? 'en' : 'uk') }}</span>
+                  @for (t of entry.tags; track t) {
+                    <span class="diary-tag">{{ t }}</span>
                   }
-                  <div class="diary-author">
-                    <a [routerLink]="['/patient', entry.character.id]" class="diary-name">
-                      {{ entry.character.displayName }}
-                    </a>
-                    <div class="diary-date dim">
-                      {{ entry.createdAt | date: 'd MMM' : '' : (i18n.isEn ? 'en' : 'uk') }}
-                      @if (entry.tags.length > 0) {
-                        <span class="diary-tags-inline">
-                          @for (t of entry.tags; track t) {
-                            <span class="diary-tag">{{ t }}</span>
-                          }
-                        </span>
-                      }
-                    </div>
-                  </div>
                 </div>
                 <p class="diary-content">{{ entry.content }}</p>
               </li>
@@ -432,62 +423,45 @@ import { LogoComponent } from '../logo.component';
     }
     .diary-card {
       background: var(--assistant-bg);
-      border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
-      border-left: 3px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+      border: 1px solid var(--border);
+      border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--border));
       border-radius: 10px;
       padding: 14px 16px;
+      color: var(--fg);
       transition: border-color .15s ease, transform .15s ease, background .15s ease;
     }
     .diary-card:hover {
-      border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
       border-left-color: var(--accent);
       background: color-mix(in srgb, var(--accent) 3%, var(--assistant-bg));
       transform: translateY(-1px);
     }
-    .diary-card-header {
+    .diary-meta {
       display: flex;
-      gap: 10px;
       align-items: center;
-      margin-bottom: 10px;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      font-size: 12px;
     }
-    .diary-avatar {
-      width: 32px !important;
-      height: 32px !important;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
-      background: var(--user-bg);
-    }
-    .diary-author { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .diary-name {
       color: var(--fg);
       text-decoration: none;
       font-weight: 500;
       font-size: 14px;
-      line-height: 1.2;
     }
-    .diary-name:hover { color: var(--accent); }
-    .diary-date {
-      font-size: 11px;
-      line-height: 1.2;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .diary-tags-inline {
-      display: inline-flex;
-      gap: 4px;
-    }
+    .diary-name:hover { color: var(--accent); text-decoration: underline; }
+    .diary-dot { font-size: 11px; }
+    .diary-date { font-size: 11px; }
     .diary-tag {
-      font-size: 9px;
+      font-size: 10px;
       text-transform: lowercase;
       letter-spacing: 0.04em;
       background: color-mix(in srgb, var(--accent) 10%, var(--user-bg));
       color: var(--accent);
-      padding: 1px 6px;
+      padding: 1px 7px;
       border-radius: 999px;
-      line-height: 1.4;
+      line-height: 1.5;
     }
     .diary-content {
       margin: 0;
@@ -556,54 +530,71 @@ import { LogoComponent } from '../logo.component';
       background: var(--assistant-bg);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 12px 8px;
+      padding: 14px 10px;
       text-decoration: none;
       color: var(--fg);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
       text-align: center;
-      gap: 6px;
       transition: transform .15s ease, border-color .15s ease;
     }
     .patient-card:hover {
       transform: translateY(-2px);
       border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
     }
-    .patient-avatar, .avatar-fallback.patient {
-      width: 52px;
-      height: 52px;
+    .patient-avatar {
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       object-fit: cover;
+      display: block;
+      margin: 0 auto 8px;
+      background: var(--user-bg);
     }
     .avatar-fallback.patient {
-      font-size: 16px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+      font-size: 15px;
+      background: color-mix(in srgb, var(--accent) 15%, var(--user-bg));
+      color: var(--accent);
+      font-weight: 500;
     }
     .patient-name {
+      display: block;
       font-size: 13px;
       font-weight: 500;
-      max-width: 100%;
+      color: var(--fg);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .patient-last { font-size: 10px; }
+    .patient-last {
+      display: block;
+      font-size: 10px;
+      margin-top: 4px;
+    }
     .new-card {
       border-style: dashed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      min-height: 100%;
     }
     .new-icon {
-      width: 52px;
-      height: 52px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
-      background: color-mix(in srgb, var(--accent) 10%, var(--user-bg));
+      background: color-mix(in srgb, var(--accent) 12%, var(--user-bg));
       color: var(--accent);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
+      font-size: 22px;
       line-height: 1;
+      margin-bottom: 8px;
     }
 
     .hint { color: var(--fg-dim); font-size: 13px; margin-top: 16px; }
