@@ -27,6 +27,7 @@ services:
       PROMPTS_DIR: /app/prompts
       LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
       LLM_MODEL_CHAT: ${LLM_MODEL_CHAT:-}
+      LLM_MODEL_CHAT_FALLBACK: ${LLM_MODEL_CHAT_FALLBACK:-}
       LLM_MODEL_FEEDBACK: ${LLM_MODEL_FEEDBACK:-}
       LLM_MODEL_FEEDBACK_FALLBACK: ${LLM_MODEL_FEEDBACK_FALLBACK:-}
       LLM_MODEL_FEEDBACK_REVIEWER: ${LLM_MODEL_FEEDBACK_REVIEWER:-}
@@ -48,9 +49,11 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
       FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
-      # Comma-separated allow-list. AuthService.reconcileAdmin() re-syncs
-      # User.isAdmin on every login/refresh against this list — so manual
-      # DB writes get overwritten unless the email is here too.
+      # Comma-separated bootstrap allow-list. AuthService.reconcileAdmin()
+      # ADDITIVELY promotes these emails to admin on login if they aren't
+      # already (never demotes). Day-to-day admin management lives in the
+      # admin panel — this var is the recovery mechanism if the panel ever
+      # loses all admins.
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     volumes:
       - reflect_data:/data

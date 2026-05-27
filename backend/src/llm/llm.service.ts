@@ -10,14 +10,21 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 
 /**
- * Hard wall-clock cap for a non-streaming LLM call. Free OpenRouter
- * stealth tiers (owl-alpha & co) sometimes spend 30-60s on first byte
- * for long-context calls (full transcript + protocol + profile in the
- * feedback flow). DeepSeek R1 uses extended chain-of-thought and has
- * been observed at 47-144s; 180s gives safe headroom while still
- * failing cleanly well before Caddy's outer 300s timeout.
+ * Hard wall-clock cap for a non-streaming chat call.
+ *
+ * Fast frontier models (DeepSeek V4 Flash, Gemini 2.5 Flash-Lite, Qwen
+ * 3.6 Flash) hit first byte in 1-2s and finish a short reply in 5-10s.
+ * 60s gives 6× headroom for transient slowdowns while bounding the
+ * worst case — much better than the old 180s window which masked the
+ * fact that stealth models were stalling for two minutes per turn.
+ *
+ * Profile-generation calls (~4096 output tokens) still fit comfortably:
+ * at 80 tok/s that's ~50s. If a future call needs more, override per
+ * call via the maxTokens path or split into chunks.
+ *
+ * Outer Caddy proxy timeout is 300s, so we still fail cleanly upstream.
  */
-const CHAT_TIMEOUT_MS = 180_000;
+const CHAT_TIMEOUT_MS = 60_000;
 
 /**
  * Explicit per-request timeout on the OpenAI Node SDK client. Without
@@ -62,6 +69,13 @@ export class LlmService {
   private readonly openai?: OpenAI;
 
   readonly modelChat: string;
+  /** Optional fallback model for chat() calls. When the primary chat
+   *  model times out or returns a 5xx, chat() retries ONCE with this
+   *  model. Different vendor than primary is the safest pick — that
+   *  way a single provider outage doesn't take chat down. Empty /
+   *  unset = no fallback, errors bubble up to the user.
+   *  Override via LLM_MODEL_CHAT_FALLBACK env var. */
+  readonly modelChatFallback: string | null;
   readonly modelFeedback: string;
   /** Optional fallback model for feedback generation. If the primary
    *  feedback model fails BEFORE any chunk has streamed (timeout /
@@ -98,6 +112,7 @@ export class LlmService {
     // so we need to also reject blank values. Otherwise the SDK gets
     // model="" and OpenRouter returns 400 "No models provided".
     const envChat = process.env.LLM_MODEL_CHAT?.trim();
+    const envChatFallback = process.env.LLM_MODEL_CHAT_FALLBACK?.trim();
     const envFeedback = process.env.LLM_MODEL_FEEDBACK?.trim();
     const envFeedbackFallback = process.env.LLM_MODEL_FEEDBACK_FALLBACK?.trim();
     const envFeedbackReviewer = process.env.LLM_MODEL_FEEDBACK_REVIEWER?.trim();
@@ -121,6 +136,10 @@ export class LlmService {
       // Override via LLM_MODEL_CHAT / LLM_MODEL_FEEDBACK env vars if
       // the deployment has different priorities.
       this.modelChat = envChat || 'claude-haiku-4-5';
+      // Anthropic-native: no cross-vendor fallback option, so reuse the
+      // primary. Set LLM_MODEL_CHAT_FALLBACK explicitly if you have a
+      // proxy or want to use a different Anthropic model.
+      this.modelChatFallback = envChatFallback || null;
       this.modelFeedback = envFeedback || 'claude-haiku-4-5';
       this.modelFeedbackFallback = envFeedbackFallback || 'claude-haiku-4-5';
       // Reviewer for two-pass mode only. Skills mode uses Sonnet as
@@ -145,7 +164,14 @@ export class LlmService {
           'X-Title': 'Reflect',
         },
       });
-      this.modelChat = envChat || 'openrouter/owl-alpha';
+      // Default chat: DeepSeek V4 Flash — 1.1s TTFT, 83-150 tok/s,
+      // $0.10/$0.20 per M tokens, strong multilingual (incl. UA).
+      // Override via LLM_MODEL_CHAT for experimentation.
+      this.modelChat = envChat || 'deepseek/deepseek-v4-flash';
+      // Different-vendor fallback so a DeepSeek outage doesn't take chat
+      // down. Gemini 2.5 Flash-Lite is OpenRouter's official low-latency
+      // pick, similar speed and price.
+      this.modelChatFallback = envChatFallback || 'google/gemini-2.5-flash-lite';
       this.modelFeedback = envFeedback || 'openrouter/owl-alpha';
       // Fallback for slow / unstable stealth feedback model.
       this.modelFeedbackFallback = envFeedbackFallback || 'anthropic/claude-haiku-4-5';
@@ -162,7 +188,8 @@ export class LlmService {
 
     this.logger.log(
       `LLM provider=${this.provider} mode=${this.feedbackMode} ` +
-        `chat=${this.modelChat} draft=${this.modelFeedback} ` +
+        `chat=${this.modelChat}${this.modelChatFallback ? `→${this.modelChatFallback}` : ''} ` +
+        `draft=${this.modelFeedback} ` +
         (this.feedbackMode === 'skills'
           ? `synthesizer=${this.modelSkillsSynthesizer}`
           : `reviewer=${this.modelFeedbackReviewer}`),
@@ -177,7 +204,7 @@ export class LlmService {
     maxTokens?: number;
     cacheSystem?: boolean;
   }): Promise<string> {
-    const model = opts.model ?? this.modelChat;
+    const primaryModel = opts.model ?? this.modelChat;
     // Default hard cap 512 — chat replies should be SHORT per brevity
     // instruction in the system prompt. 512 tokens ≈ 380 words EN /
     // 250-300 UA, well above the soft caps (20-180 words). Acts as a
@@ -185,16 +212,58 @@ export class LlmService {
     const maxTokens = opts.maxTokens ?? 512;
     const blocks = toSystemBlocks(opts);
 
-    const callOnce = (signal: AbortSignal) =>
+    const callWithModel = (model: string) => (signal: AbortSignal) =>
       this.provider === 'anthropic'
         ? this.chatAnthropic(blocks, opts.history, model, maxTokens, signal)
         : this.chatOpenRouter(joinBlocks(blocks), opts.history, model, maxTokens, signal);
 
+    // Only auto-fallback when caller didn't pin a specific model — if
+    // they passed opts.model they're likely benchmarking or testing,
+    // so respect their choice. modelChatFallback null = no fallback,
+    // errors bubble up.
+    const fallbackModel = !opts.model && this.modelChatFallback ? this.modelChatFallback : null;
+
     try {
-      return await this.withRateLimitRetry(() => this.withTimeout(callOnce, CHAT_TIMEOUT_MS));
-    } catch (e: unknown) {
-      throw this.translateError(e);
+      return await this.withRateLimitRetry(() =>
+        this.withTimeout(callWithModel(primaryModel), CHAT_TIMEOUT_MS),
+      );
+    } catch (primaryErr: unknown) {
+      if (!fallbackModel || !this.shouldFallback(primaryErr)) {
+        throw this.translateError(primaryErr);
+      }
+      this.logger.warn(
+        `chat ${primaryModel} failed (${describeError(primaryErr)}) — retrying with fallback ${fallbackModel}`,
+      );
+      try {
+        return await this.withRateLimitRetry(() =>
+          this.withTimeout(callWithModel(fallbackModel), CHAT_TIMEOUT_MS),
+        );
+      } catch (fallbackErr: unknown) {
+        // Surface the fallback's error — it's the one closer in time to
+        // when we gave up. The primary error is already logged above
+        // so we have both data points for debugging.
+        throw this.translateError(fallbackErr);
+      }
     }
+  }
+
+  /**
+   * Decide whether `chat()` should auto-retry with the fallback model
+   * after the primary failed. We retry on signals that suggest the
+   * model/provider is the problem (timeout, 5xx, connection reset),
+   * NOT on signals that mean the user / caller made a mistake (4xx
+   * other than 429, validation errors, auth failures). 429s are already
+   * handled in-place by withRateLimitRetry before we get here.
+   */
+  private shouldFallback(e: unknown): boolean {
+    if (e instanceof GatewayTimeoutException) return true;
+    const status = (e as { status?: number })?.status;
+    if (status && status >= 500 && status < 600) return true;
+    // OpenAI/Anthropic SDKs raise ECONNRESET, ENETUNREACH etc. as the
+    // bare cause — surface as APIConnectionError with no status.
+    const code = (e as { code?: string })?.code;
+    if (code === 'ECONNRESET' || code === 'ENETUNREACH' || code === 'ETIMEDOUT') return true;
+    return false;
   }
 
   /**
@@ -454,4 +523,18 @@ function toAnthropicSystem(
  */
 function joinBlocks(blocks: SystemBlock[]): string {
   return blocks.map((b) => b.text).join('');
+}
+
+/**
+ * Compact one-line summary of an error for fallback-retry logging. We
+ * surface what the operator needs to triage — status, exception name,
+ * trimmed message — without dumping a full stack trace into the log
+ * stream (that lands in ErrorLog if the call ultimately fails).
+ */
+function describeError(e: unknown): string {
+  const status = (e as { status?: number })?.status;
+  const name = (e as { name?: string })?.name ?? (e as { constructor?: { name?: string } })?.constructor?.name;
+  const msg = (e as { message?: string })?.message ?? String(e);
+  const trimmed = msg.length > 120 ? msg.slice(0, 117) + '…' : msg;
+  return [status ? `status=${status}` : null, name, trimmed].filter(Boolean).join(' | ');
 }
