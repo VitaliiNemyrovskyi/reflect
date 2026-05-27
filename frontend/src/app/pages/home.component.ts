@@ -87,8 +87,17 @@ import { LogoComponent } from '../logo.component';
       </div>
     </header>
 
-    @if (loading() && !data()) {
-      <p class="hint">{{ i18n.t('general.loading') }}</p>
+    <!-- While the dashboard payload is in flight, show ONE centered
+         spinner instead of skeleton cards. The user explicitly asked
+         for cards to appear already filled — never half-rendered. So
+         the @if guard below only enters once data() is non-null, which
+         is set atomically in the same change-detection tick the
+         response arrives. No structural cards visible without their
+         content. -->
+    @if (!data()) {
+      <div class="loader">
+        <div class="spinner"></div>
+      </div>
     }
 
     @if (data(); as d) {
@@ -127,63 +136,20 @@ import { LogoComponent } from '../logo.component';
         </div>
       }
 
-      <!-- DIARY FEED — the centerpiece. Simple text-first structure
-           to guarantee content always renders: bold name + dot + dim
-           date in a header line, then content as a plain paragraph,
-           then tags as small chips. No nested flex / image branching
-           to misbehave. -->
-      @if (d.recentDiary.length > 0) {
-        <section class="diary-section">
-          <h2 class="section-head">
-            <span class="head-icon">📖</span>
-            {{ i18n.t('home.diary_title') }}
-          </h2>
-          <p class="diary-sub dim">{{ i18n.t('home.diary_sub') }}</p>
-          <ul class="diary-grid">
-            @for (entry of d.recentDiary; track entry.id) {
-              <li class="diary-card">
-                <div class="diary-meta">
-                  <a [routerLink]="['/patient', entry.character.id]" class="diary-name">
-                    {{ entry.character.displayName }}
-                  </a>
-                  <span class="diary-dot dim">·</span>
-                  <span class="diary-date dim">{{ formatShortDate(entry.createdAt) }}</span>
-                  @for (t of entry.tags; track $index) {
-                    <span class="diary-tag">{{ t }}</span>
-                  }
-                </div>
-                <p class="diary-content">{{ entry.content }}</p>
-              </li>
-            }
-          </ul>
-        </section>
-      } @else {
-        <p class="empty-hint dim">{{ i18n.t('home.diary_empty') }}</p>
-      }
+      <!-- Diary feed intentionally NOT shown on the home page. The
+           between-session entries still live on each patient's
+           detail page under the "Пам'ять" tab; surfacing all of them
+           on the home dashboard turned out to feel intrusive
+           (therapists don't routinely read every client's diary at
+           the start of their day). Each character's diary is still
+           ONE click away via their card in the patient grid below. -->
 
-      <!-- Inline stats pills — one row, compact. -->
-      <div class="stats-row">
-        <div class="stat-pill">
-          <span class="stat-num">{{ d.weekStats.sessions }}</span>
-          <span class="stat-label dim">{{ i18n.t('home.week_sessions') }}</span>
-        </div>
-        <div class="stat-pill">
-          <span class="stat-num">{{ d.weekStats.withFeedback }}</span>
-          <span class="stat-label dim">{{ i18n.t('home.week_feedback') }}</span>
-        </div>
-        <div class="stat-pill">
-          <span class="stat-num">
-            @if (d.weekStats.avgAlliance !== null) {
-              {{ d.weekStats.avgAlliance | number: '1.1-1' }}<span class="stat-of dim">/10</span>
-            } @else {
-              —
-            }
-          </span>
-          <span class="stat-label dim">{{ i18n.t('home.week_alliance') }}</span>
-        </div>
-      </div>
 
-      <!-- Patient grid — avatar-first mosaic. Click goes to detail. -->
+      <!-- Patient grid — the main affordance. Avatar-first mosaic;
+           click goes to detail. Comes BEFORE the stats row because
+           "who am I working with" is the primary question on a
+           landing page; "how am I doing this week" is reflective
+           context that belongs lower. -->
       <section class="patient-section">
         <header class="patient-section-head">
           <h2 class="section-head no-icon">{{ i18n.t('home.patients') }}</h2>
@@ -211,6 +177,30 @@ import { LogoComponent } from '../logo.component';
           </a>
         </div>
       </section>
+
+      <!-- Inline stats pills — ambient reflective context, sits at
+           the bottom rather than fighting the patient grid for
+           attention. -->
+      <div class="stats-row">
+        <div class="stat-pill">
+          <span class="stat-num">{{ d.weekStats.sessions }}</span>
+          <span class="stat-label dim">{{ i18n.t('home.week_sessions') }}</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-num">{{ d.weekStats.withFeedback }}</span>
+          <span class="stat-label dim">{{ i18n.t('home.week_feedback') }}</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-num">
+            @if (d.weekStats.avgAlliance !== null) {
+              {{ d.weekStats.avgAlliance | number: '1.1-1' }}<span class="stat-of dim">/10</span>
+            } @else {
+              —
+            }
+          </span>
+          <span class="stat-label dim">{{ i18n.t('home.week_alliance') }}</span>
+        </div>
+      </div>
     }
   `,
   styles: [`
@@ -598,6 +588,27 @@ import { LogoComponent } from '../logo.component';
     }
 
     .hint { color: var(--fg-dim); font-size: 13px; margin-top: 16px; }
+
+    /* Loader visible until the dashboard API resolves. Centered on
+       the page so the user sees a deliberate "loading" state rather
+       than half-rendered cards. */
+    .loader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2.5px solid color-mix(in srgb, var(--accent) 25%, transparent);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
 
     @media (max-width: 720px) {
       .brand-row { gap: 8px; }
