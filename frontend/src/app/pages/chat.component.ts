@@ -143,43 +143,49 @@ interface SelectionAnchor {
             (ngModelChange)="saveDraft()"
             (keydown.meta.enter)="send()"
             (keydown.control.enter)="send()"></textarea>
-          @if (prefs.hintsEnabled()) {
+          <!-- Action icons grouped so they can flow into a sub-row on
+               mobile (display: contents on desktop keeps them as direct
+               flex children of .composer; on mobile this becomes a real
+               flex container in the grid's "tools" area). -->
+          <div class="composer-tools">
+            @if (prefs.hintsEnabled()) {
+              <button type="button"
+                      class="ghost icon hint-trigger"
+                      [class.active]="hintsOpen()"
+                      [class.loading]="hintsLoading()"
+                      [disabled]="sending()"
+                      [attr.aria-label]="i18n.t('chat.hint_label')"
+                      [title]="i18n.t('chat.hint_label')"
+                      (click)="toggleHints()">
+                💡
+              </button>
+            }
+            <!-- Psychological test trigger — opens the catalog modal so
+                 the therapist can pick a test for the AI patient to take
+                 (PHQ-9, GAD-7, WHO-5, PSS-10). Disabled while a test is
+                 already being administered. -->
             <button type="button"
-                    class="ghost icon hint-trigger"
-                    [class.active]="hintsOpen()"
-                    [class.loading]="hintsLoading()"
-                    [disabled]="sending()"
-                    [attr.aria-label]="i18n.t('chat.hint_label')"
-                    [title]="i18n.t('chat.hint_label')"
-                    (click)="toggleHints()">
-              💡
+                    class="ghost icon test-trigger"
+                    [class.loading]="loadingTestKey() !== null"
+                    [disabled]="sending() || loadingTestKey() !== null"
+                    aria-label="Запропонувати тест"
+                    title="Запропонувати психологічний тест"
+                    (click)="testModalOpen.set(true)">
+              📋
             </button>
-          }
-          <!-- Psychological test trigger — opens the catalog modal so
-               the therapist can pick a test for the AI patient to take
-               (PHQ-9, GAD-7, WHO-5, PSS-10). Disabled while a test is
-               already being administered. -->
-          <button type="button"
-                  class="ghost icon test-trigger"
-                  [class.loading]="loadingTestKey() !== null"
-                  [disabled]="sending() || loadingTestKey() !== null"
-                  aria-label="Запропонувати тест"
-                  title="Запропонувати психологічний тест"
-                  (click)="testModalOpen.set(true)">
-            📋
-          </button>
-          @if (recognition.supported) {
-            <button type="button"
-                    class="ghost icon mic"
-                    [class.listening]="recognition.listening()"
-                    [attr.aria-label]="recognition.listening() ? 'Зупинити запис' : 'Говорити'"
-                    [title]="recognition.listening() ? 'Зупинити запис' : 'Говорити'"
-                    [disabled]="sending()"
-                    (click)="toggleMic()">
-              {{ recognition.listening() ? '⏹' : '🎙' }}
-            </button>
-          }
-          <button class="primary" type="submit" [disabled]="sending() || !draft.trim()">
+            @if (recognition.supported) {
+              <button type="button"
+                      class="ghost icon mic"
+                      [class.listening]="recognition.listening()"
+                      [attr.aria-label]="recognition.listening() ? 'Зупинити запис' : 'Говорити'"
+                      [title]="recognition.listening() ? 'Зупинити запис' : 'Говорити'"
+                      [disabled]="sending()"
+                      (click)="toggleMic()">
+                {{ recognition.listening() ? '⏹' : '🎙' }}
+              </button>
+            }
+          </div>
+          <button class="primary send-btn" type="submit" [disabled]="sending() || !draft.trim()">
             {{ i18n.t('chat.send') }}
           </button>
         </form>
@@ -430,6 +436,12 @@ interface SelectionAnchor {
       min-height: 44px;
       max-height: 200px;
     }
+    /* On desktop, the wrapper is laid out as-if-absent — its three
+       icon-buttons participate directly in the .composer flex row so
+       the desktop layout stays identical to before (textarea, 💡, 📋,
+       🎙, Send all on one line). On mobile, a media query below
+       upgrades this to a real flex container in the grid's tools row. */
+    .composer-tools { display: contents; }
     .mic {
       padding: 10px 14px;
       font-size: 18px;
@@ -437,23 +449,47 @@ interface SelectionAnchor {
       align-self: stretch;
     }
     @media (max-width: 720px) {
+      /* Mobile composer: textarea gets the full row width (no more
+         60-70px crammed cell), and the secondary controls split into
+         a second row — tool icons on the left, Send on the right. This
+         is the WhatsApp/iMessage layout pattern: big primary input,
+         compact action group below. */
       .composer {
-        gap: 6px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "input input"
+          "tools send";
+        gap: 8px;
         padding-top: 10px;
       }
       .composer textarea {
-        min-height: 48px;
-        font-size: 16px; /* prevents iOS zoom-on-focus */
+        grid-area: input;
+        min-height: 80px;        /* taller default — comfortable to type */
+        font-size: 16px;         /* prevents iOS zoom-on-focus */
       }
-      .composer .primary,
-      .composer .mic {
+      .composer-tools {
+        grid-area: tools;
+        display: flex;
+        gap: 8px;
+        align-self: center;
+      }
+      .composer .send-btn {
+        grid-area: send;
+        min-height: 48px;
+        min-width: 100px;
+        padding: 12px 18px;
+        font-size: 15px;
+        font-weight: 500;
+      }
+      .composer .mic,
+      .composer .hint-trigger,
+      .composer .test-trigger {
         min-height: 48px;
         min-width: 48px;
         padding: 10px 12px;
-        font-size: 14px;
-      }
-      .composer .mic {
         font-size: 20px;
+        align-self: auto;        /* stretch was relevant only on flex row */
       }
     }
     .mic.listening {
@@ -496,14 +532,9 @@ interface SelectionAnchor {
       color: var(--accent);
       border-color: var(--accent);
     }
-    @media (max-width: 720px) {
-      .composer .hint-trigger,
-      .composer .test-trigger {
-        min-height: 48px;
-        min-width: 48px;
-        font-size: 20px;
-      }
-    }
+    /* Mobile sizing for tool icons lives in the .composer media query
+       above — keeping all composer-related responsive rules in one block
+       so the grid layout + icon dimensions stay coupled. */
 
     .hints-popover {
       background: var(--assistant-bg);
