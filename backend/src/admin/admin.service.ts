@@ -6,11 +6,21 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** All users with their session count + admin flag. */
+  /** All users with their session count, admin flag, and current plan. */
   async listUsers() {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { sessions: true } } },
+      include: {
+        _count: { select: { sessions: true } },
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+            currentPeriodEnd: true,
+            sessionsThisPeriod: true,
+          },
+        },
+      },
     });
     return users.map((u) => ({
       id: u.id,
@@ -20,6 +30,13 @@ export class AdminService {
       isAdmin: u.isAdmin,
       sessionCount: u._count.sessions,
       createdAt: u.createdAt,
+      // Surface billing fields so the admin table can render current
+      // plan + expiry inline. null when the user has no subscription
+      // (shouldn't happen with the trial-on-create flow, but be safe).
+      plan: u.subscription?.plan ?? null,
+      planStatus: u.subscription?.status ?? null,
+      planEndsAt: u.subscription?.currentPeriodEnd ?? null,
+      sessionsThisPeriod: u.subscription?.sessionsThisPeriod ?? null,
     }));
   }
 

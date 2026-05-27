@@ -1,5 +1,6 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   AdminErrorLog,
@@ -12,12 +13,21 @@ import {
 } from '../api.service';
 import { AuthService } from '../auth.service';
 
+type PlanId = 'trial' | 'lite' | 'pro' | 'master';
+
+interface GrantPlanDialog {
+  user: AdminUser;
+  plan: PlanId;
+  months: number;
+  note: string;
+}
+
 type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink],
+  imports: [CommonModule, DatePipe, FormsModule, RouterLink],
   template: `
     <header class="admin-header">
       <a routerLink="/" class="back">← На головну</a>
@@ -61,6 +71,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
               <th>Ім'я</th>
               <th>Вхід</th>
               <th>Сесій</th>
+              <th>План</th>
               <th>Admin</th>
               <th>Створено</th>
               <th></th>
@@ -75,6 +86,16 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
                 <td><code class="provider">{{ u.provider }}</code></td>
                 <td class="num">{{ u.sessionCount }}</td>
                 <td>
+                  @if (u.plan) {
+                    <span class="badge plan-badge plan-{{ u.plan }}">{{ u.plan }}</span>
+                    @if (u.planEndsAt) {
+                      <span class="plan-expiry">до&nbsp;{{ u.planEndsAt | date: 'dd.MM.yy' }}</span>
+                    }
+                  } @else {
+                    <span class="dim">—</span>
+                  }
+                </td>
+                <td>
                   @if (u.isAdmin) {
                     <span class="badge admin-badge">admin</span>
                     @if (u.id === currentUserId()) { <span class="self-tag">(ти)</span> }
@@ -83,6 +104,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
                 <td class="dim">{{ u.createdAt | date: 'dd.MM.yyyy' }}</td>
                 <td class="row-actions">
                   <button class="link-btn" (click)="filterByUser(u.id)">сесії →</button>
+                  <button class="link-btn" (click)="openGrantPlan(u)">план →</button>
                   @if (u.isAdmin) {
                     <button
                       class="link-btn danger"
@@ -102,7 +124,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
               </tr>
             }
             @if (users().length === 0) {
-              <tr><td colspan="8" class="empty">Ні одного користувача</td></tr>
+              <tr><td colspan="9" class="empty">Ні одного користувача</td></tr>
             }
           </tbody>
         </table>
@@ -337,6 +359,57 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
         }
       }
     }
+
+    @if (grantDialog(); as g) {
+      <div class="modal-backdrop" (click)="closeGrantPlan()"></div>
+      <div class="modal-card grant-modal" role="dialog" aria-modal="true" aria-labelledby="grant-title">
+        <h3 id="grant-title">Грант плану</h3>
+        <p class="grant-target">
+          <strong>{{ g.user.email }}</strong>
+          @if (g.user.plan) {
+            <span class="dim"> · поточний: <code>{{ g.user.plan }}</code></span>
+          }
+        </p>
+
+        <label class="field">
+          <span>План</span>
+          <select [ngModel]="g.plan" (ngModelChange)="updateGrantField('plan', $event)">
+            <option value="trial">trial — 14 днів, обмежені сесії</option>
+            <option value="lite">lite — базовий платний</option>
+            <option value="pro">pro — повний доступ</option>
+            <option value="master">master — все відкрито</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Місяців ({{ g.months }})</span>
+          <input type="range" min="1" max="24" step="1"
+                 [ngModel]="g.months"
+                 (ngModelChange)="updateGrantField('months', +$event)">
+          <span class="dim months-hint">
+            Закінчиться: {{ grantExpiryPreview() | date: 'dd.MM.yyyy' }}
+          </span>
+        </label>
+
+        <label class="field">
+          <span>Примітка (для аудиту, опційно)</span>
+          <textarea
+            rows="2"
+            placeholder="напр. «беспл. доступ для університетської групи Q2-2026»"
+            [ngModel]="g.note"
+            (ngModelChange)="updateGrantField('note', $event)"></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button class="ghost" (click)="closeGrantPlan()" [disabled]="grantBusy()">
+            Скасувати
+          </button>
+          <button class="primary" (click)="confirmGrantPlan()" [disabled]="grantBusy()">
+            {{ grantBusy() ? '…' : 'Грантнути' }}
+          </button>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     :host { display: block; }
@@ -429,6 +502,18 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
     .badge.admin-badge { background: rgba(216,201,255,0.15); color: var(--accent); border: 1px solid rgba(216,201,255,0.3); }
     .badge[class*="status-5"] { background: #3c1a1a; color: var(--danger); border: 1px solid #6f2a2a; }
     .badge[class*="status-4"] { background: #3c2c14; color: #fbbf6e; border: 1px solid #6f5a2a; }
+    /* Plan badges: visually rank-ordered — neutral trial, accent for pro,
+       brighter accent for master to mark "all-access" at a glance. */
+    .plan-badge { text-transform: uppercase; font-weight: 500; font-size: 10px; }
+    .plan-badge.plan-trial { background: var(--user-bg); color: var(--fg-dim); border: 1px solid var(--border); }
+    .plan-badge.plan-lite { background: rgba(110,231,183,0.1); color: #6ee7b7; border: 1px solid #2a6f4d; }
+    .plan-badge.plan-pro { background: rgba(216,201,255,0.15); color: var(--accent); border: 1px solid rgba(216,201,255,0.3); }
+    .plan-badge.plan-master {
+      background: linear-gradient(135deg, rgba(216,201,255,0.25), rgba(110,231,183,0.15));
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .plan-expiry { font-size: 11px; color: var(--fg-dim); margin-left: 6px; white-space: nowrap; }
 
     .filter-bar {
       padding: 8px 12px;
@@ -644,6 +729,75 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
       padding: 6px 10px;
       font-size: 12px;
     }
+
+    /* Grant-plan modal — backdrop blocks the underlying list so clicks
+       to close are obvious, card centers via fixed positioning + transform.
+       Uses native HTML controls (select/input/textarea) for keyboard +
+       a11y for free; the styling makes them match the dark shell. */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+    }
+    .modal-card {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 101;
+      width: min(440px, calc(100vw - 32px));
+      background: var(--assistant-bg);
+      border: 1px solid var(--accent);
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    }
+    .modal-card h3 { margin: 0 0 4px; font-size: 18px; font-weight: 500; }
+    .grant-target { font-size: 13px; margin: 0 0 18px; color: var(--fg); }
+    .grant-target code { font-size: 11px; }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .field > span:first-child {
+      font-size: 12px;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .field select,
+    .field input[type="range"],
+    .field textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .field select { cursor: pointer; }
+    .field textarea { resize: vertical; min-height: 56px; }
+    .field input[type="range"] {
+      padding: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .months-hint { font-size: 11px; }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    .modal-actions button { padding: 8px 18px; font-size: 14px; }
   `],
 })
 export class AdminComponent implements OnInit {
@@ -668,6 +822,23 @@ export class AdminComponent implements OnInit {
   /** id of the user whose admin toggle is currently in-flight — used to
    *  disable just that row's button without locking the rest of the table. */
   adminBusy = signal<number | null>(null);
+
+  /** Grant-plan modal state. null = closed. The whole dialog object lives
+   *  here so the modal can read/write all four fields (user, plan, months,
+   *  note) without four separate signals. */
+  grantDialog = signal<GrantPlanDialog | null>(null);
+  /** In-flight grant call — disables modal buttons. */
+  grantBusy = signal(false);
+
+  /** Reactive preview of when the granted plan will expire — recomputes
+   *  whenever the modal's `months` slider moves. */
+  grantExpiryPreview = computed(() => {
+    const g = this.grantDialog();
+    if (!g) return null;
+    const d = new Date();
+    d.setMonth(d.getMonth() + g.months);
+    return d;
+  });
 
   isAdmin = computed(() => this.auth.user()?.isAdmin === true);
   currentUserId = computed(() => this.auth.user()?.id ?? null);
@@ -805,6 +976,75 @@ export class AdminComponent implements OnInit {
       alert(errMsg);
     } finally {
       this.adminBusy.set(null);
+    }
+  }
+
+  /**
+   * Open the grant-plan modal. Pre-fills the plan with what the user
+   * already has so a misclick on someone's row doesn't accidentally
+   * change anything — admin has to flip the dropdown to confirm intent.
+   * Falls back to 'pro' as the most common grant when subscription
+   * data is missing (shouldn't happen post-bootstrap, but defensive).
+   */
+  openGrantPlan(user: AdminUser) {
+    this.grantDialog.set({
+      user,
+      plan: (user.plan ?? 'pro') as PlanId,
+      months: 12,
+      note: '',
+    });
+  }
+
+  closeGrantPlan() {
+    if (this.grantBusy()) return;  // don't lose in-flight context on backdrop click
+    this.grantDialog.set(null);
+  }
+
+  /**
+   * Patch a single field of the grant dialog. Avoids the awkwardness of
+   * deep ngModel binding on a signal'd object — child controls call this
+   * with the new value, we rebuild the object immutably.
+   */
+  updateGrantField<K extends keyof GrantPlanDialog>(key: K, value: GrantPlanDialog[K]) {
+    const current = this.grantDialog();
+    if (!current) return;
+    this.grantDialog.set({ ...current, [key]: value });
+  }
+
+  async confirmGrantPlan() {
+    const g = this.grantDialog();
+    if (!g) return;
+    this.grantBusy.set(true);
+    try {
+      const result = await this.api.adminGrantPlan(
+        g.user.id,
+        g.plan,
+        g.months,
+        g.note.trim() || undefined,
+      );
+      // Update the row in-place so the operator sees confirmation without
+      // a full table reload — full reload would lose scroll position and
+      // any filters they had set.
+      this.users.update((list) =>
+        list.map((u) =>
+          u.id === g.user.id
+            ? {
+                ...u,
+                plan: result.plan,
+                planStatus: result.status,
+                planEndsAt: result.currentPeriodEnd,
+                // Reset session counter — grantPlan starts a fresh period.
+                sessionsThisPeriod: 0,
+              }
+            : u,
+        ),
+      );
+      this.grantDialog.set(null);
+    } catch (e: unknown) {
+      const errMsg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось грантнути план.';
+      alert(errMsg);
+    } finally {
+      this.grantBusy.set(false);
     }
   }
 }

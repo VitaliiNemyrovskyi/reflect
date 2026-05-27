@@ -343,6 +343,19 @@ export interface AdminUser {
   isAdmin: boolean;
   sessionCount: number;
   createdAt: string;
+  /** Current billing state — null when the user has no Subscription row
+   *  yet (shouldn't happen post-trial-on-create, but be defensive). */
+  plan: 'trial' | 'lite' | 'pro' | 'master' | null;
+  planStatus: 'active' | 'paused' | 'canceled' | 'expired' | null;
+  planEndsAt: string | null;
+  sessionsThisPeriod: number | null;
+}
+
+export interface GrantPlanResponse {
+  userId: number;
+  plan: 'trial' | 'lite' | 'pro' | 'master';
+  status: 'active' | 'paused' | 'canceled' | 'expired';
+  currentPeriodEnd: string;
 }
 
 export interface AdminSessionListItem {
@@ -844,6 +857,25 @@ export class ApiService {
     return firstValueFrom(
       this.http.delete<{ id: number; email: string; isAdmin: boolean }>(
         `${this.base}/admin/users/${userId}/admin`,
+      ),
+    );
+  }
+
+  /**
+   * Grant a paid plan to a user (or downgrade back to trial). Used for:
+   *  comp / promo codes, university pilots, partner accounts, dev grants.
+   * The audit trail is the optional `note` — appended to Subscription.notes.
+   */
+  adminGrantPlan(
+    userId: number,
+    plan: 'trial' | 'lite' | 'pro' | 'master',
+    months?: number,
+    note?: string,
+  ): Promise<GrantPlanResponse> {
+    return firstValueFrom(
+      this.http.post<GrantPlanResponse>(
+        `${this.base}/admin/users/${userId}/grant-plan`,
+        { plan, months, note },
       ),
     );
   }
