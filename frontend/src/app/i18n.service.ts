@@ -14,9 +14,22 @@ const T: Record<Lang, Record<string, string>> = {
     'nav.settings':       'Налаштування',
     'nav.logout':         'Вийти',
     'nav.admin':          'Адмін',
+    'nav.network':        'Павутина зв\'язків',
     'nav.safety':         'Безпека та кризові ресурси →',
     'nav.demo':           'Демо',
     'nav.pricing':        'Тарифи',
+
+    // Network (3D graph) page
+    'network.title':         "Павутина пацієнтів",
+    'network.subtitle':      'Хто з ким у одному місті, у кого з ким сесії',
+    'network.scope_mine':    'Мої',
+    'network.scope_admin':   'Всі',
+    'network.recenter':      'Відцентрувати',
+    'network.empty':         'Поки немає на що дивитися — почни першу сесію.',
+    'network.open':          'Відкрити',
+    'network.legend.city':       'Місто',
+    'network.legend.character':  'Пацієнт',
+    'network.legend.user':       'Терапевт',
 
     // Characters list
     'chars.page_title':   'Вибери клієнта для тренування',
@@ -141,9 +154,22 @@ const T: Record<Lang, Record<string, string>> = {
     'nav.settings':       'Settings',
     'nav.logout':         'Sign out',
     'nav.admin':          'Admin',
+    'nav.network':        'Network web',
     'nav.safety':         'Safety & Crisis Resources →',
     'nav.demo':           'Demo',
     'nav.pricing':        'Pricing',
+
+    // Network (3D graph) page
+    'network.title':         'Patient network',
+    'network.subtitle':      'Who shares a city, who has sessions with whom',
+    'network.scope_mine':    'Mine',
+    'network.scope_admin':   'All',
+    'network.recenter':      'Recenter',
+    'network.empty':         'Nothing to show yet — start your first session.',
+    'network.open':          'Open',
+    'network.legend.city':       'City',
+    'network.legend.character':  'Patient',
+    'network.legend.user':       'Therapist',
 
     // Characters list
     'chars.page_title':   'Choose a client to practise with',

@@ -119,5 +119,14 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/account-billing.component').then((m) => m.AccountBillingComponent),
   },
+  {
+    // 3D force-directed visualization of the character/therapist/city
+    // graph. Lazy-loaded — pulls in 3d-force-graph + three.js (~350KB)
+    // only when the user opens it.
+    path: 'network',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/network.component').then((m) => m.NetworkComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

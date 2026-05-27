@@ -34,6 +34,10 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
             <a routerLink="/profile" class="user-name-link" [title]="i18n.t('nav.profile')">
               {{ u.displayName ?? u.email }}
             </a>
+            <a routerLink="/network"
+               class="ghost icon small"
+               [title]="i18n.t('nav.network')"
+               [attr.aria-label]="i18n.t('nav.network')">🕸</a>
             @if (u.isAdmin) {
               <a routerLink="/admin"
                  class="ghost icon small admin-link"

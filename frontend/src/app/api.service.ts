@@ -163,6 +163,34 @@ export interface ProgressTrend {
  *  - 'diary'    — between-session diary note (Phase 4)
  *  - 'seed'     — biographical context seeded with the character
  */
+// ── Network graph ─────────────────────────────────────────────────────
+
+export type NetworkNodeType = 'city' | 'character' | 'user' | 'npc';
+export type NetworkEdgeType = 'lives_in' | 'treats' | 'shared_with' | 'knows' | 'co_resident';
+
+export interface NetworkNode {
+  id: string;
+  type: NetworkNodeType;
+  label: string;
+  size: number;
+  href?: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface NetworkEdge {
+  source: string;
+  target: string;
+  type: NetworkEdgeType;
+  weight?: number;
+}
+
+export interface NetworkGraph {
+  nodes: NetworkNode[];
+  edges: NetworkEdge[];
+  generatedAt: string;
+  scope: 'mine' | 'admin';
+}
+
 export interface CharacterMemoryEntry {
   id: number;
   kind: 'session' | 'world' | 'social' | 'diary' | 'seed';
@@ -568,6 +596,20 @@ export class ApiService {
       this.http.get<CharacterMemoryEntry[]>(
         `${this.base}/characters/${characterId}/memories`,
       ),
+    );
+  }
+
+  /**
+   * Pull the 3D network graph — nodes (cities, characters, therapists)
+   * and edges (lives_in / treats / co_resident). 'mine' scope shows
+   * only the current user's slice; 'admin' returns the full cross-user
+   * graph (silently downgraded to 'mine' for non-admins server-side).
+   */
+  networkGraph(scope: 'mine' | 'admin' = 'mine'): Promise<NetworkGraph> {
+    return firstValueFrom(
+      this.http.get<NetworkGraph>(`${this.base}/network/graph`, {
+        params: { scope },
+      }),
     );
   }
 
