@@ -90,6 +90,7 @@ export class NetworkService {
         cityId: true,
         lang: true,
         createdById: true,
+        avatarUrl: true,
         _count: { select: { sessions: true } },
       },
     });
@@ -151,6 +152,10 @@ export class NetworkService {
         size: Math.min(8, 3 + Math.sqrt(c._count.sessions)),
         href: `/patient/${c.id}`,
         meta: {
+          // avatarUrl drives the frontend's nodeThreeObject hook so the
+          // character renders as a circular avatar sprite in 3D rather
+          // than the default sphere. Missing → fall back to sphere.
+          avatarUrl: c.avatarUrl ?? null,
           diagnosis: c.diagnosis,
           difficulty: c.difficulty,
           lang: c.lang,

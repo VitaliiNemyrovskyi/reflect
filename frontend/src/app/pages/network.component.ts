@@ -26,6 +26,7 @@ import { I18nService } from '../i18n.service';
 // this is the standard pattern.
 import ForceGraph3D from '3d-force-graph';
 import type { ForceGraph3DInstance } from '3d-force-graph';
+import * as THREE from 'three';
 
 /** Visual tuning per node type — colours match the rest of the dark
  *  Synapse theme, with cities glowing in the accent purple and
@@ -341,6 +342,10 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
 
   private graphInstance: ForceGraph3DInstance | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  /** Loaded avatar textures keyed by URL. Each URL is fetched once;
+   *  the rendered Sprite reads through this map. Survives re-renders
+   *  inside this component instance (cleared on destroy). */
+  private avatarTextureCache = new Map<string, THREE.Texture>();
 
   graph = signal<NetworkGraph | null>(null);
   loading = signal(true);
@@ -368,6 +373,9 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
     // teardown prevents a leak when the user navigates away.
     this.graphInstance?._destructor?.();
     this.graphInstance = null;
+    // Dispose textures we own — three.js doesn't GC GPU memory.
+    for (const tex of this.avatarTextureCache.values()) tex.dispose();
+    this.avatarTextureCache.clear();
   }
 
   /** Reset camera back to the auto-fit position the engine picked on
@@ -409,6 +417,25 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
       .nodeColor((n: any) => NODE_COLOR[(n.type ?? 'character') as NetworkNodeType])
       .nodeLabel((n: any) => this.tooltipHtml(n))
       .nodeOpacity(0.95)
+      // Custom 3D object per node. Returns a circular avatar sprite for
+      // characters that have an avatarUrl; null falls back to the
+      // default colored sphere for cities, therapists, NPCs without
+      // photos, and characters whose avatar URL didn't load. The
+      // .nodeThreeObjectExtend(true) below keeps the default sphere
+      // BEHIND the custom sprite as a fallback halo — so if the texture
+      // is still loading you see a faint glow in the type-color rather
+      // than empty space.
+      .nodeThreeObjectExtend(true)
+      // Type signature claims we must return Object3D, but the runtime
+      // happily accepts null / undefined to fall back to the default
+      // sphere. Cast the callback to keep TS happy without lying about
+      // our return value.
+      .nodeThreeObject(((n: any) => {
+        if (n.type !== 'character') return null;
+        const url = n.meta?.avatarUrl as string | undefined;
+        if (!url) return null;
+        return this.makeAvatarSprite(url, n.size as number);
+      }) as any)
       .linkColor((l: any) => EDGE_COLOR[l.type as string] ?? 'rgba(255,255,255,0.12)')
       .linkOpacity(0.7)
       .linkWidth((l: any) => Math.min(3, (l.weight ?? 1)))
@@ -453,6 +480,97 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
         1000,
       );
     }
+  }
+
+  // ─── Avatar sprites ─────────────────────────────────────────────────
+
+  /**
+   * Build a billboard sprite for a character node. The sprite starts
+   * invisible (transparent material) so until the texture loads we
+   * just see the fallback sphere underneath via nodeThreeObjectExtend.
+   * Once the texture lands we swap in a circular masked CanvasTexture
+   * and the avatar visually "fades in" on the next render frame.
+   *
+   * Size matches the node's `size` so big patients (lots of sessions)
+   * get bigger faces — same visual ranking as before.
+   */
+  private makeAvatarSprite(url: string, nodeSize: number): THREE.Sprite {
+    const material = new THREE.SpriteMaterial({
+      transparent: true,
+      depthWrite: false,
+      opacity: 0,
+    });
+    const sprite = new THREE.Sprite(material);
+    const scale = nodeSize * 4;
+    sprite.scale.set(scale, scale, 1);
+
+    void this.loadCircularTexture(url).then((tex) => {
+      if (!tex) return; // load failed → sphere stays visible underneath
+      material.map = tex;
+      material.opacity = 1;
+      material.needsUpdate = true;
+    });
+
+    return sprite;
+  }
+
+  /**
+   * Load an avatar URL and mask it to a circle via offscreen canvas.
+   * Result is cached per-URL so re-renders (scope switch, re-fit) don't
+   * trigger duplicate downloads. CORS-enabled — required for both
+   * DiceBear's anonymized SVG endpoint and any other CDN we might use
+   * later, otherwise the canvas becomes tainted and texture upload
+   * throws.
+   *
+   * Returns null on any failure — the caller's fallback (default
+   * sphere from the engine) handles missing textures gracefully.
+   */
+  private async loadCircularTexture(url: string): Promise<THREE.Texture | null> {
+    const cached = this.avatarTextureCache.get(url);
+    if (cached) return cached;
+
+    try {
+      const img = await this.loadImage(url);
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      // Circular mask. The 1px outset on the radius and clearRect at the
+      // edge avoid a hard aliased ring; SVG sources tend to bleed.
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.fillStyle = '#1a1a22'; // dim bg so a transparent PNG isn't see-through
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
+      this.avatarTextureCache.set(url, texture);
+      return texture;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Promise-wrapped <img> load. anonymous crossorigin so the canvas
+   * doesn't become tainted when we draw the result for the texture.
+   * DiceBear's API responds with the right CORS headers; failing that,
+   * the catch in loadCircularTexture surfaces the issue as "no avatar".
+   */
+  private loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`avatar load failed: ${url}`));
+      img.src = url;
+    });
   }
 
   // ─── Template helpers ───────────────────────────────────────────────
