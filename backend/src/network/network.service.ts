@@ -104,6 +104,26 @@ export class NetworkService {
         })
       : [];
 
+    // ─── NPCs for in-scope characters (Phase 3) ─────────────────────
+    // NPCs belong to characters — pulled together so the 3D web shows
+    // each character's social orbit. Slate-colored nodes connected by
+    // `knows` edges; size scales with tension (high-tension NPCs are
+    // larger / more visually present, signalling salience).
+    const npcs = characters.length
+      ? await this.prisma.nPC.findMany({
+          where: { characterId: { in: characters.map((c) => c.id) } },
+          select: {
+            id: true,
+            characterId: true,
+            name: true,
+            relation: true,
+            tension: true,
+            bio: true,
+            avatarUrl: true,
+          },
+        })
+      : [];
+
     // ─── Sessions in scope, for therapist → character edges ─────────
     // Aggregated by (userId, characterId) so the weight is sessionCount,
     // not one edge per session.
@@ -165,6 +185,24 @@ export class NetworkService {
       });
     }
 
+    for (const npc of npcs) {
+      nodes.push({
+        id: `npc:${npc.id}`,
+        type: 'npc',
+        label: npc.name,
+        // NPC size grows with tension — high-tension relationships
+        // dominate the patient's mental space, so they should be more
+        // visually present in the social orbit.
+        size: 2 + (npc.tension / 10) * 2,
+        meta: {
+          relation: npc.relation,
+          tension: npc.tension,
+          bio: npc.bio,
+          avatarUrl: npc.avatarUrl,
+        },
+      });
+    }
+
     for (const t of therapists) {
       const isSelf = t.id === opts.userId;
       const sessionTotal = sessionsRaw
@@ -191,6 +229,18 @@ export class NetworkService {
           type: 'lives_in',
         });
       }
+    }
+
+    // Character → NPC (knows). Edge weight scales with tension so
+    // high-stakes relationships (tension > 6) tug their NPC closer in
+    // the force layout, while peripheral acquaintances drift looser.
+    for (const npc of npcs) {
+      edges.push({
+        source: `character:${npc.characterId}`,
+        target: `npc:${npc.id}`,
+        type: 'knows',
+        weight: 0.3 + (npc.tension / 10) * 0.7,
+      });
     }
 
     // Therapist → Character (treats), weight = sessionCount

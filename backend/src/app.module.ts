@@ -18,6 +18,7 @@ import { HealthModule } from './health/health.module';
 import { CityModule } from './city/city.module';
 import { MemoryModule } from './memory/memory.module';
 import { NetworkModule } from './network/network.module';
+import { NpcModule } from './npc/npc.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { NetworkModule } from './network/network.module';
     CityModule,
     MemoryModule,
     NetworkModule,
+    NpcModule,
   ],
 })
 export class AppModule {}

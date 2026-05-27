@@ -30,6 +30,7 @@ const T: Record<Lang, Record<string, string>> = {
     'network.legend.city':       'Місто',
     'network.legend.character':  'Пацієнт',
     'network.legend.user':       'Терапевт',
+    'network.legend.npc':        'Близькі',
 
     // Characters list
     'chars.page_title':   'Вибери клієнта для тренування',
@@ -170,6 +171,7 @@ const T: Record<Lang, Record<string, string>> = {
     'network.legend.city':       'City',
     'network.legend.character':  'Patient',
     'network.legend.user':       'Therapist',
+    'network.legend.npc':        'Close ones',
 
     // Characters list
     'chars.page_title':   'Choose a client to practise with',

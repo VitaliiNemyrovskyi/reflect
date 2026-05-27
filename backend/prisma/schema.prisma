@@ -8,6 +8,59 @@ datasource db {
 }
 
 /**
+ * Non-Player Characters — the supporting cast in a patient's life.
+ * Each NPC belongs to ONE character (cascade on character delete) and
+ * represents someone in their social/emotional orbit: mother, partner,
+ * colleague, best friend, sibling, ex, etc. Used by:
+ *
+ *   - Chat prompt: injected as a "close people" section so the patient
+ *     organically references them ("мама знов дзвонила", "Денис не
+ *     дзвонив три дні")
+ *   - Memory: feedback can spawn kind='social' memories when an NPC
+ *     interaction comes up in session
+ *   - 3D network: NPCs render as slate-colored nodes orbiting their
+ *     owner character via `knows` edges
+ *
+ * NPCs are character-wide, NOT user-character scoped — every therapist
+ * working with Olesya sees the same mother in her profile. The personal
+ * memories about that interaction stay per user-character pair though.
+ */
+model NPC {
+  id          Int       @id @default(autoincrement())
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  characterId Int
+  /** Display name — "Мама", "Денис", "Олена з роботи". Free-form so
+   *  it can be a nickname / role rather than full name. */
+  name        String
+  /** Relation slug — drives prompt phrasing ("your mother…", "your
+   *  partner…"). Allowed values handled in the service layer:
+   *  mother, father, partner, ex, sibling, child, friend, colleague,
+   *  boss, neighbor, therapist_prev, other. */
+  relation    String
+  /** 1-2 sentence prose describing the dynamic — what they're like,
+   *  the relationship's tone, current pressures. Goes verbatim into
+   *  the chat prompt. */
+  bio         String?
+  /** Optional avatar URL. If unset, the frontend (network view, future
+   *  patient-detail "Близькі" tab) falls back to a DiceBear seed
+   *  derived from `name`. */
+  avatarUrl   String?
+  /** Free-form tags for filtering / context-matching, e.g.
+   *  ["supportive","financial-pressure","conflict"]. JSON array. */
+  tags        String?
+  /** Emotional tension this relationship currently carries, 0..10.
+   *  Used by the chat prompt to weight whether to bring this NPC up
+   *  spontaneously (high tension → patient mentions them more often).
+   *  Default 5 = neutral. Future Phase-4 supervisor extraction may
+   *  update this after sessions. */
+  tension     Float     @default(5)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([characterId])
+}
+
+/**
  * Granular memory entries that constitute a character's lived
  * experience with one specific therapist. Replaces the legacy
  * Session.patientMemory single-string field — that one still gets
@@ -168,6 +221,7 @@ model Character {
   // `createdById === viewer.id` on the frontend).
   shares         CharacterShare[]
   memories       CharacterMemory[]
+  npcs           NPC[]
 
   @@index([createdById])
 }

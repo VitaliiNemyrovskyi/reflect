@@ -8,6 +8,7 @@ import { FeatureGateService, GateReason } from '../billing/feature-gate.service'
 import { SubscriptionsService } from '../billing/subscriptions.service';
 import { CityService } from '../city/city.service';
 import { MemoryService } from '../memory/memory.service';
+import { NpcService } from '../npc/npc.service';
 
 export type HintKind =
   | 'open-question'
@@ -105,6 +106,7 @@ export class SessionsService {
     private readonly subscriptions: SubscriptionsService,
     private readonly city: CityService,
     private readonly memory: MemoryService,
+    private readonly npcs: NpcService,
   ) {}
 
   async create(userId: number, characterId?: number) {
@@ -1366,6 +1368,13 @@ export class SessionsService {
       userId && characterId
         ? await this.buildMemorySection(userId, characterId, lang)
         : this.buildLegacyMemorySection(priorMemories);
+    // Phase 3: close-people section listing each NPC with their
+    // relation, bio, and current emotional tension. The model
+    // organically references these in replies — "мама знов дзвонила",
+    // "Денис не озвався три дні" — without us prompting per turn.
+    const npcSection = characterId
+      ? await this.buildNpcSection(characterId, lang)
+      : '';
 
     // World context: a paragraph about what's happening in the
     // character's city this week. The character may or may not bring it
@@ -1383,10 +1392,73 @@ export class SessionsService {
     // subsequent turns — double-savings on long sessions.
     const brevityInstruction = this.prompts.getBrevityInstruction(difficulty, modality);
     return this.llm.chat({
-      systemPrompt: filled + warning + memorySection + citySection + difficultyModulator + modalityModulator + brevityInstruction,
+      systemPrompt: filled + warning + memorySection + npcSection + citySection + difficultyModulator + modalityModulator + brevityInstruction,
       history,
       cacheSystem: true,
     });
+  }
+
+  /**
+   * Build the "people close to you" section listing the character's
+   * NPCs (mother, partner, etc) with relation + bio + current tension.
+   * Sorted by tension DESC so high-stress relationships lead — that's
+   * what a patient is most likely to bring up first. Empty string if
+   * no NPCs are seeded for this character so callers stay simple.
+   */
+  private async buildNpcSection(characterId: number, lang: string): Promise<string> {
+    const npcs = await this.npcs.listForCharacter(characterId);
+    if (npcs.length === 0) return '';
+
+    const isUk = lang === 'uk';
+    const labelUk: Record<string, string> = {
+      mother: 'мама',
+      father: 'батько',
+      partner: 'партнер/партнерка',
+      ex: 'колишній/колишня',
+      sibling: 'сестра/брат',
+      child: 'дитина',
+      friend: 'друг/подруга',
+      colleague: 'колега',
+      boss: 'керівник',
+      neighbor: 'сусід/сусідка',
+      therapist_prev: 'попередній терапевт',
+      other: 'знайома людина',
+    };
+    const labelEn: Record<string, string> = {
+      mother: 'mother',
+      father: 'father',
+      partner: 'partner',
+      ex: 'ex',
+      sibling: 'sibling',
+      child: 'child',
+      friend: 'friend',
+      colleague: 'colleague',
+      boss: 'boss',
+      neighbor: 'neighbor',
+      therapist_prev: 'previous therapist',
+      other: 'someone you know',
+    };
+    const labels = isUk ? labelUk : labelEn;
+
+    const lines = npcs.map((n) => {
+      const rel = labels[n.relation] ?? n.relation;
+      // Tension hint inline so the model knows whether to bring this
+      // NPC up positively, neutrally, or as a source of stress.
+      const tone = n.tension >= 7 ? (isUk ? ' (напружено)' : ' (tense)')
+        : n.tension <= 3 ? (isUk ? ' (підтримка)' : ' (supportive)')
+        : '';
+      const bio = n.bio ? ` — ${n.bio}` : '';
+      return `- **${n.name}** (${rel}${tone})${bio}`;
+    });
+
+    const header = isUk
+      ? '\n\n# Близькі люди у твоєму житті'
+      : '\n\n# People close to you';
+    const instruction = isUk
+      ? '\n\nЦе твоє соціальне коло. Згадуй їх природно — як справжня людина: "вчора мама дзвонила", "Денис знов мовчить". Не озвучуй цей список — лише вплети у репліку коли доречно (терапевт спитав про стосунки, як справи дома, з ким говориш про це).'
+      : '\n\nThis is your social circle. Reference them naturally — like a real person: "mum called yesterday", "James went quiet again". Don\'t recite this list — weave it into replies only when relevant (therapist asks about relationships, how things are at home, who you talk to about this).';
+
+    return `${header}\n\n${lines.join('\n')}${instruction}`;
   }
 
   /**

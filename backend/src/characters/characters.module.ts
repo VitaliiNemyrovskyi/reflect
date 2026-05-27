@@ -8,5 +8,6 @@ import { CharactersService } from './characters.service';
   imports: [LlmModule, PromptsModule],
   controllers: [CharactersController],
   providers: [CharactersService],
+  exports: [CharactersService],
 })
 export class CharactersModule {}

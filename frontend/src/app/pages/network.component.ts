@@ -124,6 +124,7 @@ const EDGE_COLOR: Record<string, string> = {
       <div class="legend-item"><span class="dot" style="--c:#d8c9ff"></span>{{ i18n.t('network.legend.city') }}</div>
       <div class="legend-item"><span class="dot" style="--c:#a7f3d0"></span>{{ i18n.t('network.legend.character') }}</div>
       <div class="legend-item"><span class="dot" style="--c:#fbbf6e"></span>{{ i18n.t('network.legend.user') }}</div>
+      <div class="legend-item"><span class="dot" style="--c:#94a3b8"></span>{{ i18n.t('network.legend.npc') }}</div>
     </div>
   `,
   styles: [`
@@ -431,10 +432,21 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
       // sphere. Cast the callback to keep TS happy without lying about
       // our return value.
       .nodeThreeObject(((n: any) => {
-        if (n.type !== 'character') return null;
-        const url = n.meta?.avatarUrl as string | undefined;
-        if (!url) return null;
-        return this.makeAvatarSprite(url, n.size as number);
+        // Characters: explicit avatarUrl required (set in DB).
+        if (n.type === 'character') {
+          const url = n.meta?.avatarUrl as string | undefined;
+          return url ? this.makeAvatarSprite(url, n.size as number) : null;
+        }
+        // NPCs: use their avatarUrl if set, else auto-derive a
+        // DiceBear `personas` avatar from the NPC's name. Visual style
+        // differs from characters' `lorelei` so the two layers are
+        // distinguishable at a glance.
+        if (n.type === 'npc') {
+          const url = (n.meta?.avatarUrl as string | undefined)
+            || this.fallbackNpcAvatar(n.label as string);
+          return this.makeAvatarSprite(url, n.size as number);
+        }
+        return null;
       }) as any)
       .linkColor((l: any) => EDGE_COLOR[l.type as string] ?? 'rgba(255,255,255,0.12)')
       .linkOpacity(0.7)
@@ -558,6 +570,17 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
+   * Synthesize a stable DiceBear avatar URL from the NPC's name when
+   * no explicit avatarUrl is on file. Uses `personas` style (cartoonish,
+   * diverse) so NPCs visually contrast with character nodes which use
+   * `lorelei`. Same seed → same face across reloads.
+   */
+  private fallbackNpcAvatar(name: string): string {
+    const seed = encodeURIComponent((name || 'npc').trim().slice(0, 64));
+    return `https://api.dicebear.com/9.x/personas/svg?seed=${seed}`;
+  }
+
+  /**
    * Promise-wrapped <img> load. anonymous crossorigin so the canvas
    * doesn't become tainted when we draw the result for the texture.
    * DiceBear's API responds with the right CORS headers; failing that,
@@ -589,7 +612,7 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
       case 'city': return this.i18n.t('network.legend.city');
       case 'character': return this.i18n.t('network.legend.character');
       case 'user': return this.i18n.t('network.legend.user');
-      case 'npc': return 'NPC';
+      case 'npc': return this.i18n.t('network.legend.npc');
     }
   }
 
