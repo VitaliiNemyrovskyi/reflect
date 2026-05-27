@@ -108,4 +108,11 @@ jobs:
             echo "=== Web ==="
             docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans web
 
+            # Step 6: Pick up any newly-defined services (e.g. db_backup
+            # added to compose without explicit handling above). `up -d`
+            # is idempotent — existing healthy containers stay running;
+            # only missing or genuinely-changed services get touched.
+            echo "=== Ensure other services ==="
+            docker compose -f docker-compose.prod.yml up -d
+
             echo "=== Done: $(git log --oneline -1) ==="
