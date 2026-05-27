@@ -7,6 +7,7 @@ import { cleanFeedback } from './feedback-cleaner';
 import { FeatureGateService, GateReason } from '../billing/feature-gate.service';
 import { SubscriptionsService } from '../billing/subscriptions.service';
 import { CityService } from '../city/city.service';
+import { MemoryService } from '../memory/memory.service';
 
 export type HintKind =
   | 'open-question'
@@ -103,6 +104,7 @@ export class SessionsService {
     private readonly featureGate: FeatureGateService,
     private readonly subscriptions: SubscriptionsService,
     private readonly city: CityService,
+    private readonly memory: MemoryService,
   ) {}
 
   async create(userId: number, characterId?: number) {
@@ -174,6 +176,8 @@ export class SessionsService {
       character.modality,
       character.cityId,
       character.lang,
+      character.id,
+      userId,
     );
 
     await this.prisma.message.create({
@@ -188,21 +192,16 @@ export class SessionsService {
     };
   }
 
+  /**
+   * Pull recent session memories for prompt injection into the next
+   * chat. Delegates to MemoryService which now reads from the granular
+   * CharacterMemory table — Phase 2 of the memory overhaul. The legacy
+   * `Session.patientMemory` field is kept in sync as a denormalized
+   * backup so the patient-detail UI keeps rendering without changes,
+   * but it's no longer the source of truth.
+   */
   private async loadPriorMemories(userId: number, characterId: number): Promise<string[]> {
-    const sessions = await this.prisma.session.findMany({
-      where: {
-        userId,
-        characterId,
-        endedAt: { not: null },
-        patientMemory: { not: null },
-      },
-      orderBy: { startedAt: 'asc' },
-      select: { patientMemory: true },
-    });
-    return sessions
-      .map((s) => s.patientMemory)
-      .filter((m): m is string => !!m && m.trim().length > 0)
-      .slice(-5); // last 5 prior sessions max
+    return this.memory.loadSessionMemoryStrings(userId, characterId, 5);
   }
 
   /**
@@ -366,6 +365,8 @@ export class SessionsService {
       session.character.modality,
       session.character.cityId,
       session.character.lang,
+      session.character.id,
+      userId,
     );
 
     await this.prisma.message.create({
@@ -606,6 +607,20 @@ export class SessionsService {
       },
     });
 
+    // Persist as a granular memory entry too (Phase 2) — same content,
+    // but now retrievable alongside diary/world/social memories. The
+    // legacy Session.patientMemory above stays as a denormalized
+    // backup for the patient-detail UI.
+    if (json?.patientMemory && session.userId) {
+      await this.memory.add({
+        characterId: session.characterId,
+        userId: session.userId,
+        sessionId,
+        kind: 'session',
+        content: json.patientMemory,
+      });
+    }
+
     return { feedback, assessment: json };
   }
 
@@ -845,6 +860,18 @@ export class SessionsService {
         patientMemory: json?.patientMemory ?? null,
       },
     });
+
+    // Mirror to the granular memory store (Phase 2) — same content,
+    // but now joinable with future Phase-3/4 memories (NPC, diary).
+    if (json?.patientMemory && session.userId) {
+      await this.memory.add({
+        characterId: session.characterId,
+        userId: session.userId,
+        sessionId,
+        kind: 'session',
+        content: json.patientMemory,
+      });
+    }
 
     yield { type: 'done', data: { feedback, assessment: json } };
   }
@@ -1320,6 +1347,8 @@ export class SessionsService {
     modality: string | null = null,
     cityId: number | null = null,
     lang: string = 'uk',
+    characterId: number | null = null,
+    userId: number | null = null,
   ): Promise<string> {
     const filled = this.prompts.fill(this.prompts.annaSystem, {
       CHARACTER_NAME: displayName,
@@ -1328,11 +1357,15 @@ export class SessionsService {
     const warning = this.prompts.profileLooksUnfilled(profileText)
       ? '\n\n[УВАГА: профіль персонажа не заповнений — звучатиме як шаблон.]'
       : '';
-    const memorySection = priorMemories.length
-      ? `\n\n# Що ти пам'ятаєш про попередні сесії з цим терапевтом\n\nЦе твоя пам'ять, від першої особи. Не озвучуй усе — лише природно посилайся на минуле, якщо це доречно у моменті.\n\n${priorMemories
-          .map((m, i) => `**Сесія ${i + 1}:** ${m}`)
-          .join('\n\n')}\n\nНа першій репліці нової сесії ти можеш (але не зобов'язана) згадати щось із минулого — як зробила б реальна людина, що повертається до знайомого терапевта.`
-      : '';
+    // Phase 2: pull richer memory (session + diary + world + social +
+    // seed) from MemoryService when we have userId+characterId. Falls
+    // back to the legacy priorMemories array (session-only strings)
+    // when these aren't passed — keeps the function callable from any
+    // context without a regression.
+    const memorySection =
+      userId && characterId
+        ? await this.buildMemorySection(userId, characterId, lang)
+        : this.buildLegacyMemorySection(priorMemories);
 
     // World context: a paragraph about what's happening in the
     // character's city this week. The character may or may not bring it
@@ -1354,6 +1387,76 @@ export class SessionsService {
       history,
       cacheSystem: true,
     });
+  }
+
+  /**
+   * Build the "what you remember" section from the granular memory
+   * store. Groups by kind so the LLM gets a coherent picture: therapy
+   * memories together, between-session diary together, world reactions
+   * separate. Returns empty string if no memories — the prompt simply
+   * skips this section.
+   *
+   * Ranking comes from MemoryService.loadRecent which uses weight ×
+   * recency. We pull top-10 across all kinds, then group for display.
+   */
+  private async buildMemorySection(
+    userId: number,
+    characterId: number,
+    lang: string,
+  ): Promise<string> {
+    const memories = await this.memory.loadRecent(userId, characterId, { limit: 10 });
+    if (memories.length === 0) return '';
+
+    const isUk = lang === 'uk';
+    const grouped = new Map<string, string[]>();
+    for (const m of memories) {
+      if (!grouped.has(m.kind)) grouped.set(m.kind, []);
+      grouped.get(m.kind)!.push(m.content);
+    }
+
+    const labelsUk: Record<string, string> = {
+      seed: 'З життя:',
+      session: 'Про роботу з цим терапевтом:',
+      social: 'Зі стосунків з близькими:',
+      diary: 'Між зустрічами:',
+      world: 'Із подій навколо:',
+    };
+    const labelsEn: Record<string, string> = {
+      seed: 'From your life:',
+      session: 'About work with this therapist:',
+      social: 'From your close relationships:',
+      diary: 'Between sessions:',
+      world: 'From events around you:',
+    };
+    const labels = isUk ? labelsUk : labelsEn;
+    // Stable kind order — therapy comes first because it's the core of
+    // the relationship. seed is biographical background.
+    const kindOrder = ['session', 'diary', 'social', 'world', 'seed'];
+
+    const sections = kindOrder
+      .filter((k) => grouped.has(k))
+      .map((k) => {
+        const items = grouped.get(k)!.map((c) => `- ${c}`).join('\n');
+        return `*${labels[k] ?? k}*\n${items}`;
+      })
+      .join('\n\n');
+
+    const header = isUk ? "\n\n# Що ти пам'ятаєш" : '\n\n# What you remember';
+    const closing = isUk
+      ? "\n\nЦе твоя пам'ять від першої особи. Не озвучуй усе підряд — згадуй природно, тільки коли це доречно у моменті. На першій репліці нової сесії можеш (але не мусиш) посилатися на минуле — як справжня людина повертається до знайомого терапевта."
+      : "\n\nThis is your first-person memory. Don't recite it all — bring it up naturally only when relevant in the moment. On the first line of a new session, you may (but don't have to) reference the past — as a real person reconnecting with a familiar therapist.";
+
+    return `${header}\n\n${sections}${closing}`;
+  }
+
+  /** Fallback memory formatter used only when the new MemoryService
+   *  path isn't available (no userId/characterId passed). Keeps the old
+   *  layout so existing call paths don't regress. */
+  private buildLegacyMemorySection(priorMemories: string[]): string {
+    if (priorMemories.length === 0) return '';
+    return `\n\n# Що ти пам'ятаєш про попередні сесії з цим терапевтом\n\nЦе твоя пам'ять, від першої особи. Не озвучуй усе — лише природно посилайся на минуле, якщо це доречно у моменті.\n\n${priorMemories
+      .map((m, i) => `**Сесія ${i + 1}:** ${m}`)
+      .join('\n\n')}\n\nНа першій репліці нової сесії ти можеш (але не зобов'язана) згадати щось із минулого — як зробила б реальна людина, що повертається до знайомого терапевта.`;
   }
 
   /**

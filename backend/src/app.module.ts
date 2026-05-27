@@ -16,6 +16,7 @@ import { EventsModule } from './events/events.module';
 import { AppConfigModule } from './config/config.module';
 import { HealthModule } from './health/health.module';
 import { CityModule } from './city/city.module';
+import { MemoryModule } from './memory/memory.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { CityModule } from './city/city.module';
     AppConfigModule,
     HealthModule,
     CityModule,
+    MemoryModule,
   ],
 })
 export class AppModule {}
