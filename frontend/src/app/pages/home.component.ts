@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   ApiService,
@@ -494,15 +494,6 @@ export class HomeComponent implements OnInit {
   data = signal<DashboardResponse | null>(null);
   loading = signal(true);
 
-  constructor() {
-    // Re-fetch when the user toggles language — diary content + city
-    // digest are locale-scoped.
-    effect(() => {
-      void this.i18n.lang();
-      if (!this.loading()) void this.load();
-    });
-  }
-
   async ngOnInit() {
     await this.load();
   }
@@ -520,6 +511,11 @@ export class HomeComponent implements OnInit {
 
   toggleLang(): void {
     this.i18n.setLang(this.i18n.isEn ? 'uk' : 'en');
+    // Diary + city digest are locale-scoped — re-fetch with the new
+    // Accept-Language so the dashboard matches the UI language.
+    // Manual trigger (not via effect) avoids the loading <-> data
+    // re-render loop the earlier effect-based approach caused.
+    void this.load();
   }
 
   async logout(): Promise<void> {
