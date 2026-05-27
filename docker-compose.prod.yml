@@ -116,6 +116,11 @@ services:
       CADDY_CF_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Drop-in directory for non-Reflect vhost configs (sibling
+      # projects sharing this Caddy ingress). Files are not tracked
+      # in git so they survive `git pull`. The main Caddyfile pulls
+      # them via `import /etc/caddy/conf.d/*.caddy`.
+      - ./deploy/caddy/conf.d:/etc/caddy/conf.d:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

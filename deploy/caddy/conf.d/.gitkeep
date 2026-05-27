@@ -1,0 +1,16 @@
+# Drop-in vhost configs for sibling projects sharing this Caddy ingress.
+#
+# Files ending in `.caddy` placed here are imported by the main
+# Caddyfile via `import /etc/caddy/conf.d/*.caddy`. They are
+# .gitignored so prod-only configs (e.g. kraken-test.swift-mail.app,
+# api.swift-mail.app) live on the server alongside the repo without
+# conflicting with `git pull` on every deploy.
+#
+# Example file `extra.caddy`:
+#
+#   other-app.example.com {
+#       tls {
+#           dns cloudflare {env.CADDY_CF_API_TOKEN}
+#       }
+#       reverse_proxy other_app_web:3000
+#   }

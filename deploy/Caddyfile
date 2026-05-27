@@ -14,6 +14,15 @@
     auto_https disable_redirects
 }
 
+# Pull in any extra vhost configs from /etc/caddy/conf.d/*.caddy. The
+# directory is bind-mounted from `./deploy/caddy/conf.d/` on the host
+# and is .gitignored — operators can drop additional site blocks there
+# (e.g. for sibling projects sharing this Caddy ingress like
+# kraken-test.swift-mail.app, api.swift-mail.app) without conflicting
+# with `git pull` on deploy. Missing dir = silent no-op, so this is
+# safe in dev where conf.d/ might be empty.
+import /etc/caddy/conf.d/*.caddy
+
 reflect.swift-mail.app {
     tls {
         dns cloudflare {env.CADDY_CF_API_TOKEN}

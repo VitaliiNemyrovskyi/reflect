@@ -22,3 +22,8 @@ npm-debug.log*
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
 .claude/worktrees/
+
+# Caddy drop-in vhost configs for sibling projects sharing this ingress.
+# Operators drop *.caddy files in deploy/caddy/conf.d/ on the server;
+# they're imported by the main Caddyfile but never tracked.
+deploy/caddy/conf.d/*.caddy
