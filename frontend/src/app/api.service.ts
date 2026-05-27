@@ -153,6 +153,26 @@ export interface ProgressTrend {
   series: ProgressTrendPoint[];
 }
 
+/**
+ * A character's lived-experience entry — what they remember in
+ * first-person voice. Returned by GET /characters/:id/memories,
+ * filtered to the current user-character pair. Kinds:
+ *  - 'session'  — what happened during a therapy session
+ *  - 'world'    — reaction to a city news event
+ *  - 'social'   — interaction with an NPC (Phase 3)
+ *  - 'diary'    — between-session diary note (Phase 4)
+ *  - 'seed'     — biographical context seeded with the character
+ */
+export interface CharacterMemoryEntry {
+  id: number;
+  kind: 'session' | 'world' | 'social' | 'diary' | 'seed';
+  content: string;
+  sessionId: number | null;
+  weight: number;
+  tags: string[];
+  createdAt: string;
+}
+
 export interface PatientCard {
   id: number;
   slug: string;
@@ -534,6 +554,20 @@ export class ApiService {
   patientCard(characterId: number): Promise<PatientCard> {
     return firstValueFrom(
       this.http.get<PatientCard>(`${this.base}/characters/${characterId}/full`),
+    );
+  }
+
+  /**
+   * Pull the character's full memory timeline as the current user
+   * knows them — newest first, all kinds. Backend already filters
+   * to (userId, characterId) so a therapist sees only their own
+   * stream with this patient.
+   */
+  listMemories(characterId: number): Promise<CharacterMemoryEntry[]> {
+    return firstValueFrom(
+      this.http.get<CharacterMemoryEntry[]>(
+        `${this.base}/characters/${characterId}/memories`,
+      ),
     );
   }
 

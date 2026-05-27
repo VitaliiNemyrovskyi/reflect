@@ -62,8 +62,17 @@ const T: Record<Lang, Record<string, string>> = {
     'tab.overview':      'Огляд',
     'tab.profile':       'Профіль',
     'tab.sessions':      'Сесії',
+    'tab.memory':        "Пам'ять",
     'tab.notes':         'Нотатки',
     'tab.progress':      'Прогрес',
+
+    // Memory tab — kinds + empty state
+    'memory.empty':      'Поки пам\'яті немає. З\'явиться після першої сесії та згодом збагатиться щоденником і соціальними зв\'язками.',
+    'memory.kind.session': 'Із сесій з тобою',
+    'memory.kind.diary':   'Між зустрічами',
+    'memory.kind.social':  'Зі стосунків з близькими',
+    'memory.kind.world':   'Із подій навколо',
+    'memory.kind.seed':    'Біографічне',
 
     // Intro / landing
     'intro.tagline':     'Тренажер психотерапевта',
@@ -190,8 +199,17 @@ const T: Record<Lang, Record<string, string>> = {
     'tab.overview':      'Overview',
     'tab.profile':       'Profile',
     'tab.sessions':      'Sessions',
+    'tab.memory':        'Memory',
     'tab.notes':         'Notes',
     'tab.progress':      'Progress',
+
+    // Memory tab — kinds + empty state
+    'memory.empty':      "No memories yet. They'll appear after the first session and grow with diary entries and social bonds.",
+    'memory.kind.session': 'From sessions with you',
+    'memory.kind.diary':   'Between sessions',
+    'memory.kind.social':  'From close relationships',
+    'memory.kind.world':   'From events around',
+    'memory.kind.seed':    'Biographical',
 
     // Intro / landing
     'intro.tagline':     'Psychotherapy Training Simulator',

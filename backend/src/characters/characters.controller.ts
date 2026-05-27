@@ -21,6 +21,7 @@ import {
   type DraftFieldName,
 } from './characters.service';
 import { MODALITIES } from './modality';
+import { MemoryService } from '../memory/memory.service';
 
 interface AssessmentJson {
   patient?: Record<string, number | null>;
@@ -55,6 +56,7 @@ export class CharactersController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly characters: CharactersService,
+    private readonly memory: MemoryService,
   ) {}
 
   /**
@@ -213,6 +215,30 @@ export class CharactersController {
       }),
     );
     return enriched;
+  }
+
+  /**
+   * GET /characters/:id/memories — what this patient remembers from
+   * the current user's interactions with them. Returns the granular
+   * CharacterMemory entries (Phase 2) sorted newest-first across all
+   * kinds (session / world / social / diary / seed). Sessions get
+   * their sessionId so the frontend can link back to the transcript.
+   *
+   * Scoped tight: a therapist only ever sees their own memory stream
+   * with this patient — never another therapist's.
+   */
+  @Get(':id/memories')
+  async listMemories(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Pull a generous window so the timeline view doesn't look
+    // truncated. 50 covers a year+ of sessions for an active user.
+    const memories = await this.memory.loadRecent(user.id, id, { limit: 50 });
+    // Re-sort newest-first for the UI timeline (loadRecent ranks by
+    // weight × recency for prompt injection; the UI wants chronological).
+    memories.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return memories;
   }
 
   @Get(':id/full')

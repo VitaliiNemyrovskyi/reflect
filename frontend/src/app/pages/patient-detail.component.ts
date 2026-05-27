@@ -1,8 +1,8 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService, CharacterShare, ModalityInfo, PatientCard, ProgressBadge } from '../api.service';
+import { ApiService, CharacterMemoryEntry, CharacterShare, ModalityInfo, PatientCard, ProgressBadge } from '../api.service';
 import { I18nService } from '../i18n.service';
 
 /**
@@ -20,7 +20,7 @@ interface ProfileSection {
   icon: string;
 }
 
-type TabKey = 'overview' | 'profile' | 'sessions' | 'notes' | 'progress';
+type TabKey = 'overview' | 'profile' | 'sessions' | 'memory' | 'notes' | 'progress';
 
 /**
  * Match section titles by keyword to assign an emoji icon. The match is
@@ -419,6 +419,44 @@ const SPOILER_PATTERNS: RegExp[] = [
                 </li>
               }
             </ul>
+          }
+        }
+
+        @if (tab() === 'memory') {
+          @if (memoryLoading()) {
+            <p class="hint">{{ i18n.t('general.loading') }}</p>
+          } @else if (memories().length === 0) {
+            <p class="hint">{{ i18n.t('memory.empty') }}</p>
+          } @else {
+            <!-- Timeline grouped by memory kind. Within each group the
+                 newest entries lead. Each entry shows: a small kind
+                 chip, the first-person content, and the captured date.
+                 Session memories link back to the transcript view. -->
+            @for (g of memoriesGrouped(); track g.kind) {
+              <section class="memory-group">
+                <header class="memory-group-head">
+                  <span class="memory-kind-icon">{{ memoryKindIcon(g.kind) }}</span>
+                  <h3>{{ i18n.t('memory.kind.' + g.kind) }}</h3>
+                  <span class="dim">· {{ g.items.length }}</span>
+                </header>
+                <ul class="memory-list fx-stagger">
+                  @for (m of g.items; track m.id) {
+                    <li class="memory-item">
+                      <p class="memory-body">{{ m.content }}</p>
+                      <footer class="memory-meta">
+                        @if (m.sessionId !== null) {
+                          <a [routerLink]="['/session', m.sessionId, 'view']" class="link-btn">
+                            {{ i18n.isEn ? 'session' : 'сесія' }} #{{ m.sessionId }}
+                          </a>
+                          <span class="dim">·</span>
+                        }
+                        <span class="dim">{{ m.createdAt | date: 'dd.MM.yyyy' }}</span>
+                      </footer>
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
           }
         }
 
@@ -2118,6 +2156,58 @@ const SPOILER_PATTERNS: RegExp[] = [
     .note-body { margin: 0; font-size: 14px; }
     .note-meta { color: var(--fg-dim); font-size: 11px; margin-top: 6px; }
 
+    /* Memory timeline — grouped by kind, each group a header row with
+       an icon + count, then a vertical list of memory cards. Subtle
+       left-accent on each card hints "this is a remembered moment"
+       without competing with the more prominent session list. */
+    .memory-group { margin-bottom: 24px; }
+    .memory-group:last-child { margin-bottom: 0; }
+    .memory-group-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+    }
+    .memory-group-head h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .memory-kind-icon { font-size: 16px; line-height: 1; }
+    .memory-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .memory-item {
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-left: 2px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .memory-body {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .memory-meta {
+      color: var(--fg-dim);
+      font-size: 11px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .memory-meta .link-btn { font-size: 11px; }
+
     .charts-section h3 {
       margin: 0 0 12px;
       font-size: 13px;
@@ -2315,9 +2405,37 @@ export class PatientDetailComponent implements OnInit {
     { key: 'overview' as TabKey,  label: this.i18n.t('tab.overview'),  icon: '📋' },
     { key: 'profile'  as TabKey,  label: this.i18n.t('tab.profile'),   icon: '📜' },
     { key: 'sessions' as TabKey,  label: this.i18n.t('tab.sessions'),  icon: '💬', count: (p: PatientCard) => p.sessionCount },
+    { key: 'memory'   as TabKey,  label: this.i18n.t('tab.memory'),    icon: '🧠', count: (_p: PatientCard) => this.memories().length },
     { key: 'notes'    as TabKey,  label: this.i18n.t('tab.notes'),     icon: '🔖', count: (p: PatientCard) => p.notes.length },
     { key: 'progress' as TabKey,  label: this.i18n.t('tab.progress'),  icon: '📈' },
   ]);
+
+  // ─── Memory tab (Phase 2 — granular CharacterMemory) ───────────────────
+  memories = signal<CharacterMemoryEntry[]>([]);
+  memoryLoading = signal(false);
+  /** Memories grouped by kind in display order (session → diary →
+   *  social → world → seed). Each group preserves the API order
+   *  (newest first). */
+  memoriesGrouped = computed(() => {
+    const all = this.memories();
+    const order: CharacterMemoryEntry['kind'][] = ['session', 'diary', 'social', 'world', 'seed'];
+    return order
+      .map((kind) => ({ kind, items: all.filter((m) => m.kind === kind) }))
+      .filter((g) => g.items.length > 0);
+  });
+
+  /** Emoji marker for each memory kind — visual anchor for the timeline
+   *  group headers. Keep these stable so the user learns them quickly. */
+  memoryKindIcon(kind: CharacterMemoryEntry['kind']): string {
+    switch (kind) {
+      case 'session': return '💬';
+      case 'diary': return '📖';
+      case 'social': return '👥';
+      case 'world': return '🗞';
+      case 'seed': return '🌱';
+      default: return '•';
+    }
+  }
 
   /** Tracks which collapsible sections are open. Spoiler sections default
    *  to closed; non-spoilers default to open. */
@@ -2594,6 +2712,32 @@ export class PatientDetailComponent implements OnInit {
     if (!p?.diagnosis) return '';
     return p.diagnosisCode ? `${p.diagnosis}\n— ${p.diagnosisCode}` : p.diagnosis;
   });
+
+  constructor() {
+    // Lazy-load memories the first time the user opens that tab —
+    // saves a round-trip on initial page load if they never click it.
+    // Effect re-fires whenever tab() changes; the loaded() guard makes
+    // subsequent tab visits cheap (we already have the data).
+    effect(() => {
+      if (this.tab() !== 'memory') return;
+      const p = this.patient();
+      if (!p || this.memoryLoading() || this.memories().length > 0) return;
+      void this.loadMemories(p.id);
+    });
+  }
+
+  private async loadMemories(characterId: number): Promise<void> {
+    this.memoryLoading.set(true);
+    try {
+      const list = await this.api.listMemories(characterId);
+      this.memories.set(list);
+    } catch {
+      // Silent — user just sees the empty hint. Better than scary error
+      // toast on what's a secondary feature.
+    } finally {
+      this.memoryLoading.set(false);
+    }
+  }
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────
 
