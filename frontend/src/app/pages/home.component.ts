@@ -235,7 +235,7 @@ import { LogoComponent } from '../logo.component';
       margin-bottom: 22px;
       flex-wrap: wrap;
     }
-    .user-area { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .user-area { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
     .user-name-link {
       color: var(--fg);
       text-decoration: none;
@@ -245,6 +245,28 @@ import { LogoComponent } from '../logo.component';
       white-space: nowrap;
     }
     .user-name-link:hover { background: var(--user-bg); }
+
+    /* Force the language + sign-out buttons to match the icon-button
+       size (icons sit at ~28px square). Global .ghost button styling
+       has a min-height for accessibility that makes them taller than
+       the icons by default — overriding here to keep the header tight. */
+    .user-area button.ghost,
+    .user-area a.ghost {
+      padding: 4px 10px;
+      font-size: 12px;
+      min-height: 0;
+      line-height: 1.4;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .user-area .ghost.icon {
+      width: 28px;
+      padding: 0;
+      justify-content: center;
+      font-size: 13px;
+    }
 
     /* Title row: greeting on the left, city pill on the right. The
        greeting anchors the page in time + identity; the city pill is
@@ -410,45 +432,47 @@ import { LogoComponent } from '../logo.component';
     }
     .diary-card {
       background: var(--assistant-bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      transition: border-color .15s ease, transform .15s ease;
+      border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
+      border-left: 3px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+      border-radius: 10px;
+      padding: 14px 16px;
+      transition: border-color .15s ease, transform .15s ease, background .15s ease;
     }
     .diary-card:hover {
-      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+      border-left-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 3%, var(--assistant-bg));
       transform: translateY(-1px);
     }
     .diary-card-header {
       display: flex;
       gap: 10px;
-      align-items: flex-start;
+      align-items: center;
+      margin-bottom: 10px;
     }
     .diary-avatar {
-      width: 36px;
-      height: 36px;
+      width: 32px !important;
+      height: 32px !important;
       border-radius: 50%;
       object-fit: cover;
       flex-shrink: 0;
+      background: var(--user-bg);
     }
-    .diary-author { flex: 1; min-width: 0; }
+    .diary-author { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .diary-name {
       color: var(--fg);
       text-decoration: none;
       font-weight: 500;
       font-size: 14px;
-      display: block;
+      line-height: 1.2;
     }
     .diary-name:hover { color: var(--accent); }
     .diary-date {
       font-size: 11px;
-      margin-top: 2px;
+      line-height: 1.2;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
     .diary-tags-inline {
@@ -456,19 +480,22 @@ import { LogoComponent } from '../logo.component';
       gap: 4px;
     }
     .diary-tag {
-      font-size: 10px;
+      font-size: 9px;
       text-transform: lowercase;
       letter-spacing: 0.04em;
       background: color-mix(in srgb, var(--accent) 10%, var(--user-bg));
       color: var(--accent);
-      padding: 1px 7px;
+      padding: 1px 6px;
       border-radius: 999px;
+      line-height: 1.4;
     }
     .diary-content {
       margin: 0;
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.55;
       color: var(--fg);
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
     .empty-hint {

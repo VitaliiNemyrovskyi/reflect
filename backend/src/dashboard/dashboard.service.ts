@@ -33,11 +33,17 @@ export class DashboardService {
     // City pulse — shared singleton per locale.
     const city = await this.city.getForLang(lang);
 
-    // Active session = endedAt null, most recently touched first.
-    const activeSessions = await this.prisma.session.findMany({
+    // Active session = endedAt null AND therapist actually engaged
+    // (at least one user turn beyond the seed). Earlier we surfaced
+    // every "session row created" — including the abandoned retries
+    // during the credit-fail period that only had the SEED message
+    // (msg-count=1), producing a row of identical "Продовжити · Анна"
+    // cards that's just noise. Now: require ≥2 messages (seed + at
+    // least one real exchange), dedupe to the most recent per
+    // character, cap at 3.
+    const allActiveRaw = await this.prisma.session.findMany({
       where: { userId, endedAt: null },
       orderBy: { startedAt: 'desc' },
-      take: 5,
       include: {
         character: {
           select: { id: true, displayName: true, avatarUrl: true, diagnosis: true },
@@ -45,6 +51,15 @@ export class DashboardService {
         _count: { select: { messages: true } },
       },
     });
+    const seenChar = new Set<number>();
+    const activeSessions = allActiveRaw
+      .filter((s) => s._count.messages >= 2)
+      .filter((s) => {
+        if (seenChar.has(s.characterId)) return false;
+        seenChar.add(s.characterId);
+        return true;
+      })
+      .slice(0, 3);
 
     // Pending feedback = ended session that never got feedback generated
     // (e.g. LLM-fail). Therapist should retry.
