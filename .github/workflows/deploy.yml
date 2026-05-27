@@ -56,19 +56,28 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --no-deps api_2
             wait_healthy reflect_api_2
 
-            # Step 2: Hot-reload Caddy so it picks up any Caddyfile change
-            # (e.g. the LB upstream pool gaining api_2 on first deploy)
-            # WITHOUT dropping active connections. If reload fails — for
-            # example Caddy isn't running yet — fall back to a normal
-            # recreate. The Caddyfile is mounted from the host so the
-            # reload sees the new content immediately.
-            echo "=== Caddy reload ==="
-            if docker exec reflect_caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null; then
-              echo "  hot-reloaded"
-            else
-              echo "  hot-reload failed — recreating Caddy"
-              docker compose -f docker-compose.prod.yml up -d --no-deps --remove-orphans caddy
-            fi
+            # Step 2: Caddy config sync.
+            #
+            # Two layers:
+            #   a) `up -d caddy` — compose recreates the container only
+            #      if its definition changed (image, env, volumes, etc.).
+            #      Pure Caddyfile-content changes don't trigger this
+            #      because the file is bind-mounted live. This catches
+            #      volume / mount additions (e.g. when we first added
+            #      the conf.d/ drop-in directory) that hot-reload alone
+            #      cannot pick up.
+            #   b) `caddy reload` — hot-reloads the in-memory config
+            #      without dropping connections. Picks up Caddyfile and
+            #      conf.d/*.caddy edits done between deploys.
+            #
+            # (a) costs a brief connection drop ONLY when the Caddy
+            # service definition genuinely changed — rare after stable
+            # setup. (b) is the every-deploy path and is zero-downtime.
+            echo "=== Caddy sync ==="
+            docker compose -f docker-compose.prod.yml up -d --no-deps caddy
+            docker exec reflect_caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
+              && echo "  hot-reloaded" \
+              || echo "  reload skipped (container may have just restarted)"
 
             # Step 3: Rolling restart of api. api_2 keeps serving while
             # api's graceful-shutdown drains active feedback streams
