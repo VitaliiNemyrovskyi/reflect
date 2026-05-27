@@ -279,23 +279,44 @@ interface SelectionAnchor {
     @if (endDialogOpen()) {
       <div class="modal-backdrop" (click)="closeEndDialog()"></div>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="end-dialog-title">
-        <h3 id="end-dialog-title">{{ i18n.t('chat.end_session') }}</h3>
-        <p>{{ i18n.t('chat.end_confirm') }}</p>
-        <p class="modal-warning">
-          Якщо ні — сесію буде <strong>видалено повністю</strong>:
-          транскрипт, нотатки, та пам'ять клієнтки про неї. Так, ніби сесії не було.
-        </p>
-        <div class="modal-actions">
+        <h3 id="end-dialog-title">{{ i18n.t('chat.end_dialog_title') }}</h3>
+        <p>{{ i18n.t('chat.end_dialog_subtitle') }}</p>
+
+        <!-- Primary path: complete the session normally. Big and at the
+             top so a stressed user (LLM timeout, etc.) can't miss it. -->
+        <div class="modal-primary-actions">
+          <button class="primary big" (click)="getFeedback()" [disabled]="discarding()">
+            ✓ {{ i18n.t('chat.get_feedback') }}
+          </button>
           <button class="ghost" (click)="closeEndDialog()" [disabled]="discarding()">
             {{ i18n.t('chat.confirm_no') }}
           </button>
-          <button class="danger" (click)="discardSession()" [disabled]="discarding()">
-            {{ discarding() ? '…' : i18n.t('chat.confirm_yes') }}
-          </button>
-          <button class="primary" (click)="getFeedback()" [disabled]="discarding()">
-            {{ i18n.t('chat.get_feedback') }}
-          </button>
         </div>
+
+        <!-- Destructive path: separated visually + behind a two-step
+             confirmation. Pre-Phase-1 there was a single "Так, завершити"
+             button right next to "Отримати фідбек" that looked benign
+             and read as "yes, complete" — a stressed therapist clicked
+             it and lost 40 messages. Now: collapsed by default, the
+             "discard" verb is explicit, and clicking opens a confirm-
+             phase that surfaces the patient's name and a final red
+             confirm button. Friction lives only on the destructive
+             path; the normal completion flow stays one click. -->
+        <details class="modal-danger-section" [open]="discardConfirmOpen()">
+          <summary (click)="discardConfirmOpen.set(!discardConfirmOpen())">
+            ⚠ {{ i18n.t('chat.discard_toggle') }}
+          </summary>
+          @if (discardConfirmOpen()) {
+            <p class="modal-warning-strong">
+              {{ i18n.t('chat.discard_warning_prefix') }}
+              <strong>{{ state.characterDisplayName() ?? '' }}</strong>
+              {{ i18n.t('chat.discard_warning_suffix') }}
+            </p>
+            <button class="danger small" (click)="discardSession()" [disabled]="discarding()">
+              {{ discarding() ? '…' : i18n.t('chat.discard_confirm') }}
+            </button>
+          }
+        </details>
       </div>
     }
   `,
@@ -932,6 +953,57 @@ interface SelectionAnchor {
         min-height: 44px;
       }
     }
+
+    /* End-session dialog: primary path is big and obvious, destructive
+       path is collapsed and visually distinct. The whole point is the
+       therapist who's just stressed by an LLM timeout can't fat-finger
+       the wrong button and lose 40 messages. */
+    .modal-primary-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .modal-primary-actions .primary.big {
+      padding: 14px 22px;
+      font-size: 16px;
+      font-weight: 500;
+      min-height: 52px;
+    }
+    .modal-primary-actions .ghost {
+      padding: 10px 18px;
+    }
+    .modal-danger-section {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border);
+    }
+    .modal-danger-section summary {
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--fg-dim);
+      list-style: none;
+      user-select: none;
+    }
+    .modal-danger-section summary::-webkit-details-marker { display: none; }
+    .modal-danger-section summary:hover { color: var(--danger); }
+    .modal-danger-section[open] summary { color: var(--danger); margin-bottom: 10px; }
+    .modal-warning-strong {
+      font-size: 13px;
+      padding: 10px 12px;
+      background: rgba(208, 116, 116, 0.1);
+      border: 1px solid var(--danger);
+      border-radius: 6px;
+      margin: 0 0 12px;
+      color: var(--fg);
+    }
+    .modal-warning-strong strong { color: var(--danger); }
+    .modal-danger-section .danger.small {
+      width: 100%;
+      padding: 10px 16px;
+      font-size: 13px;
+      min-height: 40px;
+    }
   `],
 })
 export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
@@ -954,6 +1026,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   // - "Отримати фідбек" button = direct path → /feedback page (streams)
   // - "Завершити" button = open dialog → choice between feedback or discard
   endDialogOpen = signal(false);
+  /** Two-step confirmation for the destructive "discard session" path
+   *  in the end-session dialog. Defaults closed; users have to open
+   *  the <details> AND click the explicit red button to actually
+   *  delete. Past one-click trap caused a therapist to lose 40
+   *  messages they thought they were saving. */
+  discardConfirmOpen = signal(false);
   discarding = signal(false);
 
   notes = signal<Note[]>([]);
@@ -1434,12 +1512,16 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   /** "Завершити" button — opens confirmation modal, doesn't navigate yet. */
   openEndDialog() {
+    // Always reset the destructive section to collapsed on open — even
+    // if someone closed the modal mid-flow, next open starts safe.
+    this.discardConfirmOpen.set(false);
     this.endDialogOpen.set(true);
   }
 
   closeEndDialog() {
     if (this.discarding()) return; // protect against close-during-delete
     this.endDialogOpen.set(false);
+    this.discardConfirmOpen.set(false);
   }
 
   /**

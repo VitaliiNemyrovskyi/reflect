@@ -101,6 +101,48 @@ services:
     depends_on:
       - api
 
+  # Periodic SQLite backup. Snapshots /data/reflect.db every 6 hours
+  # using sqlite3's online .backup (safe with WAL, no need to stop the
+  # app) and keeps a rolling window of 28 backups (≈ last 7 days). Each
+  # snapshot is gzipped — typical db is ~1 MB, compresses to ~300 KB.
+  #
+  # If a therapist accidentally discards a session, we can pluck the
+  # most recent pre-incident backup, mount it as a temporary read-only
+  # source, and copy the missing Session + Message rows into the live
+  # DB. Procedure documented in docs/runbooks/restore-deleted-session.md
+  # (alongside this commit).
+  db_backup:
+    image: alpine:3.20
+    container_name: reflect_db_backup
+    restart: unless-stopped
+    depends_on:
+      - api
+    volumes:
+      - reflect_data:/data:ro             # read-only: we never write to live DB
+      - reflect_backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apk add --no-cache sqlite gzip > /dev/null
+        echo "db_backup: running every 6h, retaining 28 snapshots"
+        while true; do
+          ts=$$(date -u +%Y%m%d-%H%M%S)
+          out=/backups/reflect-$$ts.db
+          # `.backup` is the SQLite-official online backup API — it
+          # iterates pages and is safe against concurrent writers.
+          # Reading from a RO mount is fine because .backup opens the
+          # source as RO when target is different file.
+          if sqlite3 /data/reflect.db ".backup '$$out'"; then
+            gzip -9 "$$out"
+            echo "db_backup: $$out.gz $(du -h $$out.gz | cut -f1)"
+          else
+            echo "db_backup: snapshot failed at $$ts"
+          fi
+          # Prune: keep newest 28 .gz files
+          ls -1t /backups/reflect-*.db.gz 2>/dev/null | tail -n +29 | xargs -r rm -f
+          sleep 21600
+        done
+
   caddy:
     image: reflect/caddy:${IMAGE_TAG:-latest}
     build:
@@ -130,7 +172,8 @@ services:
 
 volumes:
   reflect_data:
-  caddy_data:    # Caddy's auto-issued cert + ACME state lives here.
+  reflect_backups:  # SQLite snapshot history — see db_backup service.
+  caddy_data:       # Caddy's auto-issued cert + ACME state lives here.
   caddy_config:
 
 # Private network — only reflect's containers. NOT the shared `proxy`

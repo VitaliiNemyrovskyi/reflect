@@ -53,6 +53,16 @@ const T: Record<Lang, Record<string, string>> = {
     'chat.end_confirm':   'Завершити сесію і отримати фідбек?',
     'chat.confirm_yes':   'Так, завершити',
     'chat.confirm_no':    'Продовжити',
+
+    // End-session dialog — redesigned for safety. The destructive
+    // "discard" path is collapsed behind a two-click expansion;
+    // primary path stays one-click.
+    'chat.end_dialog_title':       'Завершити сесію?',
+    'chat.end_dialog_subtitle':    'Збережіть розмову з фідбеком супервізора або поверніться до неї.',
+    'chat.discard_toggle':         'Не зберігати сесію — видалити повністю',
+    'chat.discard_warning_prefix': 'Розмова з',
+    'chat.discard_warning_suffix': 'буде видалена назавжди — транскрипт, нотатки і пам\'ять про сесію. Цю дію не можна скасувати.',
+    'chat.discard_confirm':        'Видалити сесію назавжди',
     'chat.hint_label':    'Підказка',
     'chat.hint_button':   'Підказка ✦',
     'chat.tests':         'Тести',
@@ -204,6 +214,14 @@ const T: Record<Lang, Record<string, string>> = {
     'chat.end_confirm':   'End session and get feedback?',
     'chat.confirm_yes':   'Yes, end session',
     'chat.confirm_no':    'Continue',
+
+    // End-session dialog — redesigned for safety.
+    'chat.end_dialog_title':       'End session?',
+    'chat.end_dialog_subtitle':    'Save with supervisor feedback or go back to it.',
+    'chat.discard_toggle':         "Don't save — delete this session entirely",
+    'chat.discard_warning_prefix': 'The conversation with',
+    'chat.discard_warning_suffix': "will be deleted forever — transcript, notes, and session memory. This cannot be undone.",
+    'chat.discard_confirm':        'Delete session forever',
     'chat.hint_label':    'Hint',
     'chat.hint_button':   'Hint ✦',
     'chat.tests':         'Tests',
