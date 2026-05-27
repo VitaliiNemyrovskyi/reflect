@@ -74,13 +74,38 @@ interface SelectionAnchor {
             <div class="bubble fx-fade-up"
                  [class.user]="b.role === 'user'"
                  [class.assistant]="b.role === 'assistant'"
-                 [class.typing]="b.pending">
+                 [class.typing]="b.pending"
+                 [class.failed]="b.failed">
               {{ b.content }}
               @if (b.role === 'assistant' && !b.pending) {
                 <button class="replay"
                         title="Озвучити"
                         aria-label="Озвучити репліку"
                         (click)="voice.speak(b.content)">🔁</button>
+              }
+              @if (b.failed && b.clientId !== undefined) {
+                <!-- Telegram/WhatsApp pattern: keep the user's text
+                     visible, show a red marker + actions row to retry
+                     or delete. Tapping Retry re-sends through the
+                     normal pipeline; if it fails again, the bubble
+                     simply gets re-marked as failed at the new spot. -->
+                <div class="bubble-failed-row">
+                  <span class="failed-icon"
+                        [attr.aria-label]="i18n.t('chat.failed_label')"
+                        [title]="i18n.t('chat.failed_label')">⚠</span>
+                  <button type="button"
+                          class="failed-action retry"
+                          [disabled]="sending()"
+                          (click)="retryFailed(b.clientId)">
+                    ↻ {{ i18n.t('chat.failed_retry') }}
+                  </button>
+                  <button type="button"
+                          class="failed-action delete"
+                          [disabled]="sending()"
+                          (click)="deleteFailed(b.clientId)">
+                    × {{ i18n.t('chat.failed_delete') }}
+                  </button>
+                </div>
               }
             </div>
           }
@@ -407,6 +432,49 @@ interface SelectionAnchor {
       border-bottom-left-radius: 4px;
     }
     .bubble.typing { color: var(--fg-dim); font-style: italic; }
+    /* Failed-send state, Telegram-style: keep the message visible (so
+       the user sees what didn't go through) with a red border + tint,
+       and surface Retry / Delete inline so they don't have to retype.
+       The override beats the .user gradient by being later in cascade. */
+    .bubble.failed {
+      border-color: var(--danger) !important;
+      background:
+        radial-gradient(ellipse 60% 60% at 100% 100%,
+          color-mix(in srgb, var(--danger) 14%, transparent) 0%,
+          transparent 70%),
+        color-mix(in srgb, var(--danger) 4%, var(--user-bg));
+    }
+    .bubble-failed-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed color-mix(in srgb, var(--danger) 35%, transparent);
+      font-size: 12px;
+    }
+    .failed-icon {
+      color: var(--danger);
+      font-size: 14px;
+      line-height: 1;
+    }
+    .failed-action {
+      background: transparent;
+      border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+      color: var(--danger);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      min-height: auto;
+      line-height: 1.2;
+    }
+    .failed-action:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--danger) 10%, transparent);
+    }
+    .failed-action:disabled { opacity: 0.5; cursor: not-allowed; }
+    .failed-action.retry { font-weight: 500; }
+    .failed-action.delete { color: var(--fg-dim); border-color: var(--border); }
     .bubble .replay {
       position: absolute;
       top: 6px;
@@ -1285,10 +1353,43 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const text = this.draft.trim();
     if (!text || this.sending()) return;
     this.recognition.stop();
-    this.sending.set(true);
     this.draft = '';
     this.clearDraft();
-    this.state.push({ role: 'user', content: text });
+    const clientId = this.nextClientId();
+    this.state.push({ role: 'user', content: text, clientId });
+    await this.dispatchSend(text, clientId);
+  }
+
+  /**
+   * Re-send a previously-failed user message. Lifts it from its old
+   * spot in the transcript and re-pushes it at the bottom — server
+   * appends in send-order, so this keeps UI and DB consistent. If the
+   * retry also fails, the bubble gets re-marked as failed in the new
+   * position.
+   */
+  async retryFailed(clientId: number) {
+    if (this.sending()) return;
+    const removed = this.state.removeByClientId(clientId);
+    if (!removed || removed.role !== 'user') return;
+    const fresh = this.nextClientId();
+    this.state.push({ role: 'user', content: removed.content, clientId: fresh });
+    await this.dispatchSend(removed.content, fresh);
+  }
+
+  /** Drop a failed message entirely — therapist decided to ditch it. */
+  deleteFailed(clientId: number) {
+    this.state.removeByClientId(clientId);
+  }
+
+  /**
+   * Shared send pipeline used by both fresh sends and retries. Pushes
+   * the pending assistant bubble, hits the API, then either replaces
+   * the pending bubble with the reply OR — on error — removes the
+   * pending bubble and marks the user bubble as failed so the UI shows
+   * Retry / Delete actions on it.
+   */
+  private async dispatchSend(text: string, userClientId: number) {
+    this.sending.set(true);
     this.state.push({ role: 'assistant', content: '…', pending: true });
     this.shouldScroll = true;
 
@@ -1296,15 +1397,24 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       const { reply } = await this.api.sendMessage(this.sessionId, text);
       this.state.replaceLast({ role: 'assistant', content: reply });
       this.voice.speak(reply);
-    } catch (e: unknown) {
-      this.state.replaceLast({
-        role: 'assistant',
-        content: '[помилка надсилання, спробуй ще раз]',
-      });
+    } catch {
+      // Pull the pending typing bubble; the user bubble keeps its
+      // original text but gets the `failed` flag, which the template
+      // styles in red and offers Retry / Delete buttons on.
+      this.state.removeLast();
+      this.state.updateByClientId(userClientId, { failed: true });
     } finally {
       this.sending.set(false);
       this.shouldScroll = true;
     }
+  }
+
+  /** Monotonic per-component clientId source for bubble identity. Doesn't
+   *  need to be globally unique — only used to address bubbles within
+   *  this in-memory transcript. */
+  private clientIdCounter = 0;
+  private nextClientId(): number {
+    return ++this.clientIdCounter;
   }
 
   // ─── End / discard session ──────────────────────────────────────────────

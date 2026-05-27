@@ -42,6 +42,9 @@ const T: Record<Lang, Record<string, string>> = {
     'chat.hint_label':    'Підказка',
     'chat.hint_button':   'Підказка ✦',
     'chat.tests':         'Тести',
+    'chat.failed_label':  'Не вдалось надіслати',
+    'chat.failed_retry':  'Повторити',
+    'chat.failed_delete': 'Видалити',
 
     // Feedback / progress stages
     'feedback.loading':      'Готую фідбек…',
@@ -167,6 +170,9 @@ const T: Record<Lang, Record<string, string>> = {
     'chat.hint_label':    'Hint',
     'chat.hint_button':   'Hint ✦',
     'chat.tests':         'Tests',
+    'chat.failed_label':  'Failed to send',
+    'chat.failed_retry':  'Retry',
+    'chat.failed_delete': 'Delete',
 
     // Feedback / progress stages
     'feedback.loading':      'Preparing feedback…',
