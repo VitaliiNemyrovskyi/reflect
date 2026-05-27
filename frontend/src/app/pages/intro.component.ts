@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../api.service';
 import { I18nService } from '../i18n.service';
@@ -10,18 +10,18 @@ import { AnalyticsService } from '../analytics.service';
   standalone: true,
   template: `
     <section class="intro-panel synapse-panel">
-      <span class="section-label">START SESSION</span>
-      <h2 class="display-name">{{ displayName() ?? 'Клієнт' }}</h2>
+      <span class="section-label">{{ i18n.t('session_intro.label') }}</span>
+      <h2 class="display-name">{{ displayName() ?? i18n.t('session_intro.client_fallback') }}</h2>
 
       <div class="intro-text">
-        <p>Зараз почнеться тренувальна сесія. Ваше завдання — провести терапевтичну розмову з клієнткою.</p>
-        <p>Орієнтовно 20–30 хвилин. Коли захочете завершити — натисніть «Завершити сесію» згори чату.</p>
-        <p>Все, що ви напишете, побачить тільки супервізор-AI у фідбеку. Сесії нікуди не передаються.</p>
+        <p>{{ i18n.t('session_intro.about') }}</p>
+        <p>{{ i18n.t('session_intro.duration') }}</p>
+        <p>{{ i18n.t('session_intro.privacy') }}</p>
       </div>
 
       <div class="actions">
         <button class="primary" [disabled]="starting()" (click)="start()">
-          {{ starting() ? 'Анна заходить у кабінет…' : i18n.t('chars.start') }}
+          {{ starting() ? enteringText() : i18n.t('chars.start') }}
         </button>
         <button class="ghost" (click)="back()">{{ i18n.t('general.back') }}</button>
       </div>
@@ -62,6 +62,15 @@ export class IntroComponent implements OnInit {
   starting = signal(false);
   error = signal<string | null>(null);
   private characterId = 0;
+
+  /** Loading-state button text — substitutes the patient's displayName
+   *  into the localized "{name} entering the room…" template. Uses the
+   *  client-fallback label when displayName hasn't resolved yet (deep
+   *  link, history.state empty, API still in-flight). */
+  enteringText = computed(() => {
+    const name = this.displayName() ?? this.i18n.t('session_intro.client_fallback');
+    return this.i18n.t('session_intro.entering', { name });
+  });
 
   async ngOnInit() {
     this.characterId = Number(

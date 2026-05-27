@@ -69,6 +69,16 @@ const T: Record<Lang, Record<string, string>> = {
     'intro.login':       'Увійти',
     'intro.demo':        'Переглянути демо',
 
+    // Session intro (pre-chat screen).
+    // 'label' is intentionally English in both locales — it's a
+    // small-caps typographic device, not a translatable piece of copy.
+    'session_intro.label':        'START SESSION',
+    'session_intro.client_fallback': 'Клієнт',
+    'session_intro.about':        'Зараз почнеться тренувальна сесія. Ваше завдання — провести терапевтичну розмову з клієнтом.',
+    'session_intro.duration':     'Орієнтовно 20–30 хвилин. Коли захочете завершити — натисніть «Завершити сесію» згори чату.',
+    'session_intro.privacy':      'Все, що ви напишете, побачить тільки супервізор-AI у фідбеку. Сесії нікуди не передаються.',
+    'session_intro.entering':     '{name} заходить у кабінет…',
+
     // Auth
     'auth.login_title':    'Вхід',
     'auth.register_title': 'Реєстрація',
@@ -184,6 +194,14 @@ const T: Record<Lang, Record<string, string>> = {
     'intro.login':       'Sign in',
     'intro.demo':        'View demo',
 
+    // Session intro (pre-chat screen)
+    'session_intro.label':        'START SESSION',
+    'session_intro.client_fallback': 'Client',
+    'session_intro.about':        'Your training session is about to start. Your task is to conduct a therapeutic conversation with the client.',
+    'session_intro.duration':     'Approximately 20–30 minutes. When you want to end — click "End session" at the top of the chat.',
+    'session_intro.privacy':      'Everything you write is seen only by the AI supervisor in feedback. Sessions are never shared.',
+    'session_intro.entering':     '{name} is entering the room…',
+
     // Auth
     'auth.login_title':    'Sign in',
     'auth.register_title': 'Create account',
@@ -265,9 +283,18 @@ export class I18nService {
     }
   }
 
-  /** Translate a key. Returns the key itself if missing (fail-safe). */
-  t(key: string): string {
-    return T[this.lang()][key] ?? T['uk'][key] ?? key;
+  /**
+   * Translate a key. Optional `vars` map substitutes `{var}` placeholders
+   * — keeps tiny templates (1 var, no plurals) inline without a full
+   * ICU library. Missing keys fall back to the UK string, then to the
+   * raw key (fail-safe so a broken translation never blanks the UI).
+   */
+  t(key: string, vars?: Record<string, string | number>): string {
+    const raw = T[this.lang()][key] ?? T['uk'][key] ?? key;
+    if (!vars) return raw;
+    return raw.replace(/\{(\w+)\}/g, (_, name: string) =>
+      String(vars[name] ?? `{${name}}`),
+    );
   }
 
   /** True when the app is running in English mode */
