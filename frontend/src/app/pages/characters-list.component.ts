@@ -3,7 +3,7 @@ import { Component, OnInit, computed, effect, inject, signal } from '@angular/co
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, Character, ModalityInfo, ModalityKey, ProgressBadge } from '../api.service';
 import { AuthService } from '../auth.service';
-import { I18nService } from '../i18n.service';
+import { I18nService, Lang, SUPPORTED_LANGS } from '../i18n.service';
 import { LogoComponent } from '../logo.component';
 import { WelcomeModalComponent } from '../welcome-modal.component';
 
@@ -24,39 +24,6 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
     <div class="hero-bg" aria-hidden="true"></div>
 
     <header class="header">
-      <div class="title-row">
-        <div class="brand-block">
-          <app-logo />
-          <p class="subtitle">{{ i18n.t('chars.page_title') }}</p>
-        </div>
-        @if (auth.user(); as u) {
-          <div class="user-area">
-            <a routerLink="/profile" class="user-name-link" [title]="i18n.t('nav.profile')">
-              {{ u.displayName ?? u.email }}
-            </a>
-            <a routerLink="/network"
-               class="ghost icon small"
-               [title]="i18n.t('nav.network')"
-               [attr.aria-label]="i18n.t('nav.network')">🕸</a>
-            @if (u.isAdmin) {
-              <a routerLink="/admin"
-                 class="ghost icon small admin-link"
-                 title="Admin panel"
-                 aria-label="Admin panel">🛡</a>
-            }
-            <a routerLink="/settings"
-               class="ghost icon small"
-               [title]="i18n.t('nav.settings')"
-               [attr.aria-label]="i18n.t('nav.settings')">⚙</a>
-            <button class="ghost small lang-toggle"
-                    (click)="toggleLang()"
-                    [title]="i18n.isEn ? 'Switch to Ukrainian' : 'Switch to English'">
-              {{ i18n.isEn ? '🇺🇦 UK' : '🇬🇧 EN' }}
-            </button>
-            <button class="ghost small" (click)="logout()">{{ i18n.t('nav.logout') }}</button>
-          </div>
-        }
-      </div>
       @if (characters().length > 0) {
         <!-- Modality filter row: pinned ABOVE the difficulty filter so
              the trainee picks a therapy type first ("I want couples
@@ -172,80 +139,82 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
         </button>
       </section>
     } @else {
-      <ul class="patient-grid fx-stagger">
-        @for (c of filteredCharacters(); track c.id) {
-          <li class="patient-card" (click)="open(c)">
-            <div class="avatar-wrap">
-              @if (c.avatarUrl) {
-                <img class="avatar" [src]="c.avatarUrl" [alt]="c.displayName" />
-              } @else {
-                <div class="avatar fallback">{{ c.displayName.charAt(0) }}</div>
-              }
-              @if (c.progressBadge && c.progressBadge !== 'unknown') {
-                <span class="progress-dot" [class]="'progress-' + c.progressBadge"
-                      [title]="badgeText(c.progressBadge)"></span>
-              }
-            </div>
+      @for (group of groupedByCity(); track group.key) {
+        <section class="city-group fx-fade-up">
+          <header class="city-group-head">
+            <h2 class="city-group-title">
+              <span class="city-group-pin">📍</span>
+              {{ group.displayName }}
+            </h2>
+            <span class="city-group-count dim">
+              {{ group.characters.length }} {{ patientsWord(group.characters.length) }}
+            </span>
+          </header>
+          <ul class="patient-grid fx-stagger">
+            @for (c of group.characters; track c.id) {
+              <li class="patient-card" (click)="open(c)">
+                <div class="avatar-wrap">
+                  @if (c.avatarUrl) {
+                    <img class="avatar" [src]="c.avatarUrl" [alt]="c.displayName" />
+                  } @else {
+                    <div class="avatar fallback">{{ c.displayName.charAt(0) }}</div>
+                  }
+                  @if (c.progressBadge && c.progressBadge !== 'unknown') {
+                    <span class="progress-dot" [class]="'progress-' + c.progressBadge"
+                          [title]="badgeText(c.progressBadge)"></span>
+                  }
+                </div>
 
-            <div class="card-body">
-              <div class="name-row">
-                <h3 class="name">{{ c.displayName }}</h3>
-                <!-- Modality badge — icon + label, only for non-default
-                     modalities (individual is implicit). Skip the badge
-                     when individual to avoid badge-noise on the majority
-                     of patients. -->
-                @if (modalityInfo(c.modality); as m) {
-                  @if (m.key !== 'individual') {
-                    <span class="modality-badge"
-                          [class]="'modality-' + m.key"
-                          [title]="m.description">
-                      <span class="modality-badge-icon">{{ m.icon }}</span>
-                      <span class="modality-badge-label">{{ m.label }}</span>
-                    </span>
-                  }
-                }
-              </div>
-              @if (c.diagnosis) {
-                <p class="diagnosis"
-                   [title]="diagnosisTooltip(c)">
-                  {{ c.diagnosis }}
-                </p>
-              }
-              <div class="metrics">
-                @if (c.difficulty != null) {
-                  <div class="metric"
-                       [title]="i18n.t('chars.difficulty') + ' ' + c.difficulty + '/5'">
-                    <span class="metric-label">{{ i18n.t('chars.difficulty') }}</span>
-                    <span class="stars stars-behavior">{{ stars(c.difficulty) }}</span>
+                <div class="card-body">
+                  <div class="name-row">
+                    <h3 class="name">{{ c.displayName }}</h3>
+                    @if (modalityInfo(c.modality); as m) {
+                      @if (m.key !== 'individual') {
+                        <span class="modality-badge"
+                              [class]="'modality-' + m.key"
+                              [title]="m.description">
+                          <span class="modality-badge-icon">{{ m.icon }}</span>
+                          <span class="modality-badge-label">{{ m.label }}</span>
+                        </span>
+                      }
+                    }
                   </div>
-                }
-                @if (c.complexity != null) {
-                  <div class="metric"
-                       [title]="i18n.t('chars.complexity') + ' ' + c.complexity + '/5'">
-                    <span class="metric-label">{{ i18n.t('chars.complexity') }}</span>
-                    <span class="dots dots-clinical">{{ dots(c.complexity) }}</span>
-                  </div>
-                }
-              </div>
-              <div class="card-stats">
-                @if (c.sessionCount && c.sessionCount > 0) {
-                  <span class="meta-stat">
-                    {{ c.sessionCount }} {{ sessionsWord(c.sessionCount) }}
-                  </span>
-                  @if (c.lastSessionAt) {
-                    <span class="dot">·</span>
-                    <span class="meta-stat dim">
-                      {{ c.lastSessionAt | date: 'dd.MM' }}
-                    </span>
+                  @if (c.diagnosis) {
+                    <p class="diagnosis" [title]="diagnosisTooltip(c)">{{ c.diagnosis }}</p>
                   }
-                } @else {
-                  <span class="meta-stat dim">{{ i18n.t('session.no_sessions') }}</span>
-                }
-              </div>
-            </div>
-          </li>
-        }
-      </ul>
+                  <div class="metrics">
+                    @if (c.difficulty != null) {
+                      <div class="metric"
+                           [title]="i18n.t('chars.difficulty') + ' ' + c.difficulty + '/5'">
+                        <span class="metric-label">{{ i18n.t('chars.difficulty') }}</span>
+                        <span class="stars stars-behavior">{{ stars(c.difficulty) }}</span>
+                      </div>
+                    }
+                    @if (c.complexity != null) {
+                      <div class="metric"
+                           [title]="i18n.t('chars.complexity') + ' ' + c.complexity + '/5'">
+                        <span class="metric-label">{{ i18n.t('chars.complexity') }}</span>
+                        <span class="dots dots-clinical">{{ dots(c.complexity) }}</span>
+                      </div>
+                    }
+                  </div>
+                  <div class="card-stats">
+                    @if (c.sessionCount && c.sessionCount > 0) {
+                      <span class="meta-stat">{{ c.sessionCount }} {{ sessionsWord(c.sessionCount) }}</span>
+                      @if (c.lastSessionAt) {
+                        <span class="dot">·</span>
+                        <span class="meta-stat dim">{{ c.lastSessionAt | date: 'dd.MM' }}</span>
+                      }
+                    } @else {
+                      <span class="meta-stat dim">{{ i18n.t('session.no_sessions') }}</span>
+                    }
+                  </div>
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
     }
   `,
   styles: [`
@@ -727,6 +696,36 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
     .meta-stat.dim { opacity: 0.7; }
     .dot { opacity: .4; }
 
+    /* City grouping — one section per city, quiet header with accent
+       hairline below, then per-city patient grid. */
+    .city-group { margin-bottom: 32px; }
+    .city-group:last-child { margin-bottom: 0; }
+    .city-group-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+    }
+    .city-group-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.005em;
+      color: var(--fg);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .city-group-pin { font-size: 13px; opacity: 0.75; }
+    .city-group-count {
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .lang-flag { font-size: 13px; line-height: 1; }
+
     .hint { color: var(--fg-dim); font-size: 13px; margin-top: 12px; }
     .hint.danger { color: var(--danger); }
     code {
@@ -793,6 +792,50 @@ export class CharactersListComponent implements OnInit {
     if (dFilter !== null) result = result.filter((c) => c.difficulty === dFilter);
     return result;
   });
+
+  /** Filtered characters bucketed by city. Order: cities with the most
+   *  recently active session first, then by bucket size desc, then
+   *  "Other" (legacy rows w/o cityId) pinned to the bottom. */
+  groupedByCity = computed<Array<{ key: string; displayName: string; characters: Character[]; lastActiveMs: number }>>(() => {
+    const OTHER = '__other__';
+    const buckets = new Map<string, { key: string; displayName: string; characters: Character[]; lastActiveMs: number }>();
+    for (const c of this.filteredCharacters()) {
+      const key = c.city?.key ?? OTHER;
+      const displayName = c.city?.displayName ?? this.i18n.t('chars.city_other');
+      let b = buckets.get(key);
+      if (!b) { b = { key, displayName, characters: [], lastActiveMs: 0 }; buckets.set(key, b); }
+      b.characters.push(c);
+      const ts = c.lastSessionAt ? new Date(c.lastSessionAt).getTime() : 0;
+      if (ts > b.lastActiveMs) b.lastActiveMs = ts;
+    }
+    const arr = Array.from(buckets.values());
+    arr.sort((a, b) => {
+      if (a.key === OTHER) return 1;
+      if (b.key === OTHER) return -1;
+      if (a.lastActiveMs !== b.lastActiveMs) return b.lastActiveMs - a.lastActiveMs;
+      if (a.characters.length !== b.characters.length) return b.characters.length - a.characters.length;
+      return a.displayName.localeCompare(b.displayName);
+    });
+    return arr;
+  });
+
+  /** Plural form for "пацієнт" — UK 1/few/many; EN one/other. */
+  patientsWord(n: number): string {
+    if (this.i18n.isEn) {
+      return n === 1 ? this.i18n.t('chars.city_count_one') : this.i18n.t('chars.city_count_few');
+    }
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return this.i18n.t('chars.city_count_one');
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return this.i18n.t('chars.city_count_few');
+    return this.i18n.t('chars.city_count_many');
+  }
+
+  readonly supportedLangs = SUPPORTED_LANGS;
+  setLang(l: Lang) {
+    if (this.i18n.lang() === l) return;
+    this.i18n.setLang(l);
+  }
 
   countByModality(key: ModalityKey): number {
     return this.characters().filter((c) => (c.modality ?? 'individual') === key).length;

@@ -2,7 +2,15 @@ import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
-export type Lang = 'uk' | 'en';
+export type Lang = 'uk' | 'en' | 'fr';
+
+/** Ordered list of supported languages. Drives the language picker
+ *  in the header. Order = display order in the UI. */
+export const SUPPORTED_LANGS: ReadonlyArray<{ key: Lang; flag: string; label: string }> = [
+  { key: 'uk', flag: '🇺🇦', label: 'UK' },
+  { key: 'en', flag: '🇬🇧', label: 'EN' },
+  { key: 'fr', flag: '🇫🇷', label: 'FR' },
+];
 
 // ── Translation dictionary ────────────────────────────────────────────────────
 
@@ -48,6 +56,7 @@ const T: Record<Lang, Record<string, string>> = {
     'home.week_alliance':  'середній альянс',
     'home.patients':       'Твої пацієнти',
     'home.see_all':        'Усі',
+    'home.city_other':     'Інші',
 
     // Characters list
     'chars.page_title':   'Вибери клієнта для тренування',
@@ -58,6 +67,10 @@ const T: Record<Lang, Record<string, string>> = {
     'chars.new_patient':  '+ Новий пацієнт',
     'chars.complexity':   'Тяжкість',
     'chars.modality':     'Модальність',
+    'chars.city_other':   'Інші',
+    'chars.city_count_one':  'пацієнт',
+    'chars.city_count_few':  'пацієнти',
+    'chars.city_count_many': 'пацієнтів',
 
     // Chat
     'chat.placeholder':   'Репліка терапевта…',
@@ -216,6 +229,7 @@ const T: Record<Lang, Record<string, string>> = {
     'home.week_alliance':  'avg alliance',
     'home.patients':       'Your patients',
     'home.see_all':        'All',
+    'home.city_other':     'Other',
 
     // Characters list
     'chars.page_title':   'Choose a client to practise with',
@@ -226,6 +240,10 @@ const T: Record<Lang, Record<string, string>> = {
     'chars.new_patient':  '+ New client',
     'chars.complexity':   'Complexity',
     'chars.modality':     'Modality',
+    'chars.city_other':   'Other',
+    'chars.city_count_one':  'client',
+    'chars.city_count_few':  'clients',
+    'chars.city_count_many': 'clients',
 
     // Modality labels (EN)
     'modality.individual': 'Individual',
@@ -338,6 +356,175 @@ const T: Record<Lang, Record<string, string>> = {
     'general.close':     'Close',
     'general.or':        'or',
   },
+
+  fr: {
+    // Navigation / shell
+    'nav.clients':        'Patients',
+    'nav.profile':        'Profil',
+    'nav.settings':       'Paramètres',
+    'nav.logout':         'Déconnexion',
+    'nav.admin':          'Admin',
+    'nav.network':        'Réseau',
+    'nav.safety':         'Sécurité et ressources de crise →',
+    'nav.demo':           'Démo',
+    'nav.pricing':        'Tarifs',
+
+    // Network (3D graph) page
+    'network.title':         'Réseau des patients',
+    'network.subtitle':      'Qui partage une ville, qui a des séances avec qui',
+    'network.scope_mine':    'Les miens',
+    'network.scope_admin':   'Tous',
+    'network.recenter':      'Recentrer',
+    'network.empty':         'Rien à afficher pour l\'instant — démarrez votre première séance.',
+    'network.open':          'Ouvrir',
+    'network.legend.city':       'Ville',
+    'network.legend.character':  'Patient',
+    'network.legend.user':       'Thérapeute',
+    'network.legend.npc':        'Proches',
+
+    // Home dashboard
+    'home.greeting':       'Bonjour',
+    'home.city_expand':    'semaine →',
+    'home.continue':       'Continuer',
+    'home.replies':        'réponses',
+    'home.pending_feedback':'En attente',
+    'home.get_feedback':   'Obtenir un retour',
+    'home.session':        'séance',
+    'home.diary_title':    'Comment vont vos patients',
+    'home.diary_sub':      'Entre les séances — ce qui les préoccupe',
+    'home.diary_empty':    'Aucune note pour l\'instant. Elles apparaîtront quand les patients vivront un jour entre deux séances.',
+    'home.week_sessions':  'séances cette semaine',
+    'home.week_feedback':  'avec retour',
+    'home.week_alliance':  'alliance moy.',
+    'home.patients':       'Vos patients',
+    'home.see_all':        'Tous',
+    'home.city_other':     'Autres',
+
+    // Characters list
+    'chars.page_title':   'Choisissez un patient pour vous entraîner',
+    'chars.start':        'Démarrer la séance',
+    'chars.sessions':     'Séances',
+    'chars.difficulty':   'Difficulté',
+    'chars.no_chars':     'Aucun patient disponible',
+    'chars.new_patient':  '+ Nouveau patient',
+    'chars.complexity':   'Complexité',
+    'chars.modality':     'Modalité',
+    'chars.city_other':   'Autres',
+    'chars.city_count_one':  'patient',
+    'chars.city_count_few':  'patients',
+    'chars.city_count_many': 'patients',
+
+    // Modality labels
+    'modality.individual': 'Individuelle',
+    'modality.couples':    'Couple',
+    'modality.family':     'Familiale',
+    'modality.adolescent': 'Adolescent',
+    'modality.crisis':     'Crise',
+
+    // Session labels
+    'session.no_sessions': 'aucune séance pour l\'instant',
+
+    // Chat
+    'chat.placeholder':   'Réponse du thérapeute…',
+    'chat.send':          'Envoyer',
+    'chat.end_session':   'Terminer la séance',
+    'chat.notes':         'Notes',
+    'chat.get_feedback':  'Obtenir un retour',
+    'chat.note_placeholder': 'Note personnelle…',
+    'chat.session_ended': 'Séance terminée',
+    'chat.end_confirm':   'Terminer la séance et obtenir un retour ?',
+    'chat.confirm_yes':   'Oui, terminer',
+    'chat.confirm_no':    'Continuer',
+
+    // End-session dialog
+    'chat.end_dialog_title':       'Terminer la séance ?',
+    'chat.end_dialog_subtitle':    'Sauvegarder avec le retour du superviseur ou y revenir.',
+    'chat.discard_toggle':         'Ne pas sauvegarder — supprimer entièrement cette séance',
+    'chat.discard_warning_prefix': 'La conversation avec',
+    'chat.discard_warning_suffix': 'sera supprimée à jamais — transcription, notes et mémoire de la séance. Cette action est irréversible.',
+    'chat.discard_confirm':        'Supprimer la séance définitivement',
+    'chat.hint_label':    'Indice',
+    'chat.hint_button':   'Indice ✦',
+    'chat.tests':         'Tests',
+    'chat.failed_label':  'Échec de l\'envoi',
+    'chat.failed_retry':  'Réessayer',
+    'chat.failed_delete': 'Supprimer',
+
+    // Feedback / progress stages
+    'feedback.loading':      'Préparation du retour…',
+    'feedback.drafting':     'Le premier superviseur rédige le brouillon…',
+    'feedback.reviewing':    'Le second superviseur révise et améliore…',
+    'feedback.refining':     'Le troisième superviseur affine et vérifie les citations…',
+    'feedback.skills':       'agents spécialistes analysent la séance en parallèle…',
+    'feedback.synthesizing': 'Synthèse des analyses des agents dans le retour final…',
+    'feedback.retry':        'Réessayer',
+    'feedback.error':        'Erreur lors de la génération du retour',
+    'feedback.back':         'Retour au profil',
+    'feedback.new_session':  'Nouvelle séance',
+
+    // Patient detail tabs
+    'tab.overview':      'Aperçu',
+    'tab.profile':       'Profil',
+    'tab.sessions':      'Séances',
+    'tab.memory':        'Mémoire',
+    'tab.notes':         'Notes',
+    'tab.progress':      'Progression',
+
+    // Memory tab
+    'memory.empty':      'Aucun souvenir pour l\'instant. Ils apparaîtront après la première séance et s\'enrichiront avec le journal et les liens sociaux.',
+    'memory.kind.session': 'Des séances avec vous',
+    'memory.kind.diary':   'Entre les rencontres',
+    'memory.kind.social':  'Des relations proches',
+    'memory.kind.world':   'Des événements autour',
+    'memory.kind.seed':    'Biographique',
+
+    // Intro / landing
+    'intro.tagline':     'Simulateur d\'entraînement en psychothérapie',
+    'intro.subtitle':    'Pratiquez des séances de thérapie avec des patients IA. Recevez un retour clinique de niveau superviseur expérimenté.',
+    'intro.cta':         'Essayer gratuitement',
+    'intro.login':       'Se connecter',
+    'intro.demo':        'Voir la démo',
+
+    // Session intro (pre-chat screen)
+    'session_intro.label':        'START SESSION',
+    'session_intro.client_fallback': 'Patient',
+    'session_intro.about':        'Votre séance d\'entraînement va commencer. Votre tâche : conduire une conversation thérapeutique avec le patient.',
+    'session_intro.duration':     'Environ 20 à 30 minutes. Quand vous voulez terminer — cliquez sur « Terminer la séance » en haut du chat.',
+    'session_intro.privacy':      'Tout ce que vous écrivez n\'est vu que par le superviseur IA dans le retour. Les séances ne sont jamais partagées.',
+    'session_intro.entering':     '{name} entre dans le cabinet…',
+
+    // Auth
+    'auth.login_title':    'Connexion',
+    'auth.register_title': 'Créer un compte',
+    'auth.email':          'Email',
+    'auth.password':       'Mot de passe',
+    'auth.login_btn':      'Se connecter',
+    'auth.register_btn':   'Créer un compte',
+    'auth.google':         'Continuer avec Google',
+    'auth.no_account':     'Pas de compte ?',
+    'auth.have_account':   'Déjà un compte ?',
+
+    // Pricing
+    'pricing.title':     'Tarifs',
+    'pricing.monthly':   '/mois',
+    'pricing.annual':    '/an',
+    'pricing.semester':  '/semestre',
+    'pricing.trial':     '14 jours gratuits',
+    'pricing.current':   'Plan actuel',
+    'pricing.upgrade':   'Mettre à niveau',
+    'pricing.choose':    'Choisir',
+
+    // General
+    'general.loading':   'Chargement…',
+    'general.error':     'Une erreur s\'est produite',
+    'general.save':      'Enregistrer',
+    'general.cancel':    'Annuler',
+    'general.delete':    'Supprimer',
+    'general.edit':      'Modifier',
+    'general.back':      'Retour',
+    'general.close':     'Fermer',
+    'general.or':        'ou',
+  },
 };
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -357,10 +544,10 @@ export class I18nService {
   async init(): Promise<void> {
     // User's explicit preference always wins over the server default.
     // This lets them switch language once and have it persist across
-    // page refreshes without needing a separate EN deployment.
+    // page refreshes without needing a separate EN/FR deployment.
     try {
       const stored = localStorage.getItem('reflect.lang') as Lang | null;
-      if (stored === 'en' || stored === 'uk') {
+      if (this.isSupported(stored)) {
         this.setLang(stored);
         return;
       }
@@ -371,10 +558,16 @@ export class I18nService {
       const cfg = await firstValueFrom(
         this.http.get<{ lang: string }>('/api/config'),
       );
-      this.setLang((cfg?.lang as Lang) || 'uk');
+      const fromServer = cfg?.lang as Lang | undefined;
+      this.setLang(this.isSupported(fromServer) ? fromServer : 'uk');
     } catch {
       this.setLang('uk');
     }
+  }
+
+  /** Type-narrowing guard for the supported lang set. */
+  private isSupported(l: string | null | undefined): l is Lang {
+    return l === 'uk' || l === 'en' || l === 'fr';
   }
 
   /** Set active language and persist to localStorage for next visit */
@@ -401,8 +594,15 @@ export class I18nService {
     );
   }
 
-  /** True when the app is running in English mode */
+  /** True when the app is running in English mode. Kept for back-compat
+   *  with inline ternaries; new code should prefer `i18n.t('key')` so
+   *  it works for all locales (uk/en/fr) without per-component edits. */
   get isEn(): boolean {
     return this.lang() === 'en';
+  }
+
+  /** True when the app is running in French mode. */
+  get isFr(): boolean {
+    return this.lang() === 'fr';
   }
 }

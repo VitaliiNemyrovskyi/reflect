@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { PreferencesService } from '../preferences.service';
 import { AuthService } from '../auth.service';
 import { ThemeService } from '../theme.service';
+import { I18nService, Lang, SUPPORTED_LANGS } from '../i18n.service';
 
 @Component({
   selector: 'app-settings',
@@ -43,6 +44,33 @@ import { ThemeService } from '../theme.service';
           [disabled]="saving()"
           (change)="setHints($any($event.target).checked)" />
       </label>
+    </section>
+
+    <section class="settings-group">
+      <h2>Мова інтерфейсу</h2>
+      <p class="group-hint">
+        Перемикач мови інтерфейсу + регіону пацієнтів. Кожна мова
+        прив'язана до одного міста: 🇺🇦 → Київ, 🇬🇧 → London,
+        🇫🇷 → Paris. Зберігається в браузері, на іншому пристрої
+        треба вибрати знов.
+      </p>
+      <div class="lang-grid">
+        @for (l of supportedLangs; track l.key) {
+          <button type="button"
+                  class="lang-card"
+                  [class.active]="i18n.lang() === l.key"
+                  (click)="setLang(l.key)">
+            <span class="lang-card-flag">{{ l.flag }}</span>
+            <span class="lang-card-body">
+              <span class="lang-card-label">{{ l.label }}</span>
+              <span class="lang-card-city dim">{{ langCity(l.key) }}</span>
+            </span>
+            @if (i18n.lang() === l.key) {
+              <span class="lang-check" aria-hidden="true">✓</span>
+            }
+          </button>
+        }
+      </div>
     </section>
 
     <section class="settings-group">
@@ -248,15 +276,87 @@ import { ThemeService } from '../theme.service';
       font-weight: 600;
       align-self: center;
     }
+
+    /* Language picker — same card shape as theme picker so the two
+       settings groups feel like one design language. Active card gets
+       the accent border + bg tint. */
+    .lang-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 640px) {
+      .lang-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    .lang-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      color: var(--fg);
+      transition: border-color .15s ease, background .15s ease, transform .12s ease;
+      min-height: auto;
+    }
+    .lang-card:hover { border-color: var(--accent); }
+    .lang-card:active { transform: scale(0.99); }
+    .lang-card.active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, var(--assistant-bg));
+    }
+    .lang-card-flag {
+      font-size: 24px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .lang-card-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .lang-card-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--fg);
+    }
+    .lang-card-city {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .lang-check {
+      flex-shrink: 0;
+      color: var(--accent);
+      font-size: 16px;
+      font-weight: 600;
+    }
   `],
 })
 export class SettingsComponent {
   protected prefs = inject(PreferencesService);
   protected auth = inject(AuthService);
   protected theme = inject(ThemeService);
+  protected i18n = inject(I18nService);
 
   saving = signal(false);
   error = signal<string | null>(null);
+
+  readonly supportedLangs = SUPPORTED_LANGS;
+
+  /** Each lang anchors to a single city in our content model. */
+  langCity(l: Lang): string {
+    return { uk: 'Київ', en: 'London', fr: 'Paris' }[l] ?? '';
+  }
+
+  setLang(l: Lang): void {
+    if (this.i18n.lang() === l) return;
+    this.i18n.setLang(l);
+  }
 
   async setHints(enabled: boolean) {
     this.error.set(null);

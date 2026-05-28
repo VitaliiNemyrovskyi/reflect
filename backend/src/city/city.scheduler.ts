@@ -58,11 +58,17 @@ export class CityScheduler implements OnModuleInit {
 
   private async regenerateStaleDigests(): Promise<void> {
     const cities = await this.prisma.city.findMany({
-      select: { id: true, key: true, digestUpdatedAt: true },
+      // weeklyDigest needed too — a city with a NULL digest but a
+      // fresh `digestUpdatedAt` is still stale; that combo happens
+      // when an earlier regen ran during an empty news window and
+      // stamped the timestamp without producing text. The next day
+      // when news arrives we still want to retry.
+      select: { id: true, key: true, weeklyDigest: true, digestUpdatedAt: true },
     });
     const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
     for (const c of cities) {
-      const stale = !c.digestUpdatedAt || c.digestUpdatedAt.getTime() < dayAgo;
+      const hasDigest = typeof c.weeklyDigest === 'string' && c.weeklyDigest.trim().length > 0;
+      const stale = !hasDigest || !c.digestUpdatedAt || c.digestUpdatedAt.getTime() < dayAgo;
       if (!stale) {
         this.logger.log(`city=${c.key}: digest fresh, skipping warm regen`);
         continue;

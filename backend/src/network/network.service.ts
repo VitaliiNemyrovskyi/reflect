@@ -66,11 +66,19 @@ export class NetworkService {
     userId: number;
     isAdmin: boolean;
     scope: 'mine' | 'admin';
+    /** Locale to scope the graph to — only characters with this lang
+     *  and their resident city appear. Strict isolation (no admin
+     *  bypass) so EN trainees see only London + UK Anna stays out. */
+    lang: 'uk' | 'en' | 'fr';
   }): Promise<NetworkGraph> {
     const scope = opts.scope === 'admin' && opts.isAdmin ? 'admin' : 'mine';
 
     // ─── Characters in scope ────────────────────────────────────────
-    const characterWhere = scope === 'admin'
+    // Layer 1: visibility (mine / admin)
+    // Layer 2: locale isolation — applied always, even for admins, so
+    //          flipping the lang picker actually swaps the visible
+    //          population.
+    const visibilityWhere = scope === 'admin'
       ? {}
       : {
           OR: [
@@ -79,6 +87,9 @@ export class NetworkService {
             { shares: { some: { userId: opts.userId } } },
           ],
         };
+    const characterWhere = {
+      AND: [visibilityWhere, { lang: opts.lang }],
+    };
 
     const characters = await this.prisma.character.findMany({
       where: characterWhere,

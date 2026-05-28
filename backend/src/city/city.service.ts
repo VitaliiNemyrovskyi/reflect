@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
+import { coerceLang } from '../common/lang';
 
 /**
  * Seed cities created on app boot. We start with one city per locale —
@@ -10,12 +11,18 @@ import { LlmService } from '../llm/llm.service';
  */
 const SEED_CITIES: Array<{
   key: string;
-  lang: 'uk' | 'en';
+  lang: 'uk' | 'en' | 'fr';
   displayName: string;
   country: string;
 }> = [
   { key: 'kyiv', lang: 'uk', displayName: 'Київ', country: 'UA' },
   { key: 'london', lang: 'en', displayName: 'London', country: 'GB' },
+  // Paris seeds at lang='fr'; the FR locale now ships with full UI
+  // translation (i18n.service.ts) and the patient profile texts are
+  // narrated in UK English with rich Parisian context (we keep the
+  // narration EN so anglophone trainees can practise on FR
+  // patients — the dialog inside sessions adapts to the lang).
+  { key: 'paris', lang: 'fr', displayName: 'Paris', country: 'FR' },
 ];
 
 @Injectable()
@@ -57,7 +64,7 @@ export class CityService implements OnModuleInit {
    */
   async getForLang(lang: string): Promise<{ id: number; displayName: string; weeklyDigest: string | null; weatherSummary: string | null } | null> {
     return this.prisma.city.findFirst({
-      where: { lang: lang === 'en' ? 'en' : 'uk' },
+      where: { lang: coerceLang(lang) },
       select: {
         id: true,
         displayName: true,
@@ -99,30 +106,42 @@ export class CityService implements OnModuleInit {
       return '';
     }
 
-    const isUk = city.lang === 'uk';
     const newsBlock = items
       .map((n, i) => `${i + 1}. [${n.publishedAt.toISOString().slice(0, 10)}] ${n.title} — ${n.summary}`)
       .join('\n');
 
-    const systemPrompt = isUk
-      ? [
-          `Ти узагальнюєш новини тижня для жителя міста ${city.displayName}.`,
-          'Напиши ОДИН абзац (3-5 речень), як житель розповів би другу:',
-          '"цього тижня у нас було…". Без переліків, без слова "новини".',
-          'Розмовний тон, теперішній/минулий час. Українською.',
-          'Виключно ті теми, що реально впливають на повсякденне життя:',
-          'погода, енергетика, транспорт, культурні події, важливі суспільні зрушення.',
-          'НЕ пиши клішe на кшталт "цього тижня багато всього сталося".',
-        ].join('\n')
-      : [
-          `You summarize the week's news for a resident of ${city.displayName}.`,
-          'Write ONE paragraph (3-5 sentences), as if a resident is telling a friend:',
-          '"this week here we had…". No bullet points, no the word "news".',
-          'Conversational tone, present/past tense. English.',
-          'Only topics that affect everyday life:',
-          'weather, energy, transport, cultural events, important social shifts.',
-          'NO clichés like "lots of stuff happened this week".',
-        ].join('\n');
+    let systemPrompt: string;
+    if (city.lang === 'uk') {
+      systemPrompt = [
+        `Ти узагальнюєш новини тижня для жителя міста ${city.displayName}.`,
+        'Напиши ОДИН абзац (3-5 речень), як житель розповів би другу:',
+        '"цього тижня у нас було…". Без переліків, без слова "новини".',
+        'Розмовний тон, теперішній/минулий час. Українською.',
+        'Виключно ті теми, що реально впливають на повсякденне життя:',
+        'погода, енергетика, транспорт, культурні події, важливі суспільні зрушення.',
+        'НЕ пиши клішe на кшталт "цього тижня багато всього сталося".',
+      ].join('\n');
+    } else if (city.lang === 'fr') {
+      systemPrompt = [
+        `Tu résumes les actualités de la semaine pour un habitant de ${city.displayName}.`,
+        'Écris UN paragraphe (3-5 phrases), comme un résident le raconterait à un ami :',
+        '« cette semaine chez nous, il y a eu… ». Pas de listes à puces, pas le mot « actualités ».',
+        'Ton conversationnel, présent/passé composé. En français.',
+        'Uniquement les sujets qui affectent vraiment la vie quotidienne :',
+        'météo, énergie, transports, événements culturels, mouvements sociaux importants.',
+        'PAS de clichés comme « il s\'est passé beaucoup de choses cette semaine ».',
+      ].join('\n');
+    } else {
+      systemPrompt = [
+        `You summarize the week's news for a resident of ${city.displayName}.`,
+        'Write ONE paragraph (3-5 sentences), as if a resident is telling a friend:',
+        '"this week here we had…". No bullet points, no the word "news".',
+        'Conversational tone, present/past tense. English.',
+        'Only topics that affect everyday life:',
+        'weather, energy, transport, cultural events, important social shifts.',
+        'NO clichés like "lots of stuff happened this week".',
+      ].join('\n');
+    }
 
     try {
       const digest = await this.llm.chat({

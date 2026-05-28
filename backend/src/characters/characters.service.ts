@@ -148,8 +148,8 @@ export interface CreateCharacterDto {
   avatarUrl?: string;
   /** Locale this character belongs to. Stamped from the request's
    *  Accept-Language header at the controller level so user-created
-   *  characters appear in the correct language roster. 'uk' or 'en'. */
-  lang?: 'uk' | 'en';
+   *  characters appear in the correct language roster. 'uk' / 'en' / 'fr'. */
+  lang?: 'uk' | 'en' | 'fr';
 }
 
 @Injectable()
@@ -294,10 +294,10 @@ export class CharactersService {
         // an unknown modality should never block patient creation.
         modality: coerceModality(dto.modality),
         avatarUrl: dto.avatarUrl ?? null,
-        // 'uk' is the schema default — only stamp explicitly when EN was
-        // requested. This keeps backwards compat with older clients that
-        // don't send Accept-Language at all.
-        ...(dto.lang === 'en' ? { lang: 'en' } : {}),
+        // 'uk' is the schema default — only stamp explicitly when a
+        // non-default lang was requested. Keeps backwards compat with
+        // older clients that don't send Accept-Language at all.
+        ...(dto.lang === 'en' || dto.lang === 'fr' ? { lang: dto.lang } : {}),
         createdById: userId,
       },
     });

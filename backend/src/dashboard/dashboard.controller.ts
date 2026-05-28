@@ -1,6 +1,7 @@
 import { Controller, Get, Headers } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { DashboardService } from './dashboard.service';
+import { coerceLang } from '../common/lang';
 
 @Controller('dashboard')
 export class DashboardController {
@@ -16,7 +17,7 @@ export class DashboardController {
     @CurrentUser() user: AuthUser,
     @Headers('accept-language') langHeader?: string,
   ) {
-    const lang = langHeader?.split(/[-,;]/)[0].trim().toLowerCase() === 'en' ? 'en' : 'uk';
+    const lang = coerceLang(langHeader);
     return this.dashboard.getForUser(user.id, lang);
   }
 }

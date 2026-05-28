@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CityService } from '../city/city.service';
 import { CharactersService } from '../characters/characters.service';
+import { coerceLang } from '../common/lang';
 
 /**
  * Aggregator for the logged-in home page. One round-trip returns
@@ -29,9 +30,16 @@ export class DashboardService {
   async getForUser(userId: number, lang: string) {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // Single coerced lang used by every query below. Strict isolation:
+    // when the user is on FR, NOTHING from uk/en should appear — no
+    // active sessions, no pending feedback, no diary, no week stats.
+    // The previous version only filtered the patient grid; everything
+    // else leaked cross-locale (Anna from Kyiv showed up as an active
+    // session under the Paris view).
+    const activeLang = coerceLang(lang);
 
     // City pulse — shared singleton per locale.
-    const city = await this.city.getForLang(lang);
+    const city = await this.city.getForLang(activeLang);
 
     // Active session = endedAt null AND therapist actually engaged
     // (at least one user turn beyond the seed). Earlier we surfaced
@@ -40,9 +48,9 @@ export class DashboardService {
     // (msg-count=1), producing a row of identical "Продовжити · Анна"
     // cards that's just noise. Now: require ≥2 messages (seed + at
     // least one real exchange), dedupe to the most recent per
-    // character, cap at 3.
+    // character, cap at 3. Lang-scoped via character relation.
     const allActiveRaw = await this.prisma.session.findMany({
-      where: { userId, endedAt: null },
+      where: { userId, endedAt: null, character: { lang: activeLang } },
       orderBy: { startedAt: 'desc' },
       include: {
         character: {
@@ -62,9 +70,10 @@ export class DashboardService {
       .slice(0, 3);
 
     // Pending feedback = ended session that never got feedback generated
-    // (e.g. LLM-fail). Therapist should retry.
+    // (e.g. LLM-fail). Therapist should retry. Lang-scoped — pending
+    // sessions from other locales surface in their own locale view.
     const pendingFeedback = await this.prisma.session.findMany({
-      where: { userId, endedAt: { not: null }, feedback: null },
+      where: { userId, endedAt: { not: null }, feedback: null, character: { lang: activeLang } },
       orderBy: { endedAt: 'desc' },
       take: 5,
       include: {
@@ -74,10 +83,11 @@ export class DashboardService {
       },
     });
 
-    // Recent diary across all the user's characters. Limit to 12 so we
-    // can render ~6-8 cards comfortably without infinite scroll.
+    // Recent diary across the user's characters in the current locale.
+    // Limit to 12 so we can render ~6-8 cards comfortably without
+    // infinite scroll. Lang-scoped via character relation.
     const recentDiary = await this.prisma.characterMemory.findMany({
-      where: { userId, kind: 'diary' },
+      where: { userId, kind: 'diary', character: { lang: activeLang } },
       orderBy: { createdAt: 'desc' },
       take: 12,
       include: {
@@ -88,9 +98,11 @@ export class DashboardService {
     });
 
     // This-week stats: sessions count + sessions with feedback +
-    // average alliance from the JSON assessment (Phase 2). Small rollup.
+    // average alliance from the JSON assessment (Phase 2). Small
+    // rollup, lang-scoped — a user practising across multiple locales
+    // gets a separate weekly tally per locale rather than a mixed sum.
     const weekSessions = await this.prisma.session.findMany({
-      where: { userId, startedAt: { gte: weekAgo } },
+      where: { userId, startedAt: { gte: weekAgo }, character: { lang: activeLang } },
       select: { id: true, feedback: true, feedbackJson: true },
     });
     const alliances = weekSessions
@@ -117,9 +129,15 @@ export class DashboardService {
       select: { isAdmin: true },
     });
     const visibility = this.characters.visibilityFilter(userId, !!me?.isAdmin);
-    const langFilter = me?.isAdmin
-      ? {}
-      : { lang: lang === 'en' ? 'en' : 'uk' };
+    // Lang filter applies to EVERYONE, admins included. Mixing locales
+    // on the home dashboard (Anna from Kyiv appearing under the EN
+    // toggle) is a UX bug, not an admin power — when admins flip to
+    // EN they want to see exactly what an EN user sees so they can
+    // validate that locale's roster. The previous admin-bypass made
+    // every Ukrainian patient bleed into London/Paris on the admin's
+    // home page. Cross-locale visibility for admins now lives only in
+    // the dedicated /admin panel.
+    const langFilter = { lang: activeLang };
     const allCharacters = await this.prisma.character.findMany({
       where: { AND: [visibility, langFilter] },
       include: {
@@ -129,11 +147,16 @@ export class DashboardService {
           take: 1,
           select: { startedAt: true },
         },
+        // City for frontend grouping. Cheap (single FK).
+        city: {
+          select: { id: true, key: true, displayName: true },
+        },
       },
     });
-    // Order by last-touched session (recently engaged first), then
-    // freshly-loaded characters (no sessions) trail at the end.
-    const patientGrid = allCharacters
+    // Shape each row and order by last-touched session (recently
+    // engaged first), then freshly-loaded characters (no sessions)
+    // trail at the end.
+    const allGrid = allCharacters
       .map((c) => ({
         id: c.id,
         displayName: c.displayName,
@@ -143,13 +166,34 @@ export class DashboardService {
         modality: c.modality,
         lastSessionAt: c.sessions[0]?.startedAt ?? null,
         isMine: c.createdById === userId,
+        // Pass through the city object so the home compact grid can
+        // render a subtle "Paris · 12" header per group. Null for
+        // legacy rows without a cityId.
+        city: c.city
+          ? { id: c.city.id, key: c.city.key, displayName: c.city.displayName }
+          : null,
       }))
       .sort((a, b) => {
         const at = a.lastSessionAt?.getTime() ?? 0;
         const bt = b.lastSessionAt?.getTime() ?? 0;
         return bt - at;
-      })
-      .slice(0, 12); // Compact grid; "All clients" link goes to /clients
+      });
+
+    // Take top-N per city instead of a single flat cap. With multiple
+    // cities (Kyiv + London + Paris) a flat slice(0,12) would let the
+    // largest city eat the whole grid and the user would never see
+    // the smaller cities on the home page. Top-6 per city keeps each
+    // city represented and stays compact (≤ ~18 cards for 3 cities).
+    const PER_CITY = 6;
+    const seenByCity = new Map<string, number>();
+    const patientGrid: typeof allGrid = [];
+    for (const p of allGrid) {
+      const key = p.city?.key ?? '__other__';
+      const count = seenByCity.get(key) ?? 0;
+      if (count >= PER_CITY) continue;
+      seenByCity.set(key, count + 1);
+      patientGrid.push(p);
+    }
 
     return {
       city: city

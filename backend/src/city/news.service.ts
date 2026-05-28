@@ -35,6 +35,16 @@ const NEWS_SOURCES: NewsSource[] = [
   { source: 'bbc', url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', cityKey: 'london' },
   { source: 'guardian-uk', url: 'https://www.theguardian.com/uk-news/rss', cityKey: 'london' },
   { source: 'politico-eu', url: 'https://www.politico.eu/feed/', cityKey: 'london' },
+
+  // ── France / EN (Paris) ─────────────────────────────────────────
+  // English-language sources covering France — keeps digest in en
+  // until we ship a real fr locale. Le Monde EN + France 24 EN cover
+  // politics + culture; The Local + Connexion focus on day-to-day
+  // life (transport strikes, sécu, cost of living, banlieue politics).
+  { source: 'lemonde-en', url: 'https://www.lemonde.fr/en/rss/une.xml', cityKey: 'paris' },
+  { source: 'france24-en', url: 'https://www.france24.com/en/france/rss', cityKey: 'paris' },
+  { source: 'thelocal-fr', url: 'https://www.thelocal.fr/feeds/rss.php', cityKey: 'paris' },
+  { source: 'connexion-fr', url: 'https://www.connexionfrance.com/articles.rss', cityKey: 'paris' },
 ];
 
 /** Cap on how many articles to summarize per source per ingest run.

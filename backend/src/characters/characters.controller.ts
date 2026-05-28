@@ -22,6 +22,7 @@ import {
 } from './characters.service';
 import { MODALITIES } from './modality';
 import { MemoryService } from '../memory/memory.service';
+import { coerceLang } from '../common/lang';
 
 interface AssessmentJson {
   patient?: Record<string, number | null>;
@@ -105,7 +106,7 @@ export class CharactersController {
     // created in EN mode appear in the EN roster (and stay out of the
     // UA roster). The frontend i18n.service sends this header on every
     // mutating call. Default 'uk' matches the schema default.
-    const lang = langHeader?.split(/[-,;]/)[0].trim().toLowerCase() === 'en' ? 'en' : 'uk';
+    const lang = coerceLang(langHeader);
     return this.characters.create(user.id, { ...dto, lang });
   }
 
@@ -165,7 +166,7 @@ export class CharactersController {
     @Headers('accept-language') langHeader?: string,
   ) {
     const userId = user.id;
-    const lang = langHeader?.split(/[-,;]/)[0].trim().toLowerCase() === 'en' ? 'en' : 'uk';
+    const lang = coerceLang(langHeader);
     const me = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { isAdmin: true },
@@ -180,6 +181,15 @@ export class CharactersController {
     const characters = await this.prisma.character.findMany({
       where: { AND: [visibilityFilter, { lang }] },
       orderBy: { id: 'asc' },
+      // Include city for city-based grouping on the /clients page.
+      // The frontend renders one section per city; characters without
+      // a cityId (legacy rows) fall into an "Інші" / "Other" bucket
+      // and still display.
+      include: {
+        city: {
+          select: { id: true, key: true, displayName: true },
+        },
+      },
     });
 
     const enriched = await Promise.all(
@@ -211,6 +221,11 @@ export class CharactersController {
           // edit/delete affordances. null = system patient (read-only).
           createdById: c.createdById,
           isMine: c.createdById === userId,
+          // City the patient is anchored to. Null for legacy rows
+          // without a cityId. Frontend uses this to group cards.
+          city: c.city
+            ? { id: c.city.id, key: c.city.key, displayName: c.city.displayName }
+            : null,
         };
       }),
     );

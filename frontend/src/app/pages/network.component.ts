@@ -7,6 +7,7 @@ import {
   OnDestroy,
   ViewChild,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -191,10 +192,11 @@ const EDGE_COLOR: Record<string, string> = {
     .graph-container {
       position: absolute;
       inset: 0;
-      background:
-        radial-gradient(ellipse at center,
-          color-mix(in srgb, var(--accent) 4%, var(--bg)) 0%,
-          var(--bg) 70%);
+      /* Transparent — let the body's ambient lavender wash + dot-grid
+         bleed through behind the 3D graph instead of painting a solid
+         backdrop. The WebGL canvas itself uses backgroundColor:rgba(0,0,0,0)
+         so nothing inside Three.js covers it either. */
+      background: transparent;
       transition: opacity 0.3s ease;
     }
     .graph-container.hidden { opacity: 0; pointer-events: none; }
@@ -355,8 +357,28 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
 
   isAdmin = computed(() => this.auth.user()?.isAdmin === true);
 
+  /** Set true once the Three.js engine is up — the lang-change effect
+   *  is gated on this so it doesn't try to call applyGraphData() before
+   *  initGraph() has set this.graphInstance. The very first load happens
+   *  inside ngAfterViewInit, so this only matters for subsequent lang
+   *  flips. */
+  private graphReady = false;
+
+  constructor() {
+    // Re-fetch the graph whenever the locale changes. AppHeader's
+    // lang picker writes the new lang into i18n.setLang(); the API
+    // call below reads it via Accept-Language. Without this effect
+    // the 3D graph stayed pinned to whatever city it loaded with
+    // (Kyiv by default).
+    effect(() => {
+      this.i18n.lang(); // subscribe — discard
+      if (this.graphReady) void this.load();
+    });
+  }
+
   ngAfterViewInit(): void {
     this.initGraph();
+    this.graphReady = true;
     void this.load();
 
     // Keep the WebGL viewport sized to its container — Angular
@@ -421,12 +443,19 @@ export class NetworkComponent implements AfterViewInit, OnDestroy {
       // Custom 3D object per node. Returns a circular avatar sprite for
       // characters that have an avatarUrl; null falls back to the
       // default colored sphere for cities, therapists, NPCs without
-      // photos, and characters whose avatar URL didn't load. The
-      // .nodeThreeObjectExtend(true) below keeps the default sphere
-      // BEHIND the custom sprite as a fallback halo — so if the texture
-      // is still loading you see a faint glow in the type-color rather
-      // than empty space.
-      .nodeThreeObjectExtend(true)
+      // photos, and characters whose avatar URL didn't load.
+      //
+      // .nodeThreeObjectExtend is per-node here: when we ARE returning
+      // a custom sprite (character/npc with photo) we drop the default
+      // sphere entirely so the avatar isn't sitting in front of a
+      // solid coloured ball that hides most of the face. Cities and
+      // user nodes (no sprite) keep their default sphere as the only
+      // visual mark.
+      .nodeThreeObjectExtend(((n: any) => {
+        if (n.type === 'character') return !n.meta?.avatarUrl;
+        if (n.type === 'npc') return false; // always synthesised a fallback avatar
+        return true;
+      }) as any)
       // Type signature claims we must return Object3D, but the runtime
       // happily accepts null / undefined to fall back to the default
       // sphere. Cast the callback to keep TS happy without lying about

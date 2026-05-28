@@ -567,38 +567,69 @@ export class PromptsService implements OnModuleInit {
       return;
     }
 
-    // Remove system characters whose profile files were deleted.
-    const currentSlugs = new Set(allProfiles.map((p) => p.slug));
-    const dbChars = await this.prisma.character.findMany({ where: { createdById: null } });
-    for (const c of dbChars) {
-      if (!currentSlugs.has(c.slug)) {
-        await this.prisma.character.delete({ where: { id: c.id } }).catch(() => {});
-      }
-    }
+    // Intentionally NO auto-delete of "orphan" system characters here.
+    //
+    // The previous version of this code stripped any Character row
+    // with createdById=null that didn't have a matching prompts/.md
+    // file. The intent — "delete the .md file → DB row goes away" —
+    // looked clean but became a footgun once seeded city cohorts
+    // (London, Paris, …) entered the picture: those are direct DB
+    // inserts with createdById=null, NOT prompts-file-backed, and
+    // boot was silently wiping all 49 of them on every redeploy.
+    //
+    // Boot is the wrong place for destructive operations. Removing a
+    // system character is now an EXPLICIT action (admin UI / one-off
+    // script), never a side effect of starting the container.
 
-    // Upsert every profile, including the new `lang` field.
+    // Create-only seed. If a Character row with this slug ALREADY exists,
+    // we skip it entirely — the prompts/.md file is treated as the
+    // initial seed, NOT as a perpetual source of truth.
+    //
+    // Why: an earlier upsert pattern silently rewrote every field on
+    // every boot — displayName, profileText, diagnosis, difficulty,
+    // modality, lang, avatarUrl. That meant:
+    //   • Any admin/UI edit to a system character disappeared on the
+    //     next redeploy (profileText being the worst case — handcrafted
+    //     supervisor tweaks blown away on each ship).
+    //   • avatarUrl pointing at our /avatars/<slug>.webp portraits got
+    //     reverted to the DiceBear URL embedded in the .md file.
+    //   • A theoretical slug collision with a user-created character
+    //     would clobber that user's row.
+    //
+    // Boot should never destroy live data. If a profile genuinely needs
+    // re-import from disk, that's an EXPLICIT one-off script call, not a
+    // container-startup side effect.
+    let created = 0;
+    let skipped = 0;
     for (const p of allProfiles) {
-      const data = {
-        displayName: p.displayName,
-        profileText: p.profileText,
-        diagnosis: p.diagnosis,
-        diagnosisCode: p.diagnosisCode,
-        difficulty: p.difficulty,
-        complexity: p.complexity,
-        modality: p.modality ?? 'individual',
-        lang: p.lang,
-        avatarUrl: p.avatarUrl,
-      };
-      const existing = await this.prisma.character.findUnique({ where: { slug: p.slug } });
+      const existing = await this.prisma.character.findUnique({
+        where: { slug: p.slug },
+        select: { id: true },
+      });
       if (existing) {
-        await this.prisma.character.update({ where: { id: existing.id }, data });
-      } else {
-        await this.prisma.character.create({ data: { slug: p.slug, ...data } });
+        skipped++;
+        continue;
       }
+      await this.prisma.character.create({
+        data: {
+          slug: p.slug,
+          displayName: p.displayName,
+          profileText: p.profileText,
+          diagnosis: p.diagnosis,
+          diagnosisCode: p.diagnosisCode,
+          difficulty: p.difficulty,
+          complexity: p.complexity,
+          modality: p.modality ?? 'individual',
+          lang: p.lang,
+          avatarUrl: p.avatarUrl,
+        },
+      });
+      created++;
       if (this.profileLooksUnfilled(p.profileText)) {
         this.logger.warn(`Profile ${p.slug} looks unfilled — populate before first session.`);
       }
     }
+    this.logger.log(`prompts boot: ${created} new characters created, ${skipped} existing preserved`);
 
     const byLang = allProfiles.reduce<Record<string, string[]>>((acc, p) => {
       (acc[p.lang] ??= []).push(p.displayName);
