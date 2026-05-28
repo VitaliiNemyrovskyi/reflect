@@ -2415,6 +2415,13 @@ export class PatientDetailComponent implements OnInit {
   // ─── Memory tab (Phase 2 — granular CharacterMemory) ───────────────────
   memories = signal<CharacterMemoryEntry[]>([]);
   memoryLoading = signal(false);
+  /** Character id we've already attempted a memory load for. The lazy-load
+   *  effect guards on THIS rather than `memories().length` — a patient with
+   *  zero memories (a fresh character) keeps memories() empty after the
+   *  load, so a length-based guard never trips and the effect re-fires
+   *  forever, hammering /memories (real bug on char 3). Set after the first
+   *  attempt regardless of outcome (empty/error counts as "tried"). */
+  private memoriesLoadedFor = signal<number | null>(null);
   /** Memories grouped by kind in display order (session → diary →
    *  social → world → seed). Each group preserves the API order
    *  (newest first). */
@@ -2723,7 +2730,10 @@ export class PatientDetailComponent implements OnInit {
     effect(() => {
       if (this.tab() !== 'memory') return;
       const p = this.patient();
-      if (!p || this.memoryLoading() || this.memories().length > 0) return;
+      if (!p) return;
+      // Guard on "already attempted this character" — NOT on memories
+      // being non-empty — so a patient with zero memories doesn't loop.
+      if (this.memoryLoading() || this.memoriesLoadedFor() === p.id) return;
       void this.loadMemories(p.id);
     });
   }
@@ -2738,6 +2748,9 @@ export class PatientDetailComponent implements OnInit {
       // toast on what's a secondary feature.
     } finally {
       this.memoryLoading.set(false);
+      // Mark attempted regardless of outcome (empty result OR error) so the
+      // lazy-load effect doesn't re-fire into an infinite request loop.
+      this.memoriesLoadedFor.set(characterId);
     }
   }
 
