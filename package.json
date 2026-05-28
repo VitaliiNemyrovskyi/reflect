@@ -12,7 +12,8 @@
     "start:api": "npm --workspace backend run start:dev",
     "start:web": "npm --workspace frontend start",
     "build": "npm --workspace backend run build && npm --workspace frontend run build",
-    "db:push": "npm --workspace backend run db:push"
+    "db:push": "npm --workspace backend run db:push",
+    "eval": "node eval/run-eval.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

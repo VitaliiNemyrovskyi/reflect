@@ -1,0 +1,53 @@
+name: Feedback eval
+
+# Regression gate for the feedback skill prompts — the core product value.
+# Runs the golden-transcript eval (eval/run-eval.mjs) against the REAL skill
+# prompts and the orchestration's signal contracts. Catches the bug class we
+# hit by hand: a skill dropping `criticalMiss`/`recommendation`, prompt
+# corruption (mojibake), a missed risk signal, or a benign-session false
+# positive.
+#
+# Scoped to feedback-relevant paths so it only spends LLM tokens when those
+# actually change. Runs SEPARATELY from deploy (doesn't block a hotfix) — to
+# make it a hard gate, add `needs: eval` to the deploy job.
+#
+# Requires the OPENROUTER_API_KEY repo secret. Without it the job skips green
+# with a warning rather than failing, so the workflow isn't permanently red
+# before the secret is configured.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'prompts/skills/**'
+      - 'prompts/en/skills/**'
+      - 'eval/**'
+      - 'backend/src/sessions/sessions.service.ts'
+  pull_request:
+    paths:
+      - 'prompts/skills/**'
+      - 'prompts/en/skills/**'
+      - 'eval/**'
+      - 'backend/src/sessions/sessions.service.ts'
+  workflow_dispatch: {}
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      # Pin the eval model so a provider default change doesn't move results.
+      EVAL_MODEL: google/gemini-2.5-flash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run feedback eval
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::warning::OPENROUTER_API_KEY secret not set — skipping feedback eval. Add it under Settings → Secrets and variables → Actions to enable the gate."
+            exit 0
+          fi
+          node eval/run-eval.mjs

@@ -968,8 +968,16 @@ export class SessionsService {
         allBlocks.push(block);
         if (/"criticalMiss"\s*:\s*true/i.test(raw)) {
           // Extract the recommendation string if present; otherwise just tag the skill name.
-          const recMatch = raw.match(/"recommendation"\s*:\s*"([^"]{10,300})"/i);
-          const rec = recMatch ? recMatch[1] : `${name} flagged a critical miss — see skill result below.`;
+          // Upper bound is generous (600) because on real transcripts the
+          // model routinely writes 500+ char clinical recommendations — the
+          // old {10,300} cap silently failed to match those, dropping the
+          // actual recommendation from the critical-miss header (caught by
+          // the feedback eval harness). Truncate for header tidiness instead
+          // of losing it entirely.
+          const recMatch = raw.match(/"recommendation"\s*:\s*"([^"]{10,600})"/i);
+          const rec = recMatch
+            ? (recMatch[1].length > 320 ? recMatch[1].slice(0, 317) + '…' : recMatch[1])
+            : `${name} flagged a critical miss — see skill result below.`;
           criticals.push(`- **${name}**: ${rec}`);
           this.logger.warn(`skill ${name}: criticalMiss=true`);
         }
