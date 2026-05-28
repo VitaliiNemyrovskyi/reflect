@@ -4,6 +4,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { stripStageDirections } from '../common/text';
 
 /**
  * Backend TTS gateway. Forwards to the local `reflect_tts` sidecar,
@@ -56,7 +57,7 @@ export class TtsService {
         'TTS-сервіс не налаштовано (TTS_BASE_URL пустий). Frontend має fallback на browser SpeechSynthesis.',
       );
     }
-    const cleaned = this.stripStageDirections(text);
+    const cleaned = stripStageDirections(text);
     if (!cleaned) {
       throw new BadGatewayException('Після очищення тексту нічого не залишилось озвучувати.');
     }
@@ -92,20 +93,5 @@ export class TtsService {
     const audio = Buffer.from(await res.arrayBuffer());
     const contentType = res.headers.get('content-type') ?? 'audio/mpeg';
     return { audio, contentType };
-  }
-
-  /**
-   * Видаляє маркдаун-курсив (*…*), квадратні дужки [-режисура], emoji,
-   * multiple-newlines. Залишає природний текст для озвучки.
-   */
-  private stripStageDirections(text: string): string {
-    return text
-      .replace(/\*[^*]+\*/g, '')
-      .replace(/\[[^\]]+\]/g, '')
-      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
-      .replace(/\n{2,}/g, '. ')
-      .replace(/\n/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
   }
 }

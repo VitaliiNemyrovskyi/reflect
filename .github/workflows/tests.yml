@@ -1,0 +1,40 @@
+name: Tests
+
+# Deterministic backend gate: TypeScript typecheck + node:test unit tests on
+# the pure logic that fails silently when it breaks (lang isolation,
+# TTS text cleaning, diary/event JSON parsers). No secrets, no LLM calls —
+# fast and safe to make a hard gate. Complements the Feedback eval workflow,
+# which covers the LLM-level prompt behaviour.
+#
+# To make this block deploys, add `needs: test` to the deploy job (it's
+# standalone for now to match the eval workflow's setup).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm --workspace backend run typecheck
+      - name: Unit tests
+        run: npm --workspace backend test

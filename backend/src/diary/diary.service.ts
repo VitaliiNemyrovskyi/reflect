@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
 import { MemoryService } from '../memory/memory.service';
 import { NpcService } from '../npc/npc.service';
+import { parseEvent, parseDiaryArray } from './parse';
 
 /** Active pair = last session within this many days. Beyond this we
  *  stop generating diary entries — saves LLM cost on characters the
@@ -154,7 +155,7 @@ export class DiaryService {
       maxTokens: 600,
     });
 
-    const entries = this.parseDiaryArray(raw);
+    const entries = parseDiaryArray(raw);
     if (entries.length === 0) {
       this.logger.warn(`diary: no entries parsed for u${userId} char${characterId}`);
       return 0;
@@ -280,7 +281,7 @@ export class DiaryService {
       maxTokens: 700,
     });
 
-    const ev = this.parseEvent(raw);
+    const ev = parseEvent(raw);
     if (!ev) {
       this.logger.warn(`event: parse fail for u${ctx.userId} char${ctx.characterId}`);
       return 0;
@@ -324,43 +325,6 @@ export class DiaryService {
       `event: u${ctx.userId} char${ctx.characterId} via ${ev.npcInvolved} (tension ${ev.tensionDelta >= 0 ? '+' : ''}${ev.tensionDelta})`,
     );
     return 1;
-  }
-
-  /** Parse the single-object event JSON. Returns null if any required
-   *  field is missing/empty so the caller can fall back to mundane diary. */
-  private parseEvent(raw: string): {
-    npcInvolved: string;
-    summary: string;
-    spoken: string;
-    hidden: string;
-    stateBias: string;
-    tensionDelta: number;
-  } | null {
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start < 0 || end < start) return null;
-    try {
-      const o = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
-      const str = (k: string) => (typeof o[k] === 'string' ? (o[k] as string).trim() : '');
-      const npcInvolved = str('npcInvolved');
-      const spoken = str('spoken');
-      const hidden = str('hidden');
-      const stateBias = str('stateBias');
-      // spoken + hidden + stateBias are the load-bearing fields. npcInvolved
-      // is needed for the tension nudge but the event still works without it.
-      if (spoken.length < 5 || hidden.length < 5 || stateBias.length < 5) return null;
-      const td = Number(o['tensionDelta']);
-      return {
-        npcInvolved,
-        summary: str('summary'),
-        spoken,
-        hidden,
-        stateBias,
-        tensionDelta: Number.isFinite(td) ? Math.trunc(td) : 0,
-      };
-    } catch {
-      return null;
-    }
   }
 
   // ─── Prompt assembly ───────────────────────────────────────────────────
@@ -470,30 +434,4 @@ export class DiaryService {
     ].join('\n');
   }
 
-  // ─── Parsing ───────────────────────────────────────────────────────────
-
-  private parseDiaryArray(raw: string): Array<{ tag?: string; content: string }> {
-    const start = raw.indexOf('[');
-    const end = raw.lastIndexOf(']');
-    if (start < 0 || end < start) return [];
-    try {
-      const arr = JSON.parse(raw.slice(start, end + 1));
-      if (!Array.isArray(arr)) return [];
-      const out: Array<{ tag?: string; content: string }> = [];
-      for (const x of arr) {
-        if (!x || typeof x !== 'object') continue;
-        const content = typeof (x as { content?: unknown }).content === 'string'
-          ? ((x as { content: string }).content).trim()
-          : '';
-        if (!content || content.length < 5) continue;
-        const tag = typeof (x as { tag?: unknown }).tag === 'string'
-          ? ((x as { tag: string }).tag).trim()
-          : undefined;
-        out.push(tag ? { tag, content } : { content });
-      }
-      return out;
-    } catch {
-      return [];
-    }
-  }
 }
