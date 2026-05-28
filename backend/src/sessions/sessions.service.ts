@@ -1606,6 +1606,14 @@ export class SessionsService {
       grouped.get(m.kind)!.push(m.content);
     }
 
+    // 'avoided' memories (consequential between-session events the patient
+    // is NOT ready to talk about) are pulled OUT of the normal recited
+    // bullet list and rendered separately below as an avoidance directive —
+    // otherwise the patient would just narrate them, defeating the point
+    // (the trainee is supposed to draw them out).
+    const avoidedItems = grouped.get('avoided') ?? [];
+    grouped.delete('avoided');
+
     const labelsUk: Record<string, string> = {
       seed: 'З життя:',
       session: 'Про роботу з цим терапевтом:',
@@ -1638,7 +1646,21 @@ export class SessionsService {
       ? "\n\nЦе твоя пам'ять від першої особи. Не озвучуй усе підряд — згадуй природно, тільки коли це доречно у моменті. На першій репліці нової сесії можеш (але не мусиш) посилатися на минуле — як справжня людина повертається до знайомого терапевта."
       : "\n\nThis is your first-person memory. Don't recite it all — bring it up naturally only when relevant in the moment. On the first line of a new session, you may (but don't have to) reference the past — as a real person reconnecting with a familiar therapist.";
 
-    return `${header}\n\n${sections}${closing}`;
+    // Avoidance directive for 'avoided' events — something heavy happened
+    // since last session, but the patient guards it. The model must NOT
+    // volunteer it; it surfaces only if the therapist asks directly AND
+    // with enough warmth. This is exactly the skill the session trains.
+    const avoidedBlock = avoidedItems.length
+      ? isUk
+        ? `\n\n# Те, про що тобі важко говорити\n\n${avoidedItems
+            .map((c) => `- ${c}`)
+            .join('\n')}\n\nЦе сталося нещодавно і зачіпає тебе глибше, ніж ти готова/-ий показати. САМ цю тему НЕ піднімай. Якщо терапевт прямо, м'яко і вчасно спитає — відкривайся поступово, неохоче, не все одразу. Якщо тисне грубо чи невчасно — закрийся ще більше: зміни тему, дай коротку відповідь, відмовчись. Уникнення має бути живим, а не демонстративним.`
+        : `\n\n# What's hard for you to talk about\n\n${avoidedItems
+            .map((c) => `- ${c}`)
+            .join('\n')}\n\nThis happened recently and cuts deeper than you're ready to show. Do NOT raise it yourself. If the therapist asks directly, gently, and at the right moment — open up gradually, reluctantly, not all at once. If they push bluntly or too soon — close down further: change the subject, give a short answer, go quiet. The avoidance should feel real, not performative.`
+      : '';
+
+    return `${header}\n\n${sections}${closing}${avoidedBlock}`;
   }
 
   /** Fallback memory formatter used only when the new MemoryService

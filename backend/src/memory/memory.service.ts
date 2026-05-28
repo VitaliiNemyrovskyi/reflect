@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type MemoryKind = 'session' | 'world' | 'social' | 'diary' | 'seed';
+export type MemoryKind = 'session' | 'world' | 'social' | 'diary' | 'seed' | 'avoided';
 
 export interface AddMemoryInput {
   characterId: number;
@@ -36,6 +36,11 @@ export interface MemoryEntry {
  */
 const DEFAULT_WEIGHTS: Record<MemoryKind, number> = {
   seed: 0.8,
+  // A between-session consequential event the patient is AVOIDING. Weighted
+  // high so it reliably surfaces in the chat prompt — but rendered there as
+  // an avoidance instruction (see sessions.service.buildMemorySection), not
+  // a recited bullet, so the trainee has to draw it out.
+  avoided: 0.7,
   session: 0.6,
   social: 0.5,
   diary: 0.4,

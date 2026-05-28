@@ -15,6 +15,15 @@ const ACTIVE_DAYS = 14;
  *  to be safe but trim the rest. */
 const MAX_ENTRIES_PER_PAIR = 2;
 
+/** Chance that a given diary run produces a CONSEQUENTIAL EVENT instead of
+ *  the usual mundane diary. An event = one NPC-driven happening with stakes,
+ *  a guarded surface the patient half-mentions, and a hidden layer the
+ *  trainee must draw out. Kept at ~1/3 so it lands often enough to matter
+ *  but rarely enough that the case doesn't turn into a soap opera. When an
+ *  event fires it REPLACES the mundane diary for that run, so cost stays at
+ *  exactly one LLM call per pair per run. */
+const EVENT_CHANCE = 0.34;
+
 /**
  * Generates between-session diary entries — the "what the patient
  * lived through since we last talked" memory layer (Phase 4).
@@ -104,6 +113,26 @@ export class DiaryService {
     const prevDiary = recentMemories.filter((m) => m.kind === 'diary').slice(0, 3);
     const prevSession = recentMemories.filter((m) => m.kind === 'session').slice(0, 2);
 
+    // World Tick: occasionally a consequential NPC-driven event replaces the
+    // mundane diary for this run (cost-neutral — still one LLM call). Gated
+    // so it doesn't get repetitive, and only when there's an NPC to drive it
+    // AND prior session context to anchor continuity. If event generation
+    // fails to parse, we fall through to the normal mundane diary below.
+    if (npcs.length > 0 && prevSession.length > 0 && Math.random() < EVENT_CHANCE) {
+      const made = await this.generateEvent({
+        userId,
+        characterId,
+        characterName: character.displayName,
+        profileText: character.profileText,
+        lang,
+        cityDigest: character.city?.weeklyDigest ?? null,
+        cityName: character.city?.displayName ?? null,
+        npcs,
+        prevSession,
+      });
+      if (made > 0) return made; // event carried this run
+    }
+
     const systemPrompt = this.buildSystemPrompt({
       characterName: character.displayName,
       profileText: character.profileText,
@@ -145,6 +174,193 @@ export class DiaryService {
     }
     this.logger.log(`diary: u${userId} char${characterId} → +${saved} entries`);
     return saved;
+  }
+
+  // ─── World Tick: consequential between-session event ────────────────────
+
+  /**
+   * Generate ONE consequential event driven by a specific NPC and persist
+   * its pieces. Returns 1 if an event was saved, 0 if parsing failed (caller
+   * falls back to mundane diary). Cost: a single LLM call.
+   *
+   * The model returns a structured object:
+   *   - summary   : the factual happening (not stored as memory, just context)
+   *   - spoken    : how the patient half-mentions it → kind='diary' memory
+   *   - hidden    : what they won't volunteer → kind='avoided' memory, rendered
+   *                 as an avoidance directive in the chat prompt
+   *   - stateBias : one-line presentation shift → kind='world' memory
+   *   - npcInvolved + tensionDelta : nudges that NPC's tension
+   *
+   * Safety mirror of the mundane diary: the prompt forbids catastrophes /
+   * self-harm / acute crises — events stay at the "ordinary life with stakes"
+   * level so we never inject crisis content the therapist didn't surface.
+   */
+  private async generateEvent(ctx: {
+    userId: number;
+    characterId: number;
+    characterName: string;
+    profileText: string;
+    lang: 'uk' | 'en';
+    cityDigest: string | null;
+    cityName: string | null;
+    npcs: Awaited<ReturnType<NpcService['listForCharacter']>>;
+    prevSession: Array<{ content: string }>;
+  }): Promise<number> {
+    const isUk = ctx.lang === 'uk';
+    const npcLines = ctx.npcs
+      .slice(0, 6)
+      .map((n) => {
+        const tone = n.tension >= 7 ? (isUk ? ' (напружено)' : ' (tense)')
+          : n.tension <= 3 ? (isUk ? ' (підтримка)' : ' (supportive)') : '';
+        return `- ${n.name} (${n.relation}${tone}, tension=${n.tension})${n.bio ? `: ${n.bio}` : ''}`;
+      })
+      .join('\n');
+    const sessionLines = ctx.prevSession
+      .map((m, i) => `${i + 1}. ${m.content.slice(0, 350)}`)
+      .join('\n\n');
+    const cityBlock = ctx.cityDigest
+      ? `# ${isUk ? 'Місто' : 'City'} (${ctx.cityName})\n${ctx.cityDigest}\n`
+      : '';
+
+    const systemPrompt = isUk
+      ? [
+          'Ти — симулятор міжсесійного життя пацієнта психотерапевта. Минув тиждень від останньої сесії.',
+          'Завдання: змоделювати ОДНУ консеквентну подію через одного з близьких людей — подію зі ставками, що вплине на наступну сесію.',
+          '',
+          '# Хто пацієнт',
+          ctx.profileText.slice(0, 2800),
+          '',
+          cityBlock,
+          '# Близькі люди (рівень напруги 0-10)',
+          npcLines,
+          '',
+          '# Що піднімалось на останніх сесіях',
+          sessionLines,
+          '',
+          '# Правила',
+          '- Подія ВИПЛИВАЄ з профілю і динаміки з конкретним NPC — нічого OOC.',
+          '- Буденність зі ставками: НЕ катастрофа, НЕ спроба суїциду, НЕ гострий зрив. Напруга рівня звичайного життя.',
+          '- "spoken" — як пацієнт згадав би це вголос: стримано, через захист; може й не підняти поки не спитають.',
+          '- "hidden" — що насправді відбувається всередині, чого пацієнт сам НЕ скаже. Узгоджено з прихованим шаром профілю.',
+          '- "stateBias" — ОДНЕ речення першоособово: як пацієнт презентується на старті наступної сесії.',
+          '- "tensionDelta" — ціле -3..+3: як подія зсуває tension цього NPC.',
+          '',
+          'Поверни ЛИШЕ JSON (без markdown):',
+          '{ "npcInvolved": "імʼя", "summary": "що сталось (3-я особа)", "spoken": "як згадає вголос", "hidden": "що приховує", "stateBias": "як презентується", "tensionDelta": 2 }',
+        ].filter(Boolean).join('\n')
+      : [
+          'You simulate a psychotherapy patient\'s between-session life. A week has passed since the last session.',
+          'Task: model ONE consequential event via one of their close people — an event with stakes that will affect the next session.',
+          '',
+          '# Who the patient is',
+          ctx.profileText.slice(0, 2800),
+          '',
+          cityBlock,
+          '# Close people (tension level 0-10)',
+          npcLines,
+          '',
+          '# What came up in recent sessions',
+          sessionLines,
+          '',
+          '# Rules',
+          '- The event MUST follow from the profile and the dynamic with a specific NPC — nothing out of character.',
+          '- Ordinary life with stakes: NOT a catastrophe, NOT a suicide attempt, NOT an acute breakdown.',
+          '- "spoken" — how the patient would half-mention it: guarded, through their defenses; may not raise it unless asked.',
+          '- "hidden" — what\'s really going on inside that they will NOT volunteer. Consistent with the profile\'s hidden layer.',
+          '- "stateBias" — ONE first-person sentence: how the patient presents at the start of the next session.',
+          '- "tensionDelta" — integer -3..+3: how the event shifts this NPC\'s tension.',
+          '',
+          'Return ONLY JSON (no markdown):',
+          '{ "npcInvolved": "name", "summary": "what happened (3rd person)", "spoken": "how they mention it", "hidden": "what they hide", "stateBias": "how they present", "tensionDelta": 2 }',
+        ].join('\n');
+
+    const raw = await this.llm.chat({
+      systemPrompt,
+      history: [{ role: 'user', content: isUk ? 'Змоделюй подію цього тижня. Лише JSON.' : 'Model this week\'s event. JSON only.' }],
+      maxTokens: 700,
+    });
+
+    const ev = this.parseEvent(raw);
+    if (!ev) {
+      this.logger.warn(`event: parse fail for u${ctx.userId} char${ctx.characterId}`);
+      return 0;
+    }
+
+    // Persist the three memory facets. Weights nudge the fresh event above
+    // its kind defaults so it reliably colours the next session.
+    await this.memory.add({
+      userId: ctx.userId, characterId: ctx.characterId,
+      kind: 'diary', content: ev.spoken, weight: 0.55, tags: ['event'],
+    });
+    await this.memory.add({
+      userId: ctx.userId, characterId: ctx.characterId,
+      kind: 'world', content: ev.stateBias, weight: 0.6, tags: ['event', 'bias'],
+    });
+    await this.memory.add({
+      userId: ctx.userId, characterId: ctx.characterId,
+      kind: 'avoided', content: ev.hidden, tags: ['event', ev.npcInvolved.toLowerCase()],
+    });
+
+    // Evolve the involved NPC's tension so the social graph actually drifts
+    // over time. Match by name (case-insensitive); skip silently if no match.
+    if (ev.tensionDelta !== 0) {
+      const match = ctx.npcs.find(
+        (n) => n.name.trim().toLowerCase() === ev.npcInvolved.trim().toLowerCase(),
+      );
+      if (match) {
+        const delta = Math.max(-3, Math.min(3, ev.tensionDelta));
+        const next = Math.max(0, Math.min(10, match.tension + delta));
+        if (next !== match.tension) {
+          try {
+            await this.npcs.update(match.id, { tension: next });
+          } catch (e) {
+            this.logger.warn(`event: tension update failed for npc ${match.id}: ${(e as Error).message}`);
+          }
+        }
+      }
+    }
+
+    this.logger.log(
+      `event: u${ctx.userId} char${ctx.characterId} via ${ev.npcInvolved} (tension ${ev.tensionDelta >= 0 ? '+' : ''}${ev.tensionDelta})`,
+    );
+    return 1;
+  }
+
+  /** Parse the single-object event JSON. Returns null if any required
+   *  field is missing/empty so the caller can fall back to mundane diary. */
+  private parseEvent(raw: string): {
+    npcInvolved: string;
+    summary: string;
+    spoken: string;
+    hidden: string;
+    stateBias: string;
+    tensionDelta: number;
+  } | null {
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start < 0 || end < start) return null;
+    try {
+      const o = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
+      const str = (k: string) => (typeof o[k] === 'string' ? (o[k] as string).trim() : '');
+      const npcInvolved = str('npcInvolved');
+      const spoken = str('spoken');
+      const hidden = str('hidden');
+      const stateBias = str('stateBias');
+      // spoken + hidden + stateBias are the load-bearing fields. npcInvolved
+      // is needed for the tension nudge but the event still works without it.
+      if (spoken.length < 5 || hidden.length < 5 || stateBias.length < 5) return null;
+      const td = Number(o['tensionDelta']);
+      return {
+        npcInvolved,
+        summary: str('summary'),
+        spoken,
+        hidden,
+        stateBias,
+        tensionDelta: Number.isFinite(td) ? Math.trunc(td) : 0,
+      };
+    } catch {
+      return null;
+    }
   }
 
   // ─── Prompt assembly ───────────────────────────────────────────────────
