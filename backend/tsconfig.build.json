@@ -1,4 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
+  "comment": "Exclude prisma/ — seed.ts is a standalone tsx script, NOT part of the Nest build. If it's compiled, tsc's inferred rootDir spans src/+prisma/ → output becomes dist/src/main.js instead of dist/main.js, breaking the container's `node dist/main.js`.",
+  "exclude": ["node_modules", "dist", "test", "prisma", "**/*.spec.ts"]
 }
