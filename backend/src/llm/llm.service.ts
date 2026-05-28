@@ -388,13 +388,26 @@ export class LlmService {
       messages: history.map((m) => ({ role: m.role, content: m.content })),
     });
 
-    for await (const event of stream) {
-      if (
-        event.type === 'content_block_delta' &&
-        event.delta.type === 'text_delta'
-      ) {
-        yield event.delta.text;
+    // Usage arrives across stream events: input on message_start, cumulative
+    // output on message_delta. Record in finally so a client disconnect
+    // (generator early-return) still logs what was billed — guarded so we
+    // skip rows for streams that died before any usage landed.
+    let inTok = 0, outTok = 0;
+    try {
+      for await (const event of stream) {
+        if (event.type === 'message_start') {
+          inTok = event.message.usage?.input_tokens ?? 0;
+        } else if (event.type === 'message_delta') {
+          outTok = event.usage?.output_tokens ?? outTok;
+        } else if (
+          event.type === 'content_block_delta' &&
+          event.delta.type === 'text_delta'
+        ) {
+          yield event.delta.text;
+        }
       }
+    } finally {
+      if (inTok || outTok) this.recordUsage('anthropic', model, inTok, outTok);
     }
   }
 
@@ -408,17 +421,30 @@ export class LlmService {
       model,
       max_tokens: maxTokens,
       stream: true,
+      // Ask the provider to emit a final usage chunk (empty choices, has
+      // `usage`). OpenRouter forwards this to providers that support it; if
+      // one ignores it we simply don't record (inTok/outTok stay 0).
+      stream_options: { include_usage: true },
       messages: [
         { role: 'system', content: systemPrompt },
         ...history.map((m) => ({ role: m.role, content: m.content })),
       ],
     });
 
-    for await (const chunk of stream) {
-      const delta = chunk.choices?.[0]?.delta?.content;
-      if (typeof delta === 'string' && delta.length > 0) {
-        yield delta;
+    let inTok = 0, outTok = 0;
+    try {
+      for await (const chunk of stream) {
+        if (chunk.usage) {
+          inTok = chunk.usage.prompt_tokens ?? inTok;
+          outTok = chunk.usage.completion_tokens ?? outTok;
+        }
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string' && delta.length > 0) {
+          yield delta;
+        }
       }
+    } finally {
+      if (inTok || outTok) this.recordUsage('openrouter', model, inTok, outTok);
     }
   }
 
