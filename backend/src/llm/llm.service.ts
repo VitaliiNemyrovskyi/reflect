@@ -8,6 +8,35 @@ import {
 } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { PrismaService } from '../prisma/prisma.service';
+
+/**
+ * Approximate USD price per 1M tokens, matched by substring against the
+ * model id (ids vary by provider/version, so we match loosely and fall
+ * back to zero-cost — tokens are still recorded, so cost can be backfilled
+ * if a price is missing). Drift vs the provider's live price is fine; this
+ * is for cost VISIBILITY, not invoicing.
+ */
+const MODEL_PRICES: Array<{ match: string; in: number; out: number }> = [
+  { match: 'claude-opus', in: 15, out: 75 },
+  { match: 'claude-sonnet', in: 3, out: 15 },
+  { match: 'claude-haiku', in: 1, out: 5 },
+  { match: 'gemini-2.5-flash-lite', in: 0.1, out: 0.4 },
+  { match: 'gemini-2.5-flash', in: 0.3, out: 2.5 },
+  { match: 'gemini', in: 0.3, out: 2.5 },
+  { match: 'deepseek-v4-flash', in: 0.1, out: 0.2 },
+  { match: 'deepseek', in: 0.27, out: 1.1 },
+  { match: 'qwen3.7-max', in: 1.2, out: 6 },
+  { match: 'qwen', in: 0.4, out: 1.2 },
+  // owl-alpha and other free stealth models → no entry → cost 0.
+];
+
+function estimateCostUsd(model: string, inTok: number, outTok: number): number {
+  const m = model.toLowerCase();
+  const price = MODEL_PRICES.find((p) => m.includes(p.match));
+  if (!price) return 0;
+  return (inTok * price.in + outTok * price.out) / 1_000_000;
+}
 
 /**
  * Hard wall-clock cap for a non-streaming chat call.
@@ -104,7 +133,7 @@ export class LlmService {
    *  Override via FEEDBACK_MODE env var. */
   readonly feedbackMode: 'single' | 'two-pass' | 'skills';
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     this.provider = (process.env.LLM_PROVIDER as LlmProvider) || 'anthropic';
 
     // ?? falls through only on undefined/null — but Docker compose passes
@@ -410,6 +439,8 @@ export class LlmService {
       { signal },
     );
 
+    this.recordUsage('anthropic', model, msg.usage?.input_tokens ?? 0, msg.usage?.output_tokens ?? 0);
+
     return (msg.content || [])
       .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
       .map((b) => b.text)
@@ -435,8 +466,30 @@ export class LlmService {
       },
       { signal },
     );
+    this.recordUsage(
+      'openrouter',
+      model,
+      completion.usage?.prompt_tokens ?? 0,
+      completion.usage?.completion_tokens ?? 0,
+    );
+
     const reply = completion.choices?.[0]?.message?.content ?? '';
     return reply.trim();
+  }
+
+  /**
+   * Fire-and-forget record of one completion's token usage + estimated
+   * cost. Never throws into the LLM path — a logging failure must not break
+   * a chat/feedback call. Captures the non-streaming completions, which are
+   * the bulk of token volume (feedback draft + 15 skill agents + diary +
+   * world-tick); the streamed synthesis (~1 call/session) is not yet
+   * captured here.
+   */
+  private recordUsage(provider: string, model: string, promptTokens: number, completionTokens: number): void {
+    const costUsd = estimateCostUsd(model, promptTokens, completionTokens);
+    void this.prisma.llmUsage
+      .create({ data: { provider, model, promptTokens, completionTokens, costUsd } })
+      .catch((e) => this.logger.warn(`llmUsage record failed: ${(e as Error).message}`));
   }
 
   private translateError(e: unknown): Error {

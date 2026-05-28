@@ -478,3 +478,27 @@ model Note {
 
   @@index([sessionId])
 }
+
+/**
+ * Per-call LLM usage + estimated cost. Written fire-and-forget by
+ * LlmService after each non-streaming completion (the bulk of token
+ * volume: feedback draft + 15 skill agents + diary + world-tick). Gives
+ * the admin a spend dashboard and a way to catch runaways (a prompt loop,
+ * a model-price surprise) without an external billing integration.
+ *
+ * Cost is ESTIMATED from a static model→price map in LlmService — exact
+ * to within provider price drift, which is fine for visibility. Tokens
+ * are the ground truth (straight from the provider response).
+ */
+model LlmUsage {
+  id               Int      @id @default(autoincrement())
+  provider         String   // 'anthropic' | 'openrouter'
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  costUsd          Float    @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([model])
+}

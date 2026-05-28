@@ -207,6 +207,55 @@ export class AdminService {
     });
     return errors;
   }
+
+  /**
+   * LLM spend rollup for the admin dashboard. Aggregates the LlmUsage table
+   * over today + last 7 days, plus a per-model breakdown (last 7d). Cost is
+   * the estimated USD from LlmService's price map; tokens are exact.
+   */
+  async llmUsageSummary() {
+    const now = Date.now();
+    const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+    const [today, week, byModel] = await Promise.all([
+      this.prisma.llmUsage.aggregate({
+        where: { createdAt: { gte: dayAgo } },
+        _count: true,
+        _sum: { costUsd: true, promptTokens: true, completionTokens: true },
+      }),
+      this.prisma.llmUsage.aggregate({
+        where: { createdAt: { gte: weekAgo } },
+        _count: true,
+        _sum: { costUsd: true, promptTokens: true, completionTokens: true },
+      }),
+      this.prisma.llmUsage.groupBy({
+        by: ['model'],
+        where: { createdAt: { gte: weekAgo } },
+        _count: true,
+        _sum: { costUsd: true, promptTokens: true, completionTokens: true },
+        orderBy: { _sum: { costUsd: 'desc' } },
+      }),
+    ]);
+
+    const roll = (count: number, sum: { costUsd: number | null; promptTokens: number | null; completionTokens: number | null }) => ({
+      calls: count,
+      costUsd: Number((sum.costUsd ?? 0).toFixed(4)),
+      promptTokens: sum.promptTokens ?? 0,
+      completionTokens: sum.completionTokens ?? 0,
+    });
+
+    return {
+      today: roll(today._count, today._sum),
+      last7d: roll(week._count, week._sum),
+      byModel: byModel.map((m) => ({
+        model: m.model,
+        calls: m._count,
+        costUsd: Number((m._sum.costUsd ?? 0).toFixed(4)),
+        tokens: (m._sum.promptTokens ?? 0) + (m._sum.completionTokens ?? 0),
+      })),
+    };
+  }
 }
 
 function safeParse(json: string): unknown {

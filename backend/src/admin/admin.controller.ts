@@ -159,4 +159,13 @@ export class AdminController {
   analyticsRecent(@Query('limit') limit?: string) {
     return this.events.recentEvents(limit ? parseInt(limit, 10) : 100);
   }
+
+  /** LLM spend dashboard: call count, token totals, and estimated USD cost
+   *  for today + the last 7 days, plus a per-model breakdown. Tokens are
+   *  ground truth from the provider; cost is estimated from a static price
+   *  map (LlmService). Captures non-streaming calls (the bulk of volume). */
+  @Get('analytics/llm-usage')
+  llmUsage() {
+    return this.admin.llmUsageSummary();
+  }
 }
