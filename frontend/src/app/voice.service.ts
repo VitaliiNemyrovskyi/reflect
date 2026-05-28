@@ -1,9 +1,13 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { I18nService } from './i18n.service';
+import { AuthService } from './auth.service';
 
 const STORAGE_KEY = 'reflect.muted';
 
 @Injectable({ providedIn: 'root' })
 export class VoiceService {
+  private readonly i18n = inject(I18nService);
+  private readonly auth = inject(AuthService);
   readonly muted = signal<boolean>(this.readStored());
   readonly speaking = signal<boolean>(false);
   readonly engine = signal<'elevenlabs' | 'browser' | 'unknown'>('unknown');
@@ -76,10 +80,26 @@ export class VoiceService {
   }
 
   private async fetchElevenlabs(text: string): Promise<Blob> {
+    // We use raw fetch (not Angular HttpClient) so the audio response
+    // can stream as a Blob. That means the global auth interceptor —
+    // which attaches the Bearer token to HttpClient requests — does
+    // NOT run here. We MUST attach it manually or every TTS call comes
+    // back 401. The auth service exposes the current access token as
+    // a signal; we read it synchronously per request so token refreshes
+    // are picked up automatically.
+    const token = this.auth.accessToken();
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      'accept-language': this.i18n.lang(),
+    };
+    if (token) headers['authorization'] = `Bearer ${token}`;
     const res = await fetch('/api/tts', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
+      headers,
+      // Send current locale so the backend picks the right neural voice
+      // (uk → Polina, en → Sonia, fr → Denise). We don't have character
+      // gender/age plumbed yet — default voice per lang for now.
+      body: JSON.stringify({ text, voice: this.i18n.lang() }),
     });
     if (!res.ok) {
       throw new Error(`tts ${res.status}`);
@@ -120,11 +140,12 @@ export class VoiceService {
   private speakBrowser(text: string) {
     if (!this.supported) return;
     this.engine.set('browser');
+    const lang = this.i18n.lang();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'uk-UA';
+    u.lang = { uk: 'uk-UA', en: 'en-GB', fr: 'fr-FR' }[lang] ?? 'uk-UA';
     u.rate = 0.95;
     u.pitch = 1.0;
-    const voice = this.pickVoice();
+    const voice = this.pickVoice(lang);
     if (voice) u.voice = voice;
     u.onstart = () => this.speaking.set(true);
     u.onend = () => {
@@ -155,9 +176,26 @@ export class VoiceService {
     }
   }
 
-  private pickVoice(): SpeechSynthesisVoice | null {
+  private pickVoice(lang: string = 'uk'): SpeechSynthesisVoice | null {
     if (!this.supported) return null;
     const voices = window.speechSynthesis.getVoices();
+    // Voice priority by current locale: native OS voices first, with a
+    // soft preference for female (matches our patient gender mix), then
+    // any voice in that lang, finally any close relative.
+    if (lang === 'en') {
+      const en = voices.filter((v) => v.lang.toLowerCase().startsWith('en'));
+      if (en.length > 0) {
+        const enFemale = en.find((v) => /samantha|jenny|amy|kate|allison|female/i.test(v.name));
+        return enFemale ?? en[0];
+      }
+    }
+    if (lang === 'fr') {
+      const fr = voices.filter((v) => v.lang.toLowerCase().startsWith('fr'));
+      if (fr.length > 0) {
+        const frFemale = fr.find((v) => /amelie|amélie|audrey|julie|virginie|female/i.test(v.name));
+        return frFemale ?? fr[0];
+      }
+    }
     const ukraine = voices.filter((v) => v.lang.toLowerCase().startsWith('uk'));
     if (ukraine.length > 0) {
       const female = ukraine.find((v) =>

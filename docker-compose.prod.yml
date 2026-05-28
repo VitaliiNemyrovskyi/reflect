@@ -41,6 +41,12 @@ x-api: &api
     LLM_MODEL_FEEDBACK_REVIEWER: ${LLM_MODEL_FEEDBACK_REVIEWER:-}
     LLM_MODEL_SKILLS_SYNTHESIZER: ${LLM_MODEL_SKILLS_SYNTHESIZER:-}
     FEEDBACK_MODE: ${FEEDBACK_MODE:-}
+    # Internal TTS sidecar — the `reflect_tts` container exposes a tiny
+    # FastAPI on port 5050 that fronts Google Gemini TTS (primary) plus
+    # edge-tts fallback. Backend TtsService POSTs `{ text, voice, gender }`
+    # there; sidecar returns audio/wav (Gemini) or audio/mpeg (edge).
+    # Empty/missing var → falls back to browser SpeechSynthesis.
+    TTS_BASE_URL: ${TTS_BASE_URL:-http://reflect_tts:5050}
     # Language for supervisor prompts, skill agents, and profiles.
     # 'uk' = Ukrainian (default), 'en' = English (EU market).
     # Loads from prompts/{lang}/ with fallback to prompts/ for missing files.
@@ -90,6 +96,37 @@ services:
   api_2:
     <<: *api
     container_name: reflect_api_2
+
+  # Self-hosted TTS sidecar (v2). Primary path = Google Gemini 2.5 Flash
+  # TTS (voices Aoede/Kore/Leda — significantly better Ukrainian prosody
+  # than edge-tts). Fallback = open-source `edge-tts` package speaking
+  # to Microsoft's "Read Aloud" WebSocket endpoint (Polina/Sonia/Denise)
+  # — kept as safety net for when Gemini errors or hits rate limits.
+  #
+  # GEMINI_API_KEY from .env enables Gemini path; absent → edge-only.
+  # TTS_PROVIDER controls behaviour:
+  #   - auto    (default): Gemini primary, edge fallback on error
+  #   - gemini : Gemini only (502 if key missing or call fails)
+  #   - edge   : edge-tts only (legacy)
+  #
+  # Only the api containers talk to it via the private docker network;
+  # the host never publishes its port.
+  tts:
+    image: reflect/tts:${IMAGE_TAG:-latest}
+    build:
+      context: ./deploy/tts
+    container_name: reflect_tts
+    restart: unless-stopped
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_TTS_MODEL: ${GEMINI_TTS_MODEL:-gemini-2.5-flash-preview-tts}
+      TTS_PROVIDER: ${TTS_PROVIDER:-auto}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:5050/health',timeout=2).status==200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
 
   web:
     image: reflect/web:${IMAGE_TAG:-latest}

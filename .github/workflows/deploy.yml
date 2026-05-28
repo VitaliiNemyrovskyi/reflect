@@ -24,17 +24,22 @@ jobs:
             echo "=== Pull ==="
             git pull origin main
 
-            # Build only api + web — these change every commit. Caddy
-            # builds from ./deploy/caddy and rarely changes; rebuilding
-            # it each deploy would bump its image hash, which makes
-            # `docker compose up -d caddy` recreate the container and
-            # introduces a ~4-5s blip. Skip the rebuild so Caddy stays
-            # untouched on routine deploys. When Caddy itself needs to
-            # change (e.g. new plugin in xcaddy), run a one-off
+            # Build api + web + tts. api+web change every commit; tts is
+            # rebuilt too because the Gemini/edge sidecar evolves often
+            # enough. Docker layer cache makes unchanged tts a ~2s no-op,
+            # and `up -d` at the end only recreates the container when
+            # the image hash actually differs.
+            #
+            # Caddy builds from ./deploy/caddy and rarely changes;
+            # rebuilding it each deploy would bump its image hash, which
+            # makes `docker compose up -d caddy` recreate the container
+            # and introduces a ~4-5s blip. Skip the rebuild so Caddy
+            # stays untouched on routine deploys. When Caddy itself
+            # needs to change (e.g. new plugin in xcaddy), run a one-off
             # `docker compose build caddy && docker compose up -d caddy`
             # by hand — that's a rare event.
             echo "=== Build ==="
-            docker compose -f docker-compose.prod.yml build api web
+            docker compose -f docker-compose.prod.yml build api web tts
 
             # Helper: wait until the named container reports healthy.
             # Polls every 5s, gives up after 18 tries (90s). Fails the
