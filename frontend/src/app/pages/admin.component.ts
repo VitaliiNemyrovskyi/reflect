@@ -6,6 +6,7 @@ import {
   AdminErrorLog,
   AdminEvent,
   AdminFunnel,
+  AdminLlmUsage,
   AdminSessionDetail,
   AdminSessionListItem,
   AdminUser,
@@ -22,7 +23,7 @@ interface GrantPlanDialog {
   note: string;
 }
 
-type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
+type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost';
 
 @Component({
   selector: 'app-admin',
@@ -52,6 +53,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
         </button>
         <button [class.active]="tab() === 'funnel'" (click)="setTab('funnel')">
           📊 Funnel
+        </button>
+        <button [class.active]="tab() === 'cost'" (click)="setTab('cost')">
+          💸 Витрати
         </button>
       </nav>
     </header>
@@ -356,6 +360,43 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
           </div>
         } @else {
           <p class="hint">Завантаження funnel-даних…</p>
+        }
+      }
+
+      @if (tab() === 'cost') {
+        @if (llmUsage(); as u) {
+          <div class="cost-cards">
+            <div class="cost-card">
+              <span class="cost-label">Сьогодні</span>
+              <strong class="cost-figure">{{ fmtUsd(u.today.costUsd) }}</strong>
+              <span class="cost-sub">{{ u.today.calls }} викликів · {{ u.today.promptTokens + u.today.completionTokens }} токенів</span>
+            </div>
+            <div class="cost-card">
+              <span class="cost-label">Останні 7 днів</span>
+              <strong class="cost-figure">{{ fmtUsd(u.last7d.costUsd) }}</strong>
+              <span class="cost-sub">{{ u.last7d.calls }} викликів · {{ u.last7d.promptTokens + u.last7d.completionTokens }} токенів</span>
+            </div>
+          </div>
+          <h3 class="recent-head">За моделлю (7 днів)</h3>
+          <table>
+            <thead><tr><th>Модель</th><th>Виклики</th><th>Токени</th><th>Вартість</th></tr></thead>
+            <tbody>
+              @for (m of u.byModel; track m.model) {
+                <tr>
+                  <td>{{ m.model }}</td>
+                  <td>{{ m.calls }}</td>
+                  <td>{{ m.tokens }}</td>
+                  <td>{{ fmtUsd(m.costUsd) }}</td>
+                </tr>
+              }
+              @if (u.byModel.length === 0) {
+                <tr><td colspan="4" class="empty">Поки немає записів використання ШІ</td></tr>
+              }
+            </tbody>
+          </table>
+          <p class="hint">OpenRouter — точна вартість від провайдера; Anthropic — оцінка. Враховано і стрімові, і звичайні виклики.</p>
+        } @else {
+          <p class="hint">Завантаження даних про витрати…</p>
         }
       }
     }
@@ -663,6 +704,41 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel';
       text-transform: uppercase;
     }
 
+    /* Cost dashboard */
+    .cost-cards {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin: 8px 0 24px;
+    }
+    .cost-card {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 18px 20px;
+      border-radius: 14px;
+      border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+      background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+    }
+    .cost-label {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+    }
+    .cost-figure {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+    .cost-sub {
+      font-size: 12px;
+      color: var(--fg-dim);
+    }
+
     /* Funnel widget */
     .funnel {
       max-width: 720px;
@@ -813,6 +889,13 @@ export class AdminComponent implements OnInit {
   errors = signal<AdminErrorLog[]>([]);
   funnel = signal<AdminFunnel | null>(null);
   recentEvents = signal<AdminEvent[]>([]);
+  llmUsage = signal<AdminLlmUsage | null>(null);
+
+  /** Format a USD cost for display — keeps the `$` out of the backtick
+   *  template (where `${` would start a JS interpolation). */
+  fmtUsd(n: number): string {
+    return '$' + (n ?? 0).toFixed(4);
+  }
 
   selectedSession = signal<AdminSessionDetail | null>(null);
   expandedError = signal<number | null>(null);
@@ -877,6 +960,9 @@ export class AdminComponent implements OnInit {
           ]);
           this.funnel.set(f);
           this.recentEvents.set(recent);
+          break;
+        case 'cost':
+          this.llmUsage.set(await this.api.adminLlmUsage());
           break;
       }
     } catch (e: unknown) {

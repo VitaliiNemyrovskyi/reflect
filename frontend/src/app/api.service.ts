@@ -1084,6 +1084,24 @@ export class ApiService {
       ),
     );
   }
+
+  adminLlmUsage(): Promise<AdminLlmUsage> {
+    return firstValueFrom(
+      this.http.get<AdminLlmUsage>(`${this.base}/admin/analytics/llm-usage`),
+    );
+  }
+}
+
+export interface AdminLlmUsageRoll {
+  calls: number;
+  costUsd: number;
+  promptTokens: number;
+  completionTokens: number;
+}
+export interface AdminLlmUsage {
+  today: AdminLlmUsageRoll;
+  last7d: AdminLlmUsageRoll;
+  byModel: Array<{ model: string; calls: number; costUsd: number; tokens: number }>;
 }
 
 export interface AdminFunnel {
