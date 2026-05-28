@@ -431,12 +431,13 @@ export class LlmService {
       ],
     });
 
-    let inTok = 0, outTok = 0;
+    let inTok = 0, outTok = 0, cost = 0;
     try {
       for await (const chunk of stream) {
         if (chunk.usage) {
           inTok = chunk.usage.prompt_tokens ?? inTok;
           outTok = chunk.usage.completion_tokens ?? outTok;
+          cost = (chunk.usage as { cost?: number }).cost ?? cost;
         }
         const delta = chunk.choices?.[0]?.delta?.content;
         if (typeof delta === 'string' && delta.length > 0) {
@@ -444,7 +445,7 @@ export class LlmService {
         }
       }
     } finally {
-      if (inTok || outTok) this.recordUsage('openrouter', model, inTok, outTok);
+      if (inTok || outTok) this.recordUsage('openrouter', model, inTok, outTok, cost || undefined);
     }
   }
 
@@ -497,6 +498,7 @@ export class LlmService {
       model,
       completion.usage?.prompt_tokens ?? 0,
       completion.usage?.completion_tokens ?? 0,
+      (completion.usage as { cost?: number } | undefined)?.cost,
     );
 
     const reply = completion.choices?.[0]?.message?.content ?? '';
@@ -511,8 +513,21 @@ export class LlmService {
    * world-tick); the streamed synthesis (~1 call/session) is not yet
    * captured here.
    */
-  private recordUsage(provider: string, model: string, promptTokens: number, completionTokens: number): void {
-    const costUsd = estimateCostUsd(model, promptTokens, completionTokens);
+  private recordUsage(
+    provider: string,
+    model: string,
+    promptTokens: number,
+    completionTokens: number,
+    actualCostUsd?: number,
+  ): void {
+    // Prefer the provider-reported cost when present (OpenRouter returns an
+    // exact USD `cost` in its usage payload) — it accounts for the real
+    // per-model price, cache discounts, etc. Fall back to our static price
+    // map only when the provider doesn't tell us (e.g. Anthropic).
+    const costUsd =
+      actualCostUsd != null && actualCostUsd > 0
+        ? actualCostUsd
+        : estimateCostUsd(model, promptTokens, completionTokens);
     void this.prisma.llmUsage
       .create({ data: { provider, model, promptTokens, completionTokens, costUsd } })
       .catch((e) => this.logger.warn(`llmUsage record failed: ${(e as Error).message}`));
