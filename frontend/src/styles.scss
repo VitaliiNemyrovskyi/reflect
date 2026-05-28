@@ -90,17 +90,13 @@ html, body {
     var(--bg);
   background-size: 200% 200%, 200% 200%, 200% 200%, auto;
   background-position: 0% 0%, 100% 50%, 50% 100%, 0 0;
-  background-attachment: fixed;
+  // NOTE: intentionally NOT background-attachment: fixed and NOT animated.
+  // Both used to cost a full-viewport repaint every frame on mobile —
+  // the dominant battery drain therapists reported. The "alive" ambient
+  // motion now comes solely from the `.ambient-blobs` layer (app.component),
+  // which animates `transform` only and is therefore GPU-composited (no
+  // paint). This static gradient is just the base colour wash beneath it.
   background-repeat: no-repeat;
-  @media (prefers-reduced-motion: no-preference) {
-    // Two stacked animations: the slow background-position morph
-    // for the body itself, plus the shared --frame-angle rotation
-    // that every gradient-bordered element inherits and reuses for
-    // its conic-gradient border.
-    animation:
-      ambient-flow 35s ease-in-out infinite,
-      frame-rotate 8s linear infinite;
-  }
   color: var(--fg);
   font: var(--font-base) / var(--line-height) -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   height: 100%;
@@ -110,32 +106,20 @@ html, body {
   text-size-adjust: 100%;
 }
 
-@keyframes ambient-flow {
-  0%, 100% {
-    background-position: 0% 0%, 100% 50%, 50% 100%, 0 0;
-  }
-  25% {
-    background-position: 70% 30%, 20% 80%, 100% 20%, 0 0;
-  }
-  50% {
-    background-position: 100% 80%, 60% 0%, 0% 50%, 0 0;
-  }
-  75% {
-    background-position: 40% 100%, 90% 70%, 70% 10%, 0 0;
-  }
-}
-
-// Shared rotation keyframe for the inherited --frame-angle CSS
-// custom property. Any element that uses conic-gradient(from
-// var(--frame-angle), …) border-box inside its background will see
-// its gradient border slowly turn in sync with every other element.
+// `--frame-angle` is the start-angle for every gradient-bordered element's
+// conic-gradient. It used to be animated 0→360° on <body> via @keyframes
+// frame-rotate, which forced a repaint of all 9 conic borders every frame
+// (≈60 fps, on every page, forever) — a major battery drain on mobile with
+// no compositor acceleration possible (gradient angle changes can't be
+// GPU-composited). It's now a STATIC value: the borders keep their full
+// gradient-rim look at a fixed, balanced diagonal angle; the app's living
+// motion comes from the GPU-composited `.ambient-blobs` layer instead.
+// Kept as a custom property (not inlined) so a future hover/focus-scoped
+// spin could re-introduce motion on a single element without touching all.
 @property --frame-angle {
   syntax: "<angle>";
-  initial-value: 0deg;
+  initial-value: 135deg;
   inherits: true;
-}
-@keyframes frame-rotate {
-  to { --frame-angle: 360deg; }
 }
 
 body {

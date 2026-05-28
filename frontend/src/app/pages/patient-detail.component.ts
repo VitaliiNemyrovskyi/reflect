@@ -629,20 +629,22 @@ const SPOILER_PATTERNS: RegExp[] = [
       gap: 22px 28px;
       align-items: start;
     }
-    /* 1px animated-gradient border directly on .hero-photo. Trick:
+    /* 1px gradient border directly on .hero-photo. Trick:
        transparent border + two-layer background (solid clipped to
        padding-box, gradient clipped to border-box) — the gradient
        only shows in the 1px border ring. No wrapper, no padding.
-       Angle animates via @property so the bright spot of the
-       conic-gradient travels around the perimeter. */
+       The conic start-angle is a static var (--frame-angle); the rim
+       no longer rotates (see battery note below). */
     /* --frame-angle is the shared CSS variable that drives ALL the
-       gradient borders across the page. Setting inherits:true means
-       any element can use var(--frame-angle) in a conic-gradient and
-       all of them animate in sync as long as something up the tree
-       is running the frame-rotate keyframes (we put that on body). */
+       gradient borders across the page. It's now a STATIC angle (no
+       longer animated — the old body frame-rotate keyframes were a
+       per-frame repaint battery drain; see styles.scss). Kept at the
+       same 135° as the global registration so the rims look identical.
+       @property is global regardless of where it's declared, so this
+       must match the value in styles.scss. */
     @property --frame-angle {
       syntax: "<angle>";
-      initial-value: 0deg;
+      initial-value: 135deg;
       inherits: true;
     }
     /* Photo lives inside the frame. Same row as identity + vitals,
