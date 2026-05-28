@@ -1098,6 +1098,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           return;
         }
         this.state.reset(sv.character.displayName);
+        // Pin the patient on the voice service so /api/tts gets the right
+        // gender hint — without this every male patient was speaking with
+        // Polina/Sonia/Denise (the female default for the lang). See
+        // VoiceService.setCharacter() for the heuristic.
+        this.voice.setCharacter(sv.character.displayName);
         for (const m of sv.messages) {
           this.state.push({ role: m.role as 'user' | 'assistant', content: m.content });
         }
@@ -1111,6 +1116,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         void this.router.navigate(['/']);
         return;
       }
+    } else {
+      // Bubbles were already in state (in-app navigation). Sync the
+      // voice service with the current displayName too — without this,
+      // navigating from one session to another would keep the previous
+      // patient's gender on the TTS path.
+      this.voice.setCharacter(this.state.characterDisplayName());
     }
     this.startedAt = Date.now();
     this.tickHandle = window.setInterval(() => this.nowMs.set(Date.now()), 1000);

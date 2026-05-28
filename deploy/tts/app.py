@@ -61,11 +61,18 @@ GEMINI_DEFAULT_VOICES = {
     ("fr", "male"):   "Achird",    # Friendly
 }
 
-# Edge fallback voices when Gemini fails for a bare lang.
+# Edge fallback voices when Gemini fails for a bare lang. Keyed by
+# (lang, gender) — without the gender axis the sidecar would always
+# return Polina/Sonia/Denise even for male patients (Максим говорить
+# жіночим голосом ← real user-reported bug). Female is the safe
+# default when gender is unknown / not passed by the caller.
 EDGE_FALLBACK_VOICES = {
-    "uk": "uk-UA-PolinaNeural",
-    "en": "en-GB-SoniaNeural",
-    "fr": "fr-FR-DeniseNeural",
+    ("uk", "female"): "uk-UA-PolinaNeural",
+    ("uk", "male"):   "uk-UA-OstapNeural",
+    ("en", "female"): "en-GB-SoniaNeural",
+    ("en", "male"):   "en-GB-RyanNeural",
+    ("fr", "female"): "fr-FR-DeniseNeural",
+    ("fr", "male"):   "fr-FR-HenriNeural",
 }
 
 # Recognized Gemini voice names. Anything in this set is treated as a
@@ -117,7 +124,11 @@ def resolve_bare_lang(lang: str, gender: Optional[str]) -> Tuple[str, str]:
     if prefer_gemini:
         voice = GEMINI_DEFAULT_VOICES.get((lang, g), GEMINI_DEFAULT_VOICES[(lang, "female")])
         return ("gemini", voice)
-    return ("edge", EDGE_FALLBACK_VOICES.get(lang, EDGE_FALLBACK_VOICES["uk"]))
+    edge_voice = EDGE_FALLBACK_VOICES.get(
+        (lang, g),
+        EDGE_FALLBACK_VOICES.get((lang, "female"), EDGE_FALLBACK_VOICES[("uk", "female")]),
+    )
+    return ("edge", edge_voice)
 
 
 def pcm_to_wav(pcm: bytes, sample_rate: int = 24000) -> bytes:
@@ -209,8 +220,14 @@ async def tts(req: TtsRequest):
     # Mode overrides
     if TTS_PROVIDER == "edge" and provider == "gemini":
         # Force edge — map Gemini voice back to a sensible edge default
-        # by language guess. Without a lang we can't do better than uk.
-        provider, resolved = ("edge", EDGE_FALLBACK_VOICES["uk"])
+        # by language + gender. Guess lang from the Gemini voice name we
+        # already resolved; default to uk if unknown.
+        lang_guess = _guess_lang_from_gemini_voice(resolved) or "uk"
+        g = "male" if (req.gender or "").lower() == "male" else "female"
+        provider, resolved = (
+            "edge",
+            EDGE_FALLBACK_VOICES.get((lang_guess, g), EDGE_FALLBACK_VOICES[("uk", "female")]),
+        )
     elif TTS_PROVIDER == "gemini" and provider == "edge":
         # Force Gemini — pick a default female voice
         provider, resolved = ("gemini", "Aoede")
@@ -228,16 +245,20 @@ async def tts(req: TtsRequest):
         # Auto-mode fallback to the other provider
         if TTS_PROVIDER == "auto":
             try:
+                g = "male" if (req.gender or "").lower() == "male" else "female"
                 if provider == "gemini":
                     # Fall to edge with a same-lang voice if we can guess it
                     # from the Gemini voice name. Otherwise default to uk.
                     lang_guess = _guess_lang_from_gemini_voice(resolved) or "uk"
-                    edge_voice = EDGE_FALLBACK_VOICES[lang_guess]
+                    edge_voice = EDGE_FALLBACK_VOICES.get(
+                        (lang_guess, g),
+                        EDGE_FALLBACK_VOICES[("uk", "female")],
+                    )
                     audio = await synth_edge(req.text, edge_voice)
                     return Response(content=audio, media_type="audio/mpeg")
                 # provider == 'edge' primary failed → try Gemini with bare lang
                 lang_guess = _guess_lang_from_edge_voice(resolved) or "uk"
-                gemini_voice = GEMINI_DEFAULT_VOICES.get((lang_guess, "female"), "Aoede")
+                gemini_voice = GEMINI_DEFAULT_VOICES.get((lang_guess, g), "Aoede")
                 audio = await synth_gemini(req.text, gemini_voice)
                 return Response(content=audio, media_type="audio/wav")
             except Exception as fallback_err:

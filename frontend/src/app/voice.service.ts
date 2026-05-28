@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { I18nService } from './i18n.service';
 import { AuthService } from './auth.service';
+import { inferGender, type Gender } from './lib/infer-gender';
 
 const STORAGE_KEY = 'reflect.muted';
 
@@ -18,6 +19,12 @@ export class VoiceService {
   private supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
   private elevenlabsAvailable: boolean | null = null;
   private speakSeq = 0;
+  /** Gender of the currently active patient, set by chat.component on
+   *  session load via `setCharacter()`. Sent to /api/tts so the sidecar
+   *  picks the male voice (Ostap/Ryan/Henri) for male patients instead
+   *  of always defaulting to female. Null = unknown → sidecar defaults
+   *  to female. */
+  private currentGender: Gender | null = null;
 
   constructor() {
     if (this.supported) {
@@ -25,6 +32,20 @@ export class VoiceService {
       window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     }
     void this.probeElevenlabs();
+  }
+
+  /**
+   * Pin a character to subsequent speak() calls. Called by chat.component
+   * once per session load with the patient's displayName. We derive
+   * gender from the name heuristic so the sidecar can pick a male voice
+   * (Ostap / Ryan / Henri) for male patients — without this, every
+   * patient defaulted to the female voice for their lang.
+   *
+   * Passing null clears the pin (subsequent speak() calls will use the
+   * female default).
+   */
+  setCharacter(displayName: string | null) {
+    this.currentGender = inferGender(displayName);
   }
 
   speak(text: string) {
@@ -96,10 +117,18 @@ export class VoiceService {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers,
-      // Send current locale so the backend picks the right neural voice
-      // (uk → Polina, en → Sonia, fr → Denise). We don't have character
-      // gender/age plumbed yet — default voice per lang for now.
-      body: JSON.stringify({ text, voice: this.i18n.lang() }),
+      // - voice  : bare lang ('uk'|'en'|'fr'); backend forwards to the
+      //            sidecar which picks the actual neural voice id.
+      // - gender : 'male' | 'female' (or omitted) from inferGender() on
+      //            the active patient's displayName. Without this every
+      //            male patient (Максим, Ben, Pierre, …) got Polina /
+      //            Sonia / Denise — the female default — bug reported
+      //            by therapists. setCharacter() pins this per session.
+      body: JSON.stringify({
+        text,
+        voice: this.i18n.lang(),
+        gender: this.currentGender,
+      }),
     });
     if (!res.ok) {
       throw new Error(`tts ${res.status}`);
