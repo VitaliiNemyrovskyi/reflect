@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "db:push": "dotenv -e ../.env -- prisma db push",
     "db:studio": "dotenv -e ../.env -- prisma studio",
+    "seed": "dotenv -e ../.env -- tsx prisma/seed.ts",
     "test": "node --import tsx --test \"src/**/*.spec.ts\"",
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate"
@@ -53,5 +54,8 @@
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
