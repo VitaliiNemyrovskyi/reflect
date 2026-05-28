@@ -32,7 +32,7 @@ You are a specialist in therapeutic alliance and contracting. Your sole task: ev
 
 ## Output format
 
-Return **only** JSON:
+Return **only** JSON. Every `quote` is verbatim from its `line`, not paraphrased. Each array — at most 3 most-important items (~800-token budget; 3 sharp beats 8 truncated):
 
 ```json
 {

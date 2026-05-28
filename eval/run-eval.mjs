@@ -14,9 +14,10 @@
  *
  * Each eval/transcripts/<name>.json declares, per skill, the expected:
  *   fields           : { jsonKey: expectedBoolean }   exact match
- *   hasRecommendation : true  → recommendation is a single-line string 10-600
+ *   hasRecommendation : true  → recommendation is a single-line string ≥10
  *                              chars with no embedded " (the regex contract
- *                              runSkillChecks uses to extract it)
+ *                              runSkillChecks uses to extract it — no upper
+ *                              length bound)
  *   nonEmptyArray    : "field" → that field is a non-empty array
  *   jsonValid        : true  → output parsed as JSON at all
  *
@@ -113,11 +114,12 @@ function evaluate(expect, parsed) {
 
   if (expect.hasRecommendation) {
     const rec = json.recommendation;
-    // 10-600 single-line no-embedded-quote: the contract runSkillChecks'
-    // extraction regex enforces. Anything outside this is silently dropped
-    // from the critical-miss header in prod.
+    // ≥10 chars, single-line, no embedded quote: the contract
+    // runSkillChecks' extraction regex (/"recommendation":"([^"]{10,})"/)
+    // enforces. No upper bound — a long recommendation is fine, it gets
+    // truncated for the header but never silently dropped.
     const ok = typeof rec === 'string'
-      && rec.length >= 10 && rec.length <= 600
+      && rec.length >= 10
       && !rec.includes('\n') && !rec.includes('"');
     checks.push({
       label: 'hasRecommendation',
