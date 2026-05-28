@@ -191,6 +191,13 @@ model Character {
    *  based on the Accept-Language header so UK users see Olesya/Anna
    *  and EN users see Emma/Thomas/Sophie. */
   lang           String    @default("uk")
+  /** Patient gender — drives TTS voice selection (male patients get
+   *  uk-UA-OstapNeural / en-GB-RyanNeural / fr-FR-HenriNeural; female
+   *  patients get the Polina / Sonia / Denise defaults). SQLite has no
+   *  native enum so this is a string validated at the service layer.
+   *  Allowed: 'female' | 'male'. Nullable: legacy rows may not have it
+   *  set; TtsService falls back to the female default when null. */
+  gender         String?
   /** Which shared City this character lives in. Drives the news-digest
    *  injection into chat prompts. Optional so legacy rows survive
    *  schema push; service layer fills in based on lang as a fallback. */

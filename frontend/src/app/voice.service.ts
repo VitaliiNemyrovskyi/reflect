@@ -1,9 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { I18nService } from './i18n.service';
 import { AuthService } from './auth.service';
-import { inferGender, type Gender } from './lib/infer-gender';
 
 const STORAGE_KEY = 'reflect.muted';
+
+type Gender = 'female' | 'male';
 
 @Injectable({ providedIn: 'root' })
 export class VoiceService {
@@ -19,11 +20,14 @@ export class VoiceService {
   private supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
   private elevenlabsAvailable: boolean | null = null;
   private speakSeq = 0;
-  /** Gender of the currently active patient, set by chat.component on
-   *  session load via `setCharacter()`. Sent to /api/tts so the sidecar
-   *  picks the male voice (Ostap/Ryan/Henri) for male patients instead
-   *  of always defaulting to female. Null = unknown → sidecar defaults
-   *  to female. */
+  /** Gender of the currently active patient — set explicitly by
+   *  chat.component on session load from `sv.character.gender` (the
+   *  Character.gender DB column). Sent to /api/tts so the sidecar
+   *  picks the male voice (Ostap/Ryan/Henri) for male patients
+   *  instead of always defaulting to female. Null = unknown → sidecar
+   *  falls back to the female default. No name-based guessing happens
+   *  on this side any more — single source of truth lives on the
+   *  Character schema. */
   private currentGender: Gender | null = null;
 
   constructor() {
@@ -35,17 +39,16 @@ export class VoiceService {
   }
 
   /**
-   * Pin a character to subsequent speak() calls. Called by chat.component
-   * once per session load with the patient's displayName. We derive
-   * gender from the name heuristic so the sidecar can pick a male voice
-   * (Ostap / Ryan / Henri) for male patients — without this, every
-   * patient defaulted to the female voice for their lang.
+   * Pin a character's gender to subsequent speak() calls. Called by
+   * chat.component once per session load with `sv.character.gender`
+   * (the persisted DB column). Pass null to clear the pin — speak()
+   * will then fall back to the sidecar's female default.
    *
-   * Passing null clears the pin (subsequent speak() calls will use the
-   * female default).
+   * Explicit gender only; we removed the name-based guesser. Source of
+   * truth is Character.gender on the backend.
    */
-  setCharacter(displayName: string | null) {
-    this.currentGender = inferGender(displayName);
+  setGender(gender: Gender | null) {
+    this.currentGender = gender;
   }
 
   speak(text: string) {
@@ -119,11 +122,11 @@ export class VoiceService {
       headers,
       // - voice  : bare lang ('uk'|'en'|'fr'); backend forwards to the
       //            sidecar which picks the actual neural voice id.
-      // - gender : 'male' | 'female' (or omitted) from inferGender() on
-      //            the active patient's displayName. Without this every
-      //            male patient (Максим, Ben, Pierre, …) got Polina /
-      //            Sonia / Denise — the female default — bug reported
-      //            by therapists. setCharacter() pins this per session.
+      // - gender : 'male' | 'female' from Character.gender, pinned by
+      //            chat.component on session load via setGender(). Sidecar
+      //            routes male → Ostap/Ryan/Henri, female → Polina/
+      //            Sonia/Denise. Null gracefully falls back to female on
+      //            the sidecar side.
       body: JSON.stringify({
         text,
         voice: this.i18n.lang(),

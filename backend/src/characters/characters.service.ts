@@ -150,6 +150,11 @@ export interface CreateCharacterDto {
    *  Accept-Language header at the controller level so user-created
    *  characters appear in the correct language roster. 'uk' / 'en' / 'fr'. */
   lang?: 'uk' | 'en' | 'fr';
+  /** Patient gender — drives TTS voice selection. Comes from the
+   *  patient-form's existing radio group (which already sets it in
+   *  the LLM-facing brief; we now also persist it as a structured
+   *  column). 'female' | 'male' or undefined for legacy/imported rows. */
+  gender?: 'female' | 'male';
 }
 
 @Injectable()
@@ -298,6 +303,11 @@ export class CharactersService {
         // non-default lang was requested. Keeps backwards compat with
         // older clients that don't send Accept-Language at all.
         ...(dto.lang === 'en' || dto.lang === 'fr' ? { lang: dto.lang } : {}),
+        // Gender drives TTS voice selection downstream. The patient-form
+        // already required this radio choice for the LLM brief, we just
+        // weren't persisting it. Coerce unknown values to undefined so
+        // they stay NULL in the column rather than corrupting downstream.
+        ...(dto.gender === 'female' || dto.gender === 'male' ? { gender: dto.gender } : {}),
         createdById: userId,
       },
     });
@@ -323,6 +333,11 @@ export class CharactersService {
         ...(dto.complexity !== undefined ? { complexity: dto.complexity } : {}),
         ...(dto.modality !== undefined ? { modality: coerceModality(dto.modality) } : {}),
         ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl || null } : {}),
+        ...(dto.gender === 'female' || dto.gender === 'male'
+          ? { gender: dto.gender }
+          : dto.gender === null
+            ? { gender: null }
+            : {}),
       },
     });
   }

@@ -1084,6 +1084,11 @@ export class PatientFormComponent implements OnInit, OnDestroy {
         complexity: this.form.complexity,
         modality: this.form.modality,
         avatarUrl: this.buildAvatarUrl(),
+        // Gender's been collected by the form for ages — it feeds the LLM
+        // brief and switches UI copy. Now we also persist it on Character
+        // so TTS can pick the right voice (Polina vs Ostap, Sonia vs Ryan,
+        // Denise vs Henri). See backend Character.gender.
+        gender: this.form.gender,
       };
       const character =
         this.mode() === 'create'

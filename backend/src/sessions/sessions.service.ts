@@ -308,7 +308,11 @@ export class SessionsService {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
-        character: { select: { id: true, displayName: true, slug: true, avatarUrl: true } },
+        // `gender` flows to the frontend voice.service so TTS picks
+        // the right voice (male → Ostap/Ryan/Henri, female → Polina/
+        // Sonia/Denise). Nullable for legacy rows; sidecar defaults to
+        // female when missing.
+        character: { select: { id: true, displayName: true, slug: true, avatarUrl: true, gender: true } },
         messages: { orderBy: { id: 'asc' } },
         notes: { orderBy: { id: 'asc' } },
         // Tests admin'd during this session — same shape as the

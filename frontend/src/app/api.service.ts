@@ -45,6 +45,10 @@ export interface Character {
   complexity?: number | null;    // clinical (Тяжкість) — informational
   modality?: ModalityKey;        // therapy modality — defaults to 'individual' server-side
   avatarUrl?: string | null;
+  /** Patient gender — drives TTS voice picker (male → Ostap/Ryan/Henri,
+   *  female → Polina/Sonia/Denise). Nullable: legacy rows may not have
+   *  this stamped yet; sidecar falls back to the female default. */
+  gender?: 'female' | 'male' | null;
   summary?: string;
   sessionCount?: number;
   completedCount?: number;
@@ -110,6 +114,10 @@ export interface CreateCharacterDto {
   complexity?: number;
   modality?: ModalityKey;
   avatarUrl?: string;
+  /** Patient gender — sent on create + update so backend can persist
+   *  Character.gender. Drives TTS voice selection (male → Ostap/Ryan/Henri,
+   *  female → Polina/Sonia/Denise). */
+  gender?: 'female' | 'male';
 }
 
 /** Read-access grant entry returned by the shares endpoints. */
@@ -318,7 +326,16 @@ export interface SessionView {
   feedback: string | null;
   feedbackJson: string | null;
   patientMemory: string | null;
-  character: { id: number; displayName: string; slug: string; avatarUrl: string | null };
+  character: {
+    id: number;
+    displayName: string;
+    slug: string;
+    avatarUrl: string | null;
+    /** Drives TTS voice selection in voice.service. Nullable for legacy
+     *  rows not yet backfilled — VoiceService treats null as "use the
+     *  female default" (matches prior behaviour, no regression). */
+    gender: 'female' | 'male' | null;
+  };
   messages: SessionViewMessage[];
   notes: Note[];
   /** Tests administered during this session — rendered inline as

@@ -1097,12 +1097,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           void this.router.navigate(['/session', this.sessionId, 'view']);
           return;
         }
-        this.state.reset(sv.character.displayName);
-        // Pin the patient on the voice service so /api/tts gets the right
-        // gender hint — without this every male patient was speaking with
-        // Polina/Sonia/Denise (the female default for the lang). See
-        // VoiceService.setCharacter() for the heuristic.
-        this.voice.setCharacter(sv.character.displayName);
+        this.state.reset(sv.character.displayName, sv.character.gender);
+        // Pin the patient's gender on voice.service so /api/tts gets it
+        // and the sidecar picks the right voice (male → Ostap/Ryan/Henri,
+        // female → Polina/Sonia/Denise). Source of truth = Character.gender
+        // column. Null is acceptable — sidecar defaults to female.
+        this.voice.setGender(sv.character.gender);
         for (const m of sv.messages) {
           this.state.push({ role: m.role as 'user' | 'assistant', content: m.content });
         }
@@ -1117,11 +1117,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         return;
       }
     } else {
-      // Bubbles were already in state (in-app navigation). Sync the
-      // voice service with the current displayName too — without this,
-      // navigating from one session to another would keep the previous
-      // patient's gender on the TTS path.
-      this.voice.setCharacter(this.state.characterDisplayName());
+      // Bubbles were already in state (in-app navigation). Re-pin the
+      // voice service with the cached gender so the new patient's voice
+      // takes over instead of carrying over from the previous session.
+      this.voice.setGender(this.state.characterGender());
     }
     this.startedAt = Date.now();
     this.tickHandle = window.setInterval(() => this.nowMs.set(Date.now()), 1000);

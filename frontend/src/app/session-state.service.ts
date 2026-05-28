@@ -20,10 +20,15 @@ export interface ChatBubble {
 @Injectable({ providedIn: 'root' })
 export class SessionStateService {
   readonly characterDisplayName = signal<string | null>(null);
+  /** Patient gender. Stored alongside displayName so chat.component
+   *  can re-pin VoiceService when navigating back into a chat without
+   *  re-fetching the session (the "bubbles already in state" path). */
+  readonly characterGender = signal<'female' | 'male' | null>(null);
   readonly bubbles = signal<ChatBubble[]>([]);
 
-  reset(displayName: string | null = null) {
+  reset(displayName: string | null = null, gender: 'female' | 'male' | null = null) {
     this.characterDisplayName.set(displayName);
+    this.characterGender.set(gender);
     this.bubbles.set([]);
   }
 
