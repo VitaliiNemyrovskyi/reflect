@@ -827,6 +827,18 @@ export class SessionsService {
         : '_(нотаток немає)_';
       const slimProf = this.slimProfileForFeedback(session.character.profileText);
 
+      // Session-stage context for skill calibration. First session = this is
+      // the only session for the (user, character) pair. Cheap count query.
+      const pairSessionCount = session.userId != null
+        ? await this.prisma.session.count({
+            where: { userId: session.userId, characterId: session.characterId },
+          })
+        : 0;
+      const skillSessionCtx = {
+        modality: session.character.modality,
+        isFirstSession: pairSessionCount <= 1,
+      };
+
       // ── KEY OPTIMISATION: draft + all skill checks run IN PARALLEL ──
       // Skill agents only need the transcript (not the draft), so we
       // fire them at the same time as the Haiku draft call. Total
@@ -839,7 +851,7 @@ export class SessionsService {
           model: this.llm.modelFeedback,
           maxTokens: 3072,
         }),
-        this.runSkillChecks(ctx.transcript, slimProf, notesText, lang),
+        this.runSkillChecks(ctx.transcript, slimProf, notesText, lang, skillSessionCtx),
       ]);
 
       yield {
@@ -908,6 +920,67 @@ export class SessionsService {
   }
 
   /**
+   * Build the modality + session-stage calibration preamble prepended to
+   * every skill prompt. Tells each skill what approach the trainee is
+   * practising and whether this is an intake or a follow-up, so it doesn't
+   * flag the absence of things that are correct to omit in that context.
+   * Returns '' when no context is available (e.g. eval), preserving the
+   * skills' original behaviour.
+   */
+  private buildSkillContext(
+    lang: string,
+    ctx?: { modality?: string; isFirstSession?: boolean },
+  ): string {
+    if (!ctx || (!ctx.modality && ctx.isFirstSession === undefined)) return '';
+    const isUk = lang !== 'en';
+    const labels: Record<string, { uk: string; en: string }> = {
+      individual: { uk: 'Індивідуальна', en: 'Individual' },
+      couples: { uk: 'Парна', en: 'Couples' },
+      family: { uk: 'Сімейна', en: 'Family' },
+      adolescent: { uk: 'Підліткова', en: 'Adolescent' },
+      crisis: { uk: 'Кризова', en: 'Crisis' },
+    };
+    const modKey = ctx.modality ?? 'individual';
+    const modLabel = (labels[modKey] ?? labels['individual'])[isUk ? 'uk' : 'en'];
+    const stage = ctx.isFirstSession
+      ? (isUk ? 'Перша (інтейкова) сесія' : 'First (intake) session')
+      : (isUk ? 'Продовження терапії (не перша сесія)' : 'Ongoing therapy (not the first session)');
+
+    if (isUk) {
+      return [
+        '## Контекст сесії (враховуй при оцінці)',
+        `- Модальність терапії: ${modLabel}`,
+        `- Етап: ${stage}`,
+        '',
+        'Калібруй під це: НЕ позначай як помилку те, що доречно або очікувано',
+        'для цієї модальності/етапу — напр. відсутність сократичного діалогу чи',
+        'домашнього завдання поза CBT-підходом; відсутність повного збору анамнезу',
+        'чи контрактування на продовженні (не першій) сесії; директивніший стиль у',
+        'кризовій модальності. Оцінюй у межах підходу, який практикує терапевт, а не',
+        'за універсальним CBT-шаблоном.',
+        '',
+        '---',
+        '',
+      ].join('\n');
+    }
+    return [
+      '## Session context (factor this into your assessment)',
+      `- Therapy modality: ${modLabel}`,
+      `- Stage: ${stage}`,
+      '',
+      'Calibrate to this: do NOT flag as an error something that is appropriate or',
+      'expected for this modality/stage — e.g. no Socratic dialogue or homework',
+      'outside a CBT approach; no full history-taking or intake contracting on a',
+      'follow-up (non-first) session; a more directive style in crisis work. Judge',
+      "within the approach the therapist is practising, not against a universal CBT",
+      'template.',
+      '',
+      '---',
+      '',
+    ].join('\n');
+  }
+
+  /**
    * Run all loaded skill agents in PARALLEL against the transcript.
    * Each skill targets a single clinical dimension (suicidality, defenses,
    * affect, alliance, ddx, technique) and returns a JSON analysis.
@@ -923,6 +996,7 @@ export class SessionsService {
     slimProfile: string,
     notesText: string,
     lang: string = this.prompts.lang,
+    sessionCtx?: { modality?: string; isFirstSession?: boolean },
   ): Promise<string> {
     const bundle = this.prompts.bundle(lang);
     const skills = [...bundle.skills.entries()];
@@ -932,9 +1006,19 @@ export class SessionsService {
       ? 'Analyse the transcript according to the instructions above. Return only JSON.'
       : 'Проаналізуй транскрипт згідно інструкції вище. Поверни тільки JSON.';
 
+    // Shared calibration preamble prepended to EVERY skill. Fixes a whole
+    // class of false positives: several skills are CBT/intake-shaped
+    // (cognitive_distortions wants Socratic dialogue, technique wants
+    // homework, history_taking/session_structure/alliance want intake
+    // contracting + full history). Without knowing the modality + session
+    // stage they'd penalise approaches that are correct to omit (e.g. no
+    // homework in person-centred work, no full history on a follow-up).
+    // One orchestration-level block beats editing 16 prompt files.
+    const contextPreamble = this.buildSkillContext(lang, sessionCtx);
+
     const results = await Promise.allSettled(
       skills.map(async ([name, template]) => {
-        const filled = this.prompts.fill(template, {
+        const filled = contextPreamble + this.prompts.fill(template, {
           TRANSCRIPT: transcript,
           PROFILE: slimProfile,
           NOTES: notesText,
