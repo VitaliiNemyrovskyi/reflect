@@ -208,6 +208,398 @@ body {
   font-weight: 500;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// REFLECT BLOCK LIBRARY — promoted from patient-detail.component.ts
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Single design language for every page. Each class is a self-contained
+// block — drop it into any template. Pairs with the existing .primary /
+// .ghost buttons + .synapse-panel for the accent-bordered hero variant.
+//
+// Visual rhythm:
+//   .panel        — main content block. Solid assistant-bg, soft border.
+//   .panel-soft   — same shape but tinted with accent for "this is alive"
+//                    callouts (sessions, alliance, etc).
+//   .panel.callout — adds a left accent rail; for highlighted blocks.
+//   .panel-head / .panel-title / .panel-meta — header row of any panel.
+//   .facts-row    — uniform label/value strip (dashboards, week-stats).
+//   .vital-row    — large stat row with hover/active states (sector-detail).
+//   .link-btn     — inline accent text-as-button.
+//   .section-card — collapsible profile-section pattern.
+//   .reflect-tabs — pill-style tab strip with active glow.
+
+.panel {
+  margin: 0 0 22px;
+  padding: 22px 26px 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--assistant-bg);
+}
+.panel-soft {
+  background: color-mix(in srgb, var(--accent) 3%, var(--assistant-bg));
+}
+.panel.callout {
+  position: relative;
+}
+.panel.callout::before {
+  content: '';
+  position: absolute;
+  left: -1px; top: 16px;
+  width: 3px; height: 32px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+.panel-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+}
+.panel-meta {
+  font-size: 11px;
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+}
+
+// Inline accent text-as-button. For "Full profile →", "Continue session →"
+// links inside a panel body.
+.link-btn {
+  display: inline-block;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.link-btn:hover { text-decoration: underline; }
+
+// Facts row — uniform label/value strip. Use inside .panel for week-stats,
+// quick-glance numbers, multi-cell summary rows. Auto-grid 1fr each
+// keeps cells even regardless of label length.
+.facts-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 4px 18px;
+  font-size: 13px;
+}
+.facts-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+}
+.facts-cell.right { text-align: right; }
+.facts-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  font-weight: 500;
+}
+.facts-value {
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.facts-value small {
+  font-size: 13px;
+  color: var(--fg-dim);
+  margin-left: 1px;
+  font-weight: 400;
+}
+.facts-meta {
+  font-size: 11px;
+  color: var(--fg-dim);
+  letter-spacing: 0.02em;
+}
+
+// Vital row — bigger stat row with hover/active states. Used for the
+// patient-state grid; works for any "this is a number you care about"
+// surfaces. Border + glow respond to interaction.
+.vital-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--assistant-bg);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--fg);
+  transition:
+    border-color .18s ease,
+    background .18s ease,
+    transform .12s ease,
+    box-shadow .25s ease;
+}
+.vital-row .vital-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4px;
+}
+.vital-row .vital-value {
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  line-height: 1.1;
+}
+.vital-row .vital-value small {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin-left: 1px;
+  font-weight: 400;
+}
+.vital-row .vital-meta {
+  font-size: 11px;
+  color: var(--fg-dim);
+  letter-spacing: 0.02em;
+}
+.vital-row:hover, .vital-row.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--assistant-bg));
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px -10px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.vital-row.active .vital-value { color: var(--accent); }
+.vital-row.vital-warn .vital-value { color: var(--danger); }
+.vital-row.vital-warn:hover, .vital-row.vital-warn.active {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger) 5%, var(--assistant-bg));
+  box-shadow: 0 6px 22px -10px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+.vital-row.vital-warn.active .vital-value { color: var(--danger); }
+
+// Section card — collapsible block used for the profile-detail sections.
+// Header row clickable, body slides open below. .collapsed hides body.
+.section-card {
+  background: var(--assistant-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0;
+}
+.section-card .section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+}
+.section-card.collapsed .section-head:hover {
+  background: var(--user-bg);
+  border-radius: 10px;
+}
+.section-card .section-body {
+  padding: 0 18px 18px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--fg);
+}
+.section-card.collapsed .section-body { display: none; }
+
+// Frame-bordered modifier — two-layer background trick that gives the
+// rotating conic-gradient border seen on .hero-photo + .sector-detail
+// in patient-detail. The element's actual border is transparent; the
+// border ring shows the conic gradient via background-clip: border-box.
+// --frame-angle rotates globally on body, so all .frame-bordered
+// elements animate in lockstep. Compose with any .panel / .vital-row.
+.frame-bordered {
+  border: 1px solid transparent !important;
+  background:
+    linear-gradient(var(--assistant-bg), var(--assistant-bg)) padding-box,
+    conic-gradient(
+      from var(--frame-angle),
+      color-mix(in srgb, var(--accent) 95%, transparent) 0deg,
+      color-mix(in srgb, var(--accent) 22%, transparent) 90deg,
+      color-mix(in srgb, var(--accent) 85%, transparent) 180deg,
+      color-mix(in srgb, var(--accent) 22%, transparent) 270deg,
+      color-mix(in srgb, var(--accent) 95%, transparent) 360deg
+    ) border-box !important;
+}
+// Soft variant — same frame, but with a slightly accent-tinted interior
+// (matches .panel.panel-soft + frame-bordered combo).
+.frame-bordered.panel-soft,
+.panel-soft.frame-bordered {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--accent) 3%, var(--assistant-bg)),
+      color-mix(in srgb, var(--accent) 3%, var(--assistant-bg))
+    ) padding-box,
+    conic-gradient(
+      from var(--frame-angle),
+      color-mix(in srgb, var(--accent) 95%, transparent) 0deg,
+      color-mix(in srgb, var(--accent) 22%, transparent) 90deg,
+      color-mix(in srgb, var(--accent) 85%, transparent) 180deg,
+      color-mix(in srgb, var(--accent) 22%, transparent) 270deg,
+      color-mix(in srgb, var(--accent) 95%, transparent) 360deg
+    ) border-box !important;
+}
+
+// Reflect-tabs — pill row used across pages. Notched top-right corner +
+// rotating conic border (matches patient-detail tabs identically). The
+// ::before / ::after pseudos paint the notched border + interior fill.
+.reflect-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 6px 2px;
+}
+.reflect-tabs button {
+  position: relative;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  padding: 12px 16px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+  min-height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: color .15s ease, filter .2s ease, transform .12s ease;
+  overflow: hidden;
+}
+.reflect-tabs button > * { position: relative; z-index: 2; }
+.reflect-tabs button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: conic-gradient(
+    from var(--frame-angle),
+    color-mix(in srgb, var(--accent) 60%, var(--border)) 0deg,
+    color-mix(in srgb, var(--accent) 25%, var(--border)) 90deg,
+    color-mix(in srgb, var(--accent) 55%, var(--border)) 180deg,
+    color-mix(in srgb, var(--accent) 25%, var(--border)) 270deg,
+    color-mix(in srgb, var(--accent) 60%, var(--border)) 360deg
+  );
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  border-radius: 10px;
+}
+.reflect-tabs button::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 100% 200% at 50% 100%,
+      color-mix(in srgb, var(--accent) 6%, transparent) 0%,
+      transparent 70%),
+    var(--assistant-bg);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  border-radius: 9px;
+}
+.reflect-tabs button:hover {
+  color: var(--fg);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 18%, transparent));
+}
+.reflect-tabs button.active {
+  color: var(--accent);
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 40%, transparent));
+}
+.reflect-tabs button.active::before {
+  background: conic-gradient(
+    from var(--frame-angle),
+    color-mix(in srgb, var(--accent) 100%, transparent) 0deg,
+    color-mix(in srgb, var(--accent)  55%, transparent) 90deg,
+    color-mix(in srgb, var(--accent)  95%, transparent) 180deg,
+    color-mix(in srgb, var(--accent)  55%, transparent) 270deg,
+    color-mix(in srgb, var(--accent) 100%, transparent) 360deg
+  );
+}
+.reflect-tabs button.active::after {
+  background:
+    radial-gradient(ellipse 100% 200% at 50% 100%,
+      color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+      transparent 75%),
+    var(--user-bg);
+}
+.reflect-tabs .tab-count {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.reflect-tabs button.active .tab-count {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent);
+}
+@media (max-width: 480px) {
+  .reflect-tabs { gap: 4px; }
+  .reflect-tabs button { padding: 10px 6px; font-size: 11.5px; gap: 4px; }
+  .reflect-tabs .tab-count { display: none; }
+}
+
+// Toggle switch — segmented chip group. For lang picker, scope toggles,
+// any 2-3 option control.
+.reflect-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--user-bg) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: 30px;
+  align-items: center;
+}
+.reflect-segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fg-dim);
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.reflect-segmented button:hover {
+  background: var(--user-bg);
+  color: var(--fg);
+}
+.reflect-segmented button.active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--user-bg));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--fg);
+}
+
 // Global dot-grid texture — Synapse-style sprinkled accents on top of the
 // animated radial wash. Lives on body::before (NOT another background
 // layer on body itself) because we want the dots to stay STATIC while the

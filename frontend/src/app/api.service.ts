@@ -26,6 +26,15 @@ export interface ModalityInfo {
   description: string;
 }
 
+/** City the patient is anchored to. Drives city-based grouping on
+ *  /clients and on the home compact grid. `null` for legacy rows that
+ *  predate the City model (back-fill assigns them by lang on boot). */
+export interface CharacterCity {
+  id: number;
+  key: string;          // stable slug — 'kyiv', 'london', 'paris'
+  displayName: string;  // localised — 'Київ', 'London', 'Paris'
+}
+
 export interface Character {
   id: number;
   slug: string;
@@ -43,6 +52,7 @@ export interface Character {
   progressBadge?: ProgressBadge;
   createdById?: number | null;   // null = system patient (read-only for non-admins)
   isMine?: boolean;              // true if current user created this patient
+  city?: CharacterCity | null;   // null only for very old back-fill rows
 }
 
 /** Structured brief used by the patient creation form. */
@@ -202,6 +212,8 @@ export interface DashboardPatient {
   modality: ModalityKey;
   lastSessionAt: string | null;
   isMine: boolean;
+  /** City for grouping in the home compact grid. Null for legacy rows. */
+  city: CharacterCity | null;
 }
 
 export interface DashboardResponse {
@@ -678,6 +690,11 @@ export class ApiService {
     return firstValueFrom(
       this.http.get<NetworkGraph>(`${this.base}/network/graph`, {
         params: { scope },
+        // Backend filters the graph by the current locale so EN trainees
+        // only see London + EN-cohort, etc. Without this header the
+        // graph would default to 'uk' on the server and the page would
+        // appear empty for non-UK users.
+        headers: { 'Accept-Language': this.i18n.lang() },
       }),
     );
   }
