@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService, type UserPreferences } from './auth.service';
 import {
   ChangePasswordDto,
@@ -39,13 +40,19 @@ export class AuthController {
     };
   }
 
+  // Credential endpoints get a much tighter per-IP limit than the global
+  // 300/min — these are the brute-force / account-abuse targets. Numbers
+  // are generous for a real person (nobody legitimately logs in 10×/min)
+  // but stop password-spray and signup bots.
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto.email, dto.password, dto.displayName);
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@Body() dto: LoginDto) {
@@ -53,6 +60,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {

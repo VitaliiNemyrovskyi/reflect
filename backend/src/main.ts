@@ -29,6 +29,12 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
+  // Trust the first proxy hop (Caddy) so req.ip resolves to the real
+  // client via X-Forwarded-For. Without this every request appears to come
+  // from Caddy's container IP and the per-IP rate limiter would throttle
+  // ALL users as one. `1` = trust exactly one proxy (our single ingress).
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Global exception filter — captures 500-class errors into ErrorLog
   // table for admin debugging without losing default response shape.
   // Resolve PrismaService from the container so the filter shares the

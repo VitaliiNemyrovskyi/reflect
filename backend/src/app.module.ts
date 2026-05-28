@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { join } from 'node:path';
 import { PrismaModule } from './prisma/prisma.module';
 import { PromptsModule } from './prompts/prompts.module';
@@ -28,6 +30,15 @@ import { DashboardModule } from './dashboard/dashboard.module';
       isGlobal: true,
       envFilePath: [join(process.cwd(), '..', '.env'), join(process.cwd(), '.env')],
     }),
+    // Global rate limit: 300 requests / minute / IP. Generous for normal
+    // use (a heavy session bursts well under this) but caps abuse, auth
+    // brute-force, and runaway client loops (the Memory-tab storm would
+    // have been clipped server-side too). Per-IP relies on trust-proxy in
+    // main.ts so Caddy's X-Forwarded-For yields the real client. State is
+    // in-memory per replica, so a client hitting both api replicas gets up
+    // to 2× the limit — acceptable for MVP; a shared Redis store would make
+    // it exact. Tighter per-route limits live on the auth endpoints.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     PrismaModule,
     PromptsModule,
     LlmModule,
@@ -48,6 +59,11 @@ import { DashboardModule } from './dashboard/dashboard.module';
     NpcModule,
     DiaryModule,
     DashboardModule,
+  ],
+  providers: [
+    // Apply the throttler globally. Individual routes opt out with
+    // @SkipThrottle() (e.g. /health) or override with @Throttle() (auth).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

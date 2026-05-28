@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { Public } from '../auth/public.decorator';
 import { HealthService } from './health.service';
@@ -17,6 +18,10 @@ import { HealthService } from './health.service';
  * if a request lands here in that window, Caddy retries on the sibling
  * replica.
  */
+// Exempt from the global rate limiter — Caddy's LB probe hits this every
+// few seconds on every replica; throttling it could falsely mark the API
+// unhealthy and break the load balancer.
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(private readonly health: HealthService) {}
