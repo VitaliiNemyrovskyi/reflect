@@ -24,6 +24,23 @@ jobs:
             echo "=== Pull ==="
             git pull origin main
 
+            # Sync Web Push (VAPID) secrets into the compose .env. Idempotent:
+            # update-in-place if present, else append. Base64url values have no
+            # sed-special chars. Absent secret → skip (push stays disabled).
+            echo "=== Sync VAPID into .env ==="
+            ensure_env() {
+              local key="$1" val="$2"
+              [ -z "$val" ] && return 0
+              touch .env
+              if grep -q "^${key}=" .env; then
+                sed -i "s|^${key}=.*|${key}=${val}|" .env
+              else
+                echo "${key}=${val}" >> .env
+              fi
+            }
+            ensure_env VAPID_PUBLIC_KEY "${{ secrets.VAPID_PUBLIC_KEY }}"
+            ensure_env VAPID_PRIVATE_KEY "${{ secrets.VAPID_PRIVATE_KEY }}"
+
             # Build api + web + tts. api+web change every commit; tts is
             # rebuilt too because the Gemini/edge sidecar evolves often
             # enough. Docker layer cache makes unchanged tts a ~2s no-op,

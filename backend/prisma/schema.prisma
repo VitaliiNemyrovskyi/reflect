@@ -275,6 +275,8 @@ model User {
   events          Event[]    // telemetry events (funnel analysis)
   characterMemories CharacterMemory[]  // memory entries per user-character pair
   milestones      UserMilestone[]   // earned gamification badges
+  pushSubscriptions PushSubscription[] // Web Push endpoints (per device)
+  pushReminders   PushReminder[]    // sent-reminder log (throttling)
   // Per-user subscription. Optional only at the schema level — every
   // user gets one provisioned on register/oauth-create (default plan
   // = 'trial', trialEndsAt = now + 14 days). Lazy-create fallback in
@@ -523,4 +525,41 @@ model UserMilestone {
 
   @@unique([userId, key])
   @@index([userId])
+}
+
+/**
+ * A Web Push endpoint for one device. A user may have several (phone +
+ * laptop). Created when the user opts into reminders; pruned automatically
+ * when the push provider reports the endpoint is gone (404/410).
+ */
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  endpoint  String   @unique // the browser push endpoint URL
+  p256dh    String   // client public key (encryption)
+  auth      String   // client auth secret
+  userAgent String?  // best-effort device label
+  lang      String?  // UI language captured at subscribe — picks reminder copy
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/**
+ * Log of sent care-loop reminders — the throttle backstop. Before sending a
+ * reminder about a patient we check there's no row for (userId, characterId)
+ * in the last ~week, so a trainee is never pinged repeatedly about the same
+ * patient. Also the coarse staleness lock that keeps the 2 api replicas from
+ * double-sending on the daily cron tick.
+ */
+model PushReminder {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  characterId Int
+  sentAt      DateTime @default(now())
+
+  @@index([userId, characterId, sentAt])
+  @@index([sentAt])
 }

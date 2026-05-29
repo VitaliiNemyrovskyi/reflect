@@ -24,6 +24,7 @@ import { NpcModule } from './npc/npc.module';
 import { DiaryModule } from './diary/diary.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ProgressModule } from './progress/progress.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { ProgressModule } from './progress/progress.module';
     DiaryModule,
     DashboardModule,
     ProgressModule,
+    PushModule,
   ],
   providers: [
     // Apply the throttler globally. Individual routes opt out with

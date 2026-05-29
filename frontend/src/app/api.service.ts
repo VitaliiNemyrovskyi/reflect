@@ -752,6 +752,31 @@ export class ApiService {
     return firstValueFrom(this.http.get<ProgressData>(`${this.base}/progress`));
   }
 
+  // ─── Web Push ────────────────────────────────────────────────────────────
+
+  /** `{ publicKey: null }` ⇒ push is disabled server-side (no VAPID keys). */
+  getVapidPublicKey(): Promise<{ publicKey: string | null }> {
+    return firstValueFrom(
+      this.http.get<{ publicKey: string | null }>(`${this.base}/push/vapid-public-key`),
+    );
+  }
+
+  pushSubscribe(subscription: unknown, userAgent: string, lang: string): Promise<{ ok: boolean }> {
+    return firstValueFrom(
+      this.http.post<{ ok: boolean }>(`${this.base}/push/subscribe`, {
+        subscription,
+        userAgent,
+        lang,
+      }),
+    );
+  }
+
+  pushUnsubscribe(endpoint: string): Promise<{ ok: boolean }> {
+    return firstValueFrom(
+      this.http.post<{ ok: boolean }>(`${this.base}/push/unsubscribe`, { endpoint }),
+    );
+  }
+
   /**
    * Pull the character's full memory timeline as the current user
    * knows them — newest first, all kinds. Backend already filters

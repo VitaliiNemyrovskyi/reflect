@@ -69,6 +69,12 @@ x-api: &api
     # admin panel — this var is the recovery mechanism if the panel ever
     # loses all admins.
     ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+    # Web Push (VAPID). Absent → PushService stays disabled (no crash, no
+    # reminders). Injected into /opt/reflect/.env by the deploy workflow from
+    # GitHub Actions secrets. The private key never lives in the repo.
+    VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+    VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+    VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@reflect.swift-mail.app}
   volumes:
     - reflect_data:/data
   # 120s drain budget for SIGTERM → SIGKILL. Inside, the app does:
