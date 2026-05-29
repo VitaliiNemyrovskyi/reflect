@@ -40,6 +40,22 @@ export const BADGES: BadgeDef[] = [
   { key: 'full_palette', title: 'Уся палітра', description: 'Сесії в усіх 5 модальностях', category: 'breadth' },
   { key: 'polyglot', title: 'Поліглот', description: 'Сесії трьома мовами', category: 'breadth' },
   { key: 'on_the_rise', title: 'На підйомі', description: 'Зростання компетенції за останній період', category: 'growth' },
+  // ── Volume / стаж ──
+  { key: 'finding_feet', title: 'Перші кроки', description: '5 завершених сесій', category: 'growth' },
+  { key: 'seasoned', title: 'Набита рука', description: '25 завершених сесій', category: 'growth' },
+  { key: 'centurion', title: 'Сотня', description: '100 завершених сесій', category: 'growth' },
+  // ── Техніка (оцінки терапевта 0-6 в одній сесії) ──
+  { key: 'deep_listener', title: 'Глибоке слухання', description: 'Скерований пошук 5+ в одній сесії', category: 'depth' },
+  { key: 'collaborator', title: 'Союз', description: 'Співпраця 5+ в одній сесії', category: 'alliance' },
+  { key: 'change_agent', title: 'Агент змін', description: 'Стратегія змін 5+ в одній сесії', category: 'technique' },
+  { key: 'well_rounded', title: 'Рівновага', description: 'Усі чотири компетенції 4+ в одній сесії', category: 'technique' },
+  { key: 'flawless', title: 'Бездоганна сесія', description: 'Усі чотири компетенції 5+ в одній сесії', category: 'technique' },
+  // ── Результат для пацієнта (динаміка стану від першої до останньої сесії) ──
+  { key: 'breakthrough', title: 'Прорив', description: 'Інсайт пацієнта помітно зріс за курс сесій', category: 'depth' },
+  { key: 'symptom_relief', title: 'Полегшення', description: 'Симптоматика пацієнта помітно спала за курс сесій', category: 'growth' },
+  // ── Широта / залученість ──
+  { key: 'roster_of_ten', title: 'Десять облич', description: 'Сесії з 10 різними пацієнтами', category: 'breadth' },
+  { key: 'weekender', title: 'І в вихідні', description: 'Сесія у суботу або неділю', category: 'growth' },
   // Flagship — awarded in Phase 1b (need per-skill signals). Shown as goals.
   { key: 'quiet_signal', title: 'Тихий сигнал', description: 'Помітив пасивний суїцидальний сигнал і провів скринінг', category: 'safety', flagship: true, comingSoon: true },
   { key: 'drew_it_out', title: 'Витягнув приховане', description: 'Витягнув прихований між-сесійний шар', category: 'depth', flagship: true, comingSoon: true },
@@ -66,6 +82,16 @@ interface SessionRow {
 
 interface Assessment {
   therapist?: Partial<Record<(typeof RADAR_AXES)[number]['key'], number | null>>;
+  /** Patient-state scores, 1-10. Direction (per characters.controller): lower
+   *  symptomSeverity/defensiveness = better; higher insight/alliance/hopefulness
+   *  = better. Used by the outcome-arc badges (breakthrough / symptom_relief). */
+  patient?: {
+    symptomSeverity?: number | null;
+    insight?: number | null;
+    alliance?: number | null;
+    defensiveness?: number | null;
+    hopefulness?: number | null;
+  };
 }
 
 @Injectable()
@@ -155,6 +181,51 @@ export class ProgressService {
 
     if (this.onTheRise(assessments)) earn.push('on_the_rise');
 
+    // ── Volume / стаж ──
+    if (sessions.length >= 5) earn.push('finding_feet');
+    if (sessions.length >= 25) earn.push('seasoned');
+    if (sessions.length >= 100) earn.push('centurion');
+
+    // ── Single-session technique peaks (therapist 0-6) ──
+    if (assessments.some((a) => (a.therapist?.guidedDiscovery ?? 0) >= 5)) earn.push('deep_listener');
+    if (assessments.some((a) => (a.therapist?.collaboration ?? 0) >= 5)) earn.push('collaborator');
+    if (assessments.some((a) => (a.therapist?.strategyForChange ?? 0) >= 5)) earn.push('change_agent');
+    const allAxesAtLeast = (a: Assessment, v: number) =>
+      RADAR_AXES.every((ax) => (a.therapist?.[ax.key] ?? 0) >= v);
+    if (assessments.some((a) => allAxesAtLeast(a, 4))) earn.push('well_rounded');
+    if (assessments.some((a) => allAxesAtLeast(a, 5))) earn.push('flawless');
+
+    // ── Breadth / engagement ──
+    if (perPair.size >= 10) earn.push('roster_of_ten');
+    // endedAt is stored UTC; day-of-week is timezone-robust enough for a
+    // playful badge (a few hours' offset never crosses a whole weekend).
+    if (sessions.some((s) => s.endedAt && (s.endedAt.getUTCDay() === 0 || s.endedAt.getUTCDay() === 6)))
+      earn.push('weekender');
+
+    // ── Patient-outcome arcs (first→last per patient, 1-10 scale) ──
+    // sessions are ordered endedAt asc, so per-patient arrays stay chronological.
+    const byPatient = new Map<number, Assessment[]>();
+    for (const s of sessions) {
+      const a = this.parse(s.feedbackJson);
+      if (!a) continue;
+      const arr = byPatient.get(s.characterId);
+      if (arr) arr.push(a);
+      else byPatient.set(s.characterId, [a]);
+    }
+    for (const arr of byPatient.values()) {
+      if (arr.length < 2) continue;
+      const first = arr[0].patient;
+      const last = arr[arr.length - 1].patient;
+      const fi = first?.insight;
+      const li = last?.insight;
+      if (typeof fi === 'number' && typeof li === 'number' && li - fi >= 3 && li >= 7)
+        earn.push('breakthrough');
+      const fs = first?.symptomSeverity;
+      const ls = last?.symptomSeverity;
+      if (typeof fs === 'number' && typeof ls === 'number' && fs - ls >= 3 && ls <= 4)
+        earn.push('symptom_relief');
+    }
+
     // Idempotent insert. SQLite doesn't support createMany({ skipDuplicates }),
     // so we read the already-earned keys and only insert the diff. The
     // unique(userId,key) constraint is the real backstop against a race
@@ -191,7 +262,10 @@ export class ProgressService {
   // ── Stage (un-rushable; Master needs flagship badges from Phase 1b) ──────
   private computeStage(earnedCount: number, meanCompetency: number, sessions: SessionRow[]): string {
     const mods = new Set(sessions.map((s) => s.character.modality)).size;
-    if (earnedCount >= 5 && mods >= 3 && meanCompetency >= 65) return 'Досвідчений';
+    // Counts are calibrated against the ~19 awardable badges. The competency +
+    // modality-breadth gates are the real constraint — a grinder with many easy
+    // volume badges but weak scores still can't pass meanCompetency.
+    if (earnedCount >= 8 && mods >= 3 && meanCompetency >= 65) return 'Досвідчений';
     if (earnedCount >= 3 && meanCompetency >= 50) return 'Практик';
     return 'Стажер';
     // 'Майстер' intentionally unreachable until Phase 1b flagship badges

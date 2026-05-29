@@ -10,9 +10,9 @@ import { IconComponent } from './icon.component';
  * Shared application header. Extracted verbatim from the /clients
  * page (characters-list.component) so every authenticated route gets
  * the exact same chrome: logo + optional page subtitle on the left,
- * user-area on the right with name → /profile, 🕸 network, 🛡 admin
- * (admins only), ⚙ settings, the 3-flag segmented lang picker, and
- * the logout button.
+ * user-area on the right: name → /profile, then the <app-icon> nav
+ * (progress, network, admin for admins only, settings), the 3-flag
+ * segmented lang picker, and the logout button.
  *
  * Mounted once in app.component above the router-outlet. Renders only
  * when a user is logged in — public routes (login, register, safety,

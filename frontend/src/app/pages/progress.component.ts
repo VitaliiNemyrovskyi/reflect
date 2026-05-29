@@ -413,6 +413,19 @@ export class ProgressComponent {
     repaired: 'link',
     safe_container: 'shield-heart',
     tough_room: 'mountain',
+    // Phase 1a+ additions
+    finding_feet: 'flag',
+    seasoned: 'medal',
+    centurion: 'trophy',
+    deep_listener: 'waveform',
+    collaborator: 'union',
+    change_agent: 'target',
+    well_rounded: 'hexagon',
+    flawless: 'sparkles',
+    breakthrough: 'lightbulb',
+    symptom_relief: 'sun',
+    roster_of_ten: 'users',
+    weekender: 'calendar',
   };
 
   protected earnedCount = computed(() => this.data()?.badges.filter((b) => b.earned).length ?? 0);
