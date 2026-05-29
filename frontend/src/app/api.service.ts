@@ -814,6 +814,13 @@ export class ApiService {
     return firstValueFrom(this.http.get<CohortDetail>(`${this.base}/cohorts/${id}`));
   }
 
+  /** Instructor deletes their own cohort. */
+  deleteCohort(id: number): Promise<{ deleted: boolean }> {
+    return firstValueFrom(
+      this.http.delete<{ deleted: boolean }>(`${this.base}/cohorts/${id}`),
+    );
+  }
+
   /** Student leaves a cohort they joined. */
   leaveCohort(id: number): Promise<{ left: boolean }> {
     return firstValueFrom(

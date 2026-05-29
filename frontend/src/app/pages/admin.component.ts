@@ -1198,6 +1198,13 @@ export class AdminComponent implements OnInit {
       this.users.update((list) =>
         list.map((u) => (u.id === user.id ? { ...u, isInstructor: updated.isInstructor } : u)),
       );
+      // If the admin toggled their OWN role, patch the cached auth user so
+      // instructor features (the /cohorts block + nav) take effect at once,
+      // without waiting for the next token refresh or a re-login.
+      if (updated.id === this.currentUserId()) {
+        const cur = this.auth.user();
+        if (cur) this.auth.applyProfileUpdate({ ...cur, isInstructor: updated.isInstructor });
+      }
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось змінити роль інструктора.';
       alert(msg);
