@@ -125,4 +125,32 @@ export class CohortService {
     );
     return { id: cohort.id, name: cohort.name, inviteCode: cohort.inviteCode, students };
   }
+
+  /**
+   * Student leaves a cohort (removes their own membership). Idempotent via
+   * deleteMany — leaving a group you're not in is a no-op, not an error.
+   */
+  async leaveCohort(userId: number, cohortId: number) {
+    await this.prisma.cohortMember.deleteMany({ where: { cohortId, userId } });
+    return { left: true };
+  }
+
+  /**
+   * Instructor removes a student from their own cohort. Owner-checked so
+   * one instructor can't evict members from another's group. Idempotent.
+   */
+  async removeMember(ownerId: number, cohortId: number, memberUserId: number) {
+    const cohort = await this.prisma.cohort.findUnique({
+      where: { id: cohortId },
+      select: { ownerId: true },
+    });
+    if (!cohort) throw new NotFoundException('Групу не знайдено.');
+    if (cohort.ownerId !== ownerId) {
+      throw new ForbiddenException('Це не ваша група.');
+    }
+    await this.prisma.cohortMember.deleteMany({
+      where: { cohortId, userId: memberUserId },
+    });
+    return { removed: true };
+  }
 }

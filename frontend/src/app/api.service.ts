@@ -814,6 +814,20 @@ export class ApiService {
     return firstValueFrom(this.http.get<CohortDetail>(`${this.base}/cohorts/${id}`));
   }
 
+  /** Student leaves a cohort they joined. */
+  leaveCohort(id: number): Promise<{ left: boolean }> {
+    return firstValueFrom(
+      this.http.delete<{ left: boolean }>(`${this.base}/cohorts/${id}/membership`),
+    );
+  }
+
+  /** Instructor removes a student from their cohort. */
+  removeCohortMember(id: number, userId: number): Promise<{ removed: boolean }> {
+    return firstValueFrom(
+      this.http.delete<{ removed: boolean }>(`${this.base}/cohorts/${id}/members/${userId}`),
+    );
+  }
+
   /** Admin: grant/revoke the instructor role. */
   adminSetInstructor(userId: number, value: boolean): Promise<{ id: number; isInstructor: boolean }> {
     return firstValueFrom(

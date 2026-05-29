@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { CohortService } from './cohort.service';
 
@@ -29,5 +29,21 @@ export class CohortController {
   @Get(':id')
   detail(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
     return this.cohort.getCohortForOwner(user.id, id);
+  }
+
+  /** Student leaves a cohort they joined. */
+  @Delete(':id/membership')
+  leave(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+    return this.cohort.leaveCohort(user.id, id);
+  }
+
+  /** Instructor removes a student from their cohort (owner-checked). */
+  @Delete(':id/members/:userId')
+  removeMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
+    return this.cohort.removeMember(user.id, id, userId);
   }
 }
