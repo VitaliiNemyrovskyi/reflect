@@ -28,6 +28,7 @@ export class AdminService {
       displayName: u.displayName,
       provider: u.provider,
       isAdmin: u.isAdmin,
+      isInstructor: u.isInstructor,
       sessionCount: u._count.sessions,
       createdAt: u.createdAt,
       // Surface billing fields so the admin table can render current
@@ -148,6 +149,23 @@ export class AdminService {
       select: { id: true, email: true, isAdmin: true },
     });
     return updated;
+  }
+
+  /** Grant or revoke the instructor role (can create teaching cohorts). */
+  async setInstructor(
+    targetUserId: number,
+    value: boolean,
+  ): Promise<{ id: number; email: string; isInstructor: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundException('user not found');
+    return this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { isInstructor: value },
+      select: { id: true, email: true, isInstructor: true },
+    });
   }
 
   /**

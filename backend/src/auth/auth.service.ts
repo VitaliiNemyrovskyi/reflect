@@ -15,7 +15,7 @@ export interface AuthTokens {
 }
 
 export interface AuthResult extends AuthTokens {
-  user: { id: number; email: string; displayName: string | null; isAdmin: boolean };
+  user: { id: number; email: string; displayName: string | null; isAdmin: boolean; isInstructor: boolean };
 }
 
 /**
@@ -175,6 +175,7 @@ export class AuthService {
       provider: user.provider,
       hasPassword: !!user.hashedPassword,
       isAdmin,
+      isInstructor: user.isInstructor,
     };
   }
 
@@ -208,6 +209,7 @@ export class AuthService {
       provider: user.provider,
       hasPassword: !!user.hashedPassword,
       isAdmin: user.isAdmin,
+      isInstructor: user.isInstructor,
     };
   }
 
@@ -318,7 +320,13 @@ export class AuthService {
     const isAdmin = await this.reconcileAdmin(user);
     return {
       ...tokens,
-      user: { id: user.id, email: user.email, displayName: user.displayName, isAdmin },
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        isAdmin,
+        isInstructor: user.isInstructor,
+      },
     };
   }
 

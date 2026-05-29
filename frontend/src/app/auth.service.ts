@@ -18,6 +18,8 @@ export interface AuthUser {
   hasPassword?: boolean;
   /** Granted via ADMIN_EMAILS env var on backend; reconciled on every login. */
   isAdmin?: boolean;
+  /** Admin-granted: can create teaching cohorts (instructor mode). */
+  isInstructor?: boolean;
 }
 
 export interface AuthResult {

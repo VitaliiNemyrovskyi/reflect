@@ -101,6 +101,16 @@ export class AdminController {
     return this.admin.revokeAdmin(id, caller.id);
   }
 
+  /** Grant/revoke the instructor role (can create teaching cohorts). */
+  @Post('users/:id/instructor')
+  @HttpCode(HttpStatus.OK)
+  async setInstructor(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { value: boolean },
+  ) {
+    return this.admin.setInstructor(id, !!body?.value);
+  }
+
   @Get('errors')
   errors(
     @Query('limit') limit?: string,

@@ -267,6 +267,10 @@ model User {
   // data, browses error logs. Bootstrapped via ADMIN_EMAILS env var on
   // each login/refresh/me, so granting admin doesn't require manual SQL.
   isAdmin         Boolean  @default(false)
+  // Instructor role — can create cohorts and see their members' progress.
+  // Granted by an admin in the panel (like a plan grant); students don't
+  // need it (they just join a cohort by invite code).
+  isInstructor    Boolean  @default(false)
   createdAt       DateTime @default(now())
   sessions        Session[]
   errorLogs       ErrorLog[]
@@ -277,6 +281,8 @@ model User {
   milestones      UserMilestone[]   // earned gamification badges
   pushSubscriptions PushSubscription[] // Web Push endpoints (per device)
   pushReminders   PushReminder[]    // sent-reminder log (throttling)
+  cohortsOwned    Cohort[]        @relation("CohortOwner") // cohorts this instructor runs
+  cohortMemberships CohortMember[]  // cohorts this user is a student in
   // Per-user subscription. Optional only at the schema level — every
   // user gets one provisioned on register/oauth-create (default plan
   // = 'trial', trialEndsAt = now + 14 days). Lazy-create fallback in
@@ -562,4 +568,35 @@ model PushReminder {
 
   @@index([userId, characterId, sentAt])
   @@index([sentAt])
+}
+
+/**
+ * A teaching cohort (group): an instructor + the students who joined by its
+ * invite code. The instructor sees members' progress (private educational
+ * oversight — NOT a public leaderboard). A user can own several cohorts and
+ * be a student in others.
+ */
+model Cohort {
+  id         Int      @id @default(autoincrement())
+  name       String
+  owner      User     @relation("CohortOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId    Int
+  inviteCode String   @unique // short shareable code students enter to join
+  createdAt  DateTime @default(now())
+  members    CohortMember[]
+
+  @@index([ownerId])
+}
+
+/** Membership of a student in a cohort. Owner (instructor) is NOT a member row. */
+model CohortMember {
+  id        Int      @id @default(autoincrement())
+  cohort    Cohort   @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  cohortId  Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  joinedAt  DateTime @default(now())
+
+  @@unique([cohortId, userId])
+  @@index([userId])
 }

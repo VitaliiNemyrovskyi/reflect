@@ -50,6 +50,10 @@ import { IconComponent } from './icon.component';
                class="ghost icon small"
                [title]="i18n.t('nav.network')"
                [attr.aria-label]="i18n.t('nav.network')"><app-icon name="network" /></a>
+            <a routerLink="/cohorts"
+               class="ghost icon small"
+               [title]="i18n.isEn ? 'Cohorts' : 'Групи'"
+               [attr.aria-label]="i18n.isEn ? 'Cohorts' : 'Групи'"><app-icon name="users" /></a>
             @if (u.isAdmin) {
               <a routerLink="/admin"
                  class="ghost icon small admin-link"
@@ -83,6 +87,9 @@ import { IconComponent } from './icon.component';
             </a>
             <a routerLink="/network" class="mm-item" (click)="menuOpen.set(false)">
               <app-icon name="network" /><span>{{ i18n.t('nav.network') }}</span>
+            </a>
+            <a routerLink="/cohorts" class="mm-item" (click)="menuOpen.set(false)">
+              <app-icon name="users" /><span>{{ i18n.isEn ? 'Cohorts' : 'Групи' }}</span>
             </a>
             @if (u.isAdmin) {
               <a routerLink="/admin" class="mm-item" (click)="menuOpen.set(false)">
