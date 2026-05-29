@@ -111,7 +111,13 @@ import { IconComponent } from './icon.component';
   /* All styles copied verbatim from characters-list.component — single
      source of truth for the chrome across pages. */
   styles: [`
-    .header { margin-bottom: 24px; position: relative; z-index: 1; }
+    /* z-index 100 (not 1): page-root containers create their own stacking
+       context at z-index:1 (e.g. .progress-page) and render AFTER the
+       header in DOM order, so a z-index:1 header loses the tie and page
+       content paints over the open dropdown menu. 100 keeps the whole
+       header subtree (incl. the absolutely-positioned dropdown) above all
+       normal page content, while staying below full-screen modals. */
+    .header { margin-bottom: 24px; position: relative; z-index: 100; }
     .brand-block { display: flex; flex-direction: column; gap: 6px; }
     .brand-link {
       display: inline-flex;
