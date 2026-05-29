@@ -3,11 +3,14 @@ import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   ApiService,
+  type CaseloadNudge,
   DashboardPatient,
   DashboardResponse,
+  type PatientWellbeing,
 } from '../api.service';
 import { AuthService } from '../auth.service';
 import { I18nService } from '../i18n.service';
+import { IconComponent } from '../icon.component';
 
 /**
  * Logged-in home page — the living world dashboard.
@@ -29,7 +32,7 @@ import { I18nService } from '../i18n.service';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, IconComponent],
   template: `
     <header class="home-header">
       <div class="title-row">
@@ -157,16 +160,34 @@ import { I18nService } from '../i18n.service';
           }
         </header>
 
+        <!-- One gentle care-loop nudge (§12): most-idle slipping patient. -->
+        @if (d.caseloadNudge; as n) {
+          <a [routerLink]="['/patient', n.characterId]"
+             class="caseload-nudge"
+             [class.at-risk]="n.stage === 'at_risk'">
+            <span class="nudge-dot"></span>
+            <span class="nudge-text">{{ nudgeText(n) }}</span>
+            <span class="nudge-cta">{{ i18n.isEn ? 'Open' : 'Відкрити' }} →</span>
+          </a>
+        }
+
         @for (group of groupedPatients(d.patientGrid); track group.key; let first = $first) {
           <div class="patient-city-block">
             <div class="patient-city-head">
-              <span class="patient-city-pin">📍</span>
+              <span class="patient-city-pin"><app-icon name="map-pin" /></span>
               <span class="patient-city-name">{{ group.displayName }}</span>
               <span class="patient-city-count dim">· {{ group.characters.length }}</span>
             </div>
             <div class="patient-grid">
               @for (p of group.characters; track p.id) {
-                <a [routerLink]="['/patient', p.id]" class="patient-card">
+                <a [routerLink]="['/patient', p.id]"
+                   class="patient-card"
+                   [class.lapsed]="p.wellbeing?.stage === 'lapsed'">
+                  @if (p.wellbeing && p.wellbeing.stage !== 'active') {
+                    <span class="wb-dot"
+                          [class]="'wb-' + p.wellbeing.stage"
+                          [title]="wellbeingTitle(p.wellbeing)"></span>
+                  }
                   @if (p.avatarUrl) {
                     <img [src]="p.avatarUrl" [alt]="p.displayName" class="patient-avatar" />
                   } @else {
@@ -498,6 +519,7 @@ import { I18nService } from '../i18n.service';
       gap: 12px;
     }
     .patient-card {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -511,12 +533,68 @@ import { I18nService } from '../i18n.service';
       text-decoration: none;
       color: var(--fg);
       text-align: center;
-      transition: transform .15s ease, border-color .15s ease;
+      transition: transform .15s ease, border-color .15s ease, opacity .2s ease;
     }
     .patient-card:hover {
       transform: translateY(-2px);
       border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
     }
+
+    /* ── Wellbeing care-loop (§12) ── ambient, never alarming. The dot
+       appears ONLY for patients needing attention; healthy/active cards
+       stay clean. Lapsed patients fade + desaturate (they "went cold"). */
+    .wb-dot {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px var(--assistant-bg);
+    }
+    .wb-slipping {
+      background: var(--warn);
+      box-shadow: 0 0 0 3px var(--assistant-bg), 0 0 8px color-mix(in srgb, var(--warn) 60%, transparent);
+    }
+    .wb-at_risk {
+      background: color-mix(in srgb, var(--danger) 55%, var(--warn));
+      box-shadow: 0 0 0 3px var(--assistant-bg), 0 0 9px color-mix(in srgb, var(--danger) 50%, transparent);
+    }
+    .wb-lapsed { background: var(--fg-dim); }
+    .patient-card.lapsed { opacity: 0.5; }
+    .patient-card.lapsed .patient-avatar,
+    .patient-card.lapsed .avatar-fallback.patient { filter: grayscale(0.9); }
+    .patient-card.lapsed:hover { opacity: 0.8; }
+
+    /* Single caseload nudge — a quiet, accent-tinted row. Informational,
+       not a guilt-trip; at most one shows. */
+    .caseload-nudge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 10px 14px;
+      border: 1px solid color-mix(in srgb, var(--warn) 28%, var(--border));
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--warn) 7%, var(--assistant-bg));
+      text-decoration: none;
+      color: var(--fg);
+      font-size: 13px;
+      transition: border-color .15s ease, background .15s ease;
+    }
+    .caseload-nudge:hover {
+      border-color: color-mix(in srgb, var(--warn) 50%, var(--border));
+      background: color-mix(in srgb, var(--warn) 11%, var(--assistant-bg));
+    }
+    .caseload-nudge.at-risk {
+      border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+      background: color-mix(in srgb, var(--danger) 7%, var(--assistant-bg));
+    }
+    .caseload-nudge .nudge-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--warn); flex: 0 0 auto;
+    }
+    .caseload-nudge.at-risk .nudge-dot { background: color-mix(in srgb, var(--danger) 55%, var(--warn)); }
+    .caseload-nudge .nudge-text { flex: 1 1 auto; min-width: 0; }
+    .caseload-nudge .nudge-cta { color: var(--fg-dim); font-size: 12px; white-space: nowrap; }
     .patient-avatar {
       width: 112px;
       height: 112px;
@@ -742,6 +820,23 @@ export class HomeComponent implements OnInit {
     if (day === 1) return 'вчора';
     if (day < 7) return `${day} ${day < 5 ? 'дні' : 'днів'} тому`;
     return date.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+  }
+
+  /** Tooltip on a patient card's wellbeing dot — gentle, informational. */
+  wellbeingTitle(wb: PatientWellbeing): string {
+    const w = Math.max(1, Math.round(wb.weeksIdle));
+    if (wb.stage === 'lapsed') {
+      return this.i18n.isEn ? 'Stopped coming — reach out to re-engage' : 'Припинив(ла) ходити — варто відновити контакт';
+    }
+    return this.i18n.isEn ? `Not seen in ~${w} wk${w === 1 ? '' : 's'}` : `Не було на сесії ~${w} тиж.`;
+  }
+
+  /** Copy for the single caseload nudge — informational, never guilt. */
+  nudgeText(n: CaseloadNudge): string {
+    const w = Math.max(1, Math.round(n.weeksIdle));
+    return this.i18n.isEn
+      ? `Haven't seen ${n.displayName} in ~${w} week${w === 1 ? '' : 's'}`
+      : `${n.displayName} давно не було на сесії — ~${w} тиж.`;
   }
 
   /**

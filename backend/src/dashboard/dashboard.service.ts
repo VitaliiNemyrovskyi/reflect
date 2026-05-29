@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CityService } from '../city/city.service';
 import { CharactersService } from '../characters/characters.service';
 import { coerceLang } from '../common/lang';
+import {
+  computeWellbeing,
+  patientStateScore,
+  type NeglectStage,
+  type PatientState,
+  type Wellbeing,
+} from './wellbeing';
 
 /**
  * Aggregator for the logged-in home page. One round-trip returns
@@ -195,6 +202,62 @@ export class DashboardService {
       patientGrid.push(p);
     }
 
+    // ── Wellbeing care-loop (§12) ────────────────────────────────────────
+    // Seed each visible patient's meter from their LAST scored session, then
+    // decay by weeks idle. One extra query scoped to the grid; everything
+    // derived (no stored meter, no cron). Patients never scored stay inert.
+    const gridIds = patientGrid.map((p) => p.id);
+    const now = new Date();
+    const wellbeingById = new Map<number, Wellbeing | null>();
+    if (gridIds.length) {
+      const scored = await this.prisma.session.findMany({
+        where: {
+          userId,
+          characterId: { in: gridIds },
+          endedAt: { not: null },
+          feedbackJson: { not: null },
+        },
+        orderBy: { endedAt: 'desc' },
+        select: { characterId: true, endedAt: true, feedbackJson: true },
+      });
+      for (const s of scored) {
+        if (wellbeingById.has(s.characterId) || !s.endedAt || !s.feedbackJson) continue;
+        let patient: PatientState | null = null;
+        try {
+          patient = (JSON.parse(s.feedbackJson) as { patient?: PatientState }).patient ?? null;
+        } catch {
+          patient = null;
+        }
+        wellbeingById.set(
+          s.characterId,
+          computeWellbeing(patientStateScore(patient), s.endedAt, now),
+        );
+      }
+    }
+    const gridWithWellbeing = patientGrid.map((p) => ({
+      ...p,
+      wellbeing: wellbeingById.get(p.id) ?? null,
+    }));
+
+    // ONE gentle nudge: the most-idle started patient that's slipping or
+    // at-risk (not active, not yet lapsed — still cleanly recoverable). The
+    // home page surfaces just this one quiet line, never a pile of reminders.
+    let caseloadNudge:
+      | { characterId: number; displayName: string; weeksIdle: number; stage: NeglectStage }
+      | null = null;
+    for (const p of gridWithWellbeing) {
+      const wb = p.wellbeing;
+      if (!wb || (wb.stage !== 'slipping' && wb.stage !== 'at_risk')) continue;
+      if (!caseloadNudge || wb.weeksIdle > caseloadNudge.weeksIdle) {
+        caseloadNudge = {
+          characterId: p.id,
+          displayName: p.displayName,
+          weeksIdle: wb.weeksIdle,
+          stage: wb.stage,
+        };
+      }
+    }
+
     return {
       city: city
         ? {
@@ -227,10 +290,12 @@ export class DashboardService {
         withFeedback: weekSessions.filter((s) => !!s.feedback).length,
         avgAlliance,
       },
-      patientGrid,
+      patientGrid: gridWithWellbeing,
       // Indicates whether there are more characters than the grid
       // shows — frontend can render an "Усі пацієнти →" link to /clients.
       hasMorePatients: allCharacters.length > patientGrid.length,
+      // At most one gentle "you haven't seen X in a while" nudge (§12/§13).
+      caseloadNudge,
     };
   }
 

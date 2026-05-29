@@ -211,6 +211,16 @@ export interface DashboardDiaryEntry {
   createdAt: string;
 }
 
+/** Neglect stage of a started patient's care-loop meter (gamification §12). */
+export type NeglectStage = 'active' | 'slipping' | 'at_risk' | 'lapsed';
+
+export interface PatientWellbeing {
+  /** 0-100 — clinical baseline from last session minus neglect decay. */
+  score: number;
+  stage: NeglectStage;
+  weeksIdle: number;
+}
+
 export interface DashboardPatient {
   id: number;
   displayName: string;
@@ -222,6 +232,16 @@ export interface DashboardPatient {
   isMine: boolean;
   /** City for grouping in the home compact grid. Null for legacy rows. */
   city: CharacterCity | null;
+  /** Care-loop meter. Null for patients with no scored session yet (inert). */
+  wellbeing: PatientWellbeing | null;
+}
+
+/** One gentle "you haven't seen X in a while" reminder for the home page. */
+export interface CaseloadNudge {
+  characterId: number;
+  displayName: string;
+  weeksIdle: number;
+  stage: NeglectStage;
 }
 
 export interface DashboardResponse {
@@ -236,6 +256,8 @@ export interface DashboardResponse {
   };
   patientGrid: DashboardPatient[];
   hasMorePatients: boolean;
+  /** At most one gentle caseload reminder, or null when nothing's slipping. */
+  caseloadNudge: CaseloadNudge | null;
 }
 
 // ── Network graph ─────────────────────────────────────────────────────
