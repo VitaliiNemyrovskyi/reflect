@@ -3,11 +3,12 @@ import { RouterLink, RouterOutlet } from '@angular/router';
 import { ThemeService } from './theme.service';
 import { I18nService } from './i18n.service';
 import { AppHeaderComponent } from './app-header.component';
+import { AnnounceComponent } from './announce.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, AppHeaderComponent],
+  imports: [RouterOutlet, RouterLink, AppHeaderComponent, AnnounceComponent],
   template: `<!-- lang attr set on <html> by I18nService.setLang() -->
     <!-- Ambient "blob" layer: a few fixed, blurred accent orbs that
          drift slowly behind everything. Each one has its own size,
@@ -27,6 +28,9 @@ import { AppHeaderComponent } from './app-header.component';
            chromeless. Pages can pass a subtitle via the inner router
            outlet — see characters-list which sets chars.page_title. -->
       <app-header />
+      <!-- One-time feature announcement (self-gates: only when logged in,
+           push-capable, and not yet enabled/dismissed). -->
+      <app-announce />
       <router-outlet />
       <!-- Global footer: subtle disclaimer + link to /safety. Lives at
            the bottom of every page (router-outlet content above stacks
