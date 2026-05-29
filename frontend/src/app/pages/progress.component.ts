@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService, type ProgressData } from '../api.service';
 import { I18nService } from '../i18n.service';
+import { IconComponent } from '../icon.component';
 
 /**
  * /progress — the trainee's growth page (gamification Phase 1a).
@@ -23,7 +24,7 @@ import { I18nService } from '../i18n.service';
 @Component({
   selector: 'app-progress',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, IconComponent],
   template: `
     <div class="progress-page fx-fade-up">
       <header class="page-head">
@@ -59,7 +60,7 @@ import { I18nService } from '../i18n.service';
                      [class.current]="s.current"
                      [class.locked]="s.locked"
                      [title]="s.label">
-                  <span class="pip-dot">@if (s.locked) {🔒}</span>
+                  <span class="pip-dot">@if (s.locked) {<app-icon name="lock" />}</span>
                   <span class="pip-label">{{ s.label }}</span>
                 </div>
               }
@@ -161,7 +162,7 @@ import { I18nService } from '../i18n.service';
                    [class.flagship]="b.flagship"
                    [title]="b.description">
                 <div class="medal" [class.frame-bordered]="b.earned">
-                  <span class="glyph">{{ glyph(b.key) }}</span>
+                  <app-icon class="glyph" [name]="glyph(b.key)" />
                   @if (b.flagship) { <span class="star">★</span> }
                 </div>
                 <div class="badge-body">
@@ -242,7 +243,7 @@ import { I18nService } from '../i18n.service';
     }
     .pip.current .pip-dot { background: var(--accent); }
     .pip.locked { opacity: 0.6; }
-    .pip.locked .pip-dot { background: transparent; width: auto; height: auto; }
+    .pip.locked .pip-dot { background: transparent; width: auto; height: auto; font-size: 12px; }
 
     .hero-facts { border-top: 1px dashed var(--border); padding-top: 18px; }
 
@@ -338,8 +339,11 @@ import { I18nService } from '../i18n.service';
         radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
         var(--user-bg);
     }
-    .glyph { font-size: 26px; line-height: 1; filter: grayscale(0.15); }
-    .badge.locked .glyph, .badge.soon .glyph { filter: grayscale(1); opacity: 0.8; }
+    /* Icon sizes to 1em (font-size here) and inherits color via currentColor.
+       Earned badges glow accent; locked/coming-soon stay dim (the whole card
+       also dims via .badge.locked/.soon opacity). */
+    .glyph { font-size: 28px; line-height: 0; color: var(--fg-dim); }
+    .badge.earned .glyph { color: var(--accent); }
     .star {
       position: absolute; right: -2px; top: -2px;
       font-size: 12px; color: var(--accent);
@@ -393,21 +397,22 @@ export class ProgressComponent {
     'Стажер': 'Trainee', 'Практик': 'Practitioner', 'Досвідчений': 'Experienced', 'Майстер': 'Master',
   };
 
-  /** Per-badge glyph. Backend doesn't ship icons (keeps the catalog text-only),
-   *  so the visual lives here next to the rest of the presentation. */
+  /** Per-badge icon name (see icon.component's ICONS map). Backend doesn't
+   *  ship icons (keeps the catalog text-only), so the visual lives here next
+   *  to the rest of the presentation. */
   private readonly GLYPHS: Record<string, string> = {
-    first_contact: '🌱',
-    attuned: '💟',
-    stayed_course: '⚓',
-    three_cities: '🗺️',
-    full_palette: '🎨',
-    polyglot: '🌐',
-    on_the_rise: '📈',
-    quiet_signal: '🛟',
-    drew_it_out: '🔦',
-    repaired: '🧵',
-    safe_container: '🫂',
-    tough_room: '🧗',
+    first_contact: 'sprout',
+    attuned: 'heart',
+    stayed_course: 'anchor',
+    three_cities: 'map-pin',
+    full_palette: 'palette',
+    polyglot: 'globe',
+    on_the_rise: 'chart-up',
+    quiet_signal: 'life-buoy',
+    drew_it_out: 'search',
+    repaired: 'link',
+    safe_container: 'shield-heart',
+    tough_room: 'mountain',
   };
 
   protected earnedCount = computed(() => this.data()?.badges.filter((b) => b.earned).length ?? 0);
@@ -484,7 +489,7 @@ export class ProgressComponent {
   }
 
   protected glyph(key: string): string {
-    return this.GLYPHS[key] ?? '◆';
+    return this.GLYPHS[key] ?? 'diamond';
   }
 
   protected async reload(): Promise<void> {

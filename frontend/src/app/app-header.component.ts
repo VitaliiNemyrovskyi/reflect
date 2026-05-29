@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
 import { I18nService } from './i18n.service';
 import { LogoComponent } from './logo.component';
+import { IconComponent } from './icon.component';
 
 /**
  * Shared application header. Extracted verbatim from the /clients
@@ -24,7 +25,7 @@ import { LogoComponent } from './logo.component';
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterLink, LogoComponent],
+  imports: [CommonModule, RouterLink, LogoComponent, IconComponent],
   template: `
     @if (auth.user(); as u) {
       <header class="header">
@@ -44,21 +45,21 @@ import { LogoComponent } from './logo.component';
             <a routerLink="/progress"
                class="ghost icon small"
                [title]="i18n.isEn ? 'Progress' : 'Прогрес'"
-               [attr.aria-label]="i18n.isEn ? 'Progress' : 'Прогрес'">📈</a>
+               [attr.aria-label]="i18n.isEn ? 'Progress' : 'Прогрес'"><app-icon name="chart-up" /></a>
             <a routerLink="/network"
                class="ghost icon small"
                [title]="i18n.t('nav.network')"
-               [attr.aria-label]="i18n.t('nav.network')">🕸</a>
+               [attr.aria-label]="i18n.t('nav.network')"><app-icon name="network" /></a>
             @if (u.isAdmin) {
               <a routerLink="/admin"
                  class="ghost icon small admin-link"
                  title="Admin panel"
-                 aria-label="Admin panel">🛡</a>
+                 aria-label="Admin panel"><app-icon name="shield-check" /></a>
             }
             <a routerLink="/settings"
                class="ghost icon small"
                [title]="i18n.t('nav.settings')"
-               [attr.aria-label]="i18n.t('nav.settings')">⚙</a>
+               [attr.aria-label]="i18n.t('nav.settings')"><app-icon name="settings" /></a>
             <button class="ghost small" (click)="logout()">{{ i18n.t('nav.logout') }}</button>
           </div>
         </div>
