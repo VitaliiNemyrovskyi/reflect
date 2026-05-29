@@ -436,14 +436,17 @@ export class SettingsComponent implements OnInit {
     this.pushErr.set(false);
     try {
       const r = await this.api.pushTest(this.i18n.lang());
-      if (r.sent > 0) {
-        this.pushMsg.set(`Надіслано — перевір сповіщення (${r.sent} прист.).`);
-      } else if (!r.enabled) {
+      if (!r.enabled) {
         this.pushErr.set(true);
-        this.pushMsg.set('Push вимкнений на сервері.');
+        this.pushMsg.set('Сервер: VAPID не налаштований (push вимкнений на сервері).');
+      } else if (r.subscriptions === 0) {
+        this.pushErr.set(true);
+        this.pushMsg.set('Підписки на цьому акаунті немає — пристрій не зареєструвався. Перевір дозвіл у браузері; на iPhone у вкладці Safari не працює (треба «На екран Домівки»).');
+      } else if (r.sent === 0) {
+        this.pushErr.set(true);
+        this.pushMsg.set(`Підписка є (${r.subscriptions}), але відправка не вдалась — проблема з ключами/мережею на сервері. Скажи мені — гляну.`);
       } else {
-        this.pushErr.set(true);
-        this.pushMsg.set('0 пристроїв. Спершу увімкни тумблер саме на цьому пристрої.');
+        this.pushMsg.set(`Надіслано на ${r.sent} прист. Якщо не бачиш — увімкни сповіщення браузера в налаштуваннях ОС (на Mac: Системні налаштування → Сповіщення → твій браузер).`);
       }
     } catch {
       this.pushErr.set(true);

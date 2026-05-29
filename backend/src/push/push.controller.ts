@@ -49,12 +49,18 @@ export class PushController {
         : body?.lang === 'fr'
           ? 'Notification test — les push fonctionnent.'
           : 'Тестове нагадування — пуш працює.';
+    const subscriptions = await this.push.subscriptionCount(user.id);
     const sent = await this.push.sendToUser(user.id, {
       title: 'Reflect',
       body: msg,
       url: '/',
       tag: 'reflect-test',
     });
-    return { sent, enabled: this.push.isEnabled() };
+    // subscriptions vs sent vs enabled pinpoints which layer fails:
+    //  enabled=false       → no VAPID on server
+    //  subscriptions=0     → this device never registered (permission? iOS tab?)
+    //  subscriptions>0,sent=0 → send rejected (VAPID mismatch / network)
+    //  sent>0              → delivered to the push service; OS display next
+    return { enabled: this.push.isEnabled(), subscriptions, sent };
   }
 }

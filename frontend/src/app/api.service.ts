@@ -792,10 +792,14 @@ export class ApiService {
     );
   }
 
-  /** Fire an immediate test push to the caller's own devices. `sent` = # reached. */
-  pushTest(lang: string): Promise<{ sent: number; enabled: boolean }> {
+  /** Fire an immediate test push to the caller's own devices.
+   *  enabled=server has VAPID · subscriptions=devices registered · sent=reached. */
+  pushTest(lang: string): Promise<{ enabled: boolean; subscriptions: number; sent: number }> {
     return firstValueFrom(
-      this.http.post<{ sent: number; enabled: boolean }>(`${this.base}/push/test`, { lang }),
+      this.http.post<{ enabled: boolean; subscriptions: number; sent: number }>(
+        `${this.base}/push/test`,
+        { lang },
+      ),
     );
   }
 
