@@ -18,6 +18,7 @@ import { AdminService } from './admin.service';
 import { SubscriptionsService } from '../billing/subscriptions.service';
 import { PLANS, PlanId } from '../billing/plans.config';
 import { EventsService } from '../events/events.service';
+import { ProgressService } from '../progress/progress.service';
 
 /**
  * All admin endpoints live under /api/admin/* and require both:
@@ -33,7 +34,18 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly subscriptions: SubscriptionsService,
     private readonly events: EventsService,
+    private readonly progress: ProgressService,
   ) {}
+
+  /**
+   * Therapist board (design §14) — admin-only overview of every practising
+   * therapist's progress + caseload health. NOT a trainee-facing leaderboard:
+   * sorted by practice volume, never clinical score.
+   */
+  @Get('therapist-board')
+  therapistBoard() {
+    return this.progress.getAdminBoard();
+  }
 
   @Get('users')
   users() {

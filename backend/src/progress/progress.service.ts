@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeWellbeing, patientStateScore } from '../dashboard/wellbeing';
 
 /**
  * Gamification progress (Phase 1a). Everything here is derived from data we
@@ -160,6 +161,63 @@ export class ProgressService {
     };
   }
 
+  /**
+   * Admin-only therapist board (design §14). One summary row per user who has
+   * practised (≥1 scored session). Read-only — reuses earnedKeys (no award
+   * side-effect) and derives caseload health from each patient's last-session
+   * wellbeing. Sorted by PRACTICE VOLUME (engagement), never by clinical score:
+   * this is oversight + a future-directory seed, not a quality leaderboard
+   * (Principle #2). Beta-scale loop (one query per user) — fine for now.
+   */
+  async getAdminBoard() {
+    const users = await this.prisma.user.findMany({
+      select: { id: true, email: true, displayName: true, isAdmin: true },
+    });
+    const awardable = BADGES.filter((b) => !b.comingSoon).length;
+    const now = new Date();
+    const rows = [];
+    for (const u of users) {
+      const sessions = await this.loadScoredSessions(u.id);
+      if (sessions.length === 0) continue;
+      const assessments = sessions
+        .map((s) => this.parse(s.feedbackJson))
+        .filter((a): a is Assessment => a !== null);
+      const meanCompetency = Math.round(
+        CORE_AXES.reduce((s, ax) => s + this.axisMean(assessments, ax.key), 0) / CORE_AXES.length,
+      );
+      const earned = this.earnedKeys(sessions, assessments);
+
+      // Caseload health: keep the LAST scored session per patient (sessions are
+      // asc by endedAt, so the final set() wins), then count lapsed meters.
+      const lastByPatient = new Map<number, SessionRow>();
+      for (const s of sessions) lastByPatient.set(s.characterId, s);
+      let lapsed = 0;
+      for (const s of lastByPatient.values()) {
+        if (!s.endedAt) continue;
+        const patient = this.parse(s.feedbackJson)?.patient ?? null;
+        const wb = computeWellbeing(patientStateScore(patient), s.endedAt, now);
+        if (wb?.stage === 'lapsed') lapsed++;
+      }
+
+      rows.push({
+        userId: u.id,
+        email: u.email,
+        displayName: u.displayName,
+        isAdmin: u.isAdmin,
+        stage: this.computeStage(earned.length, meanCompetency, sessions),
+        meanCompetency,
+        sessionsCompleted: sessions.length,
+        badgeCount: earned.length,
+        awardableCount: awardable,
+        patients: lastByPatient.size,
+        lapsed,
+        lastActiveAt: sessions[sessions.length - 1].endedAt,
+      });
+    }
+    rows.sort((a, b) => b.sessionsCompleted - a.sessionsCompleted);
+    return rows;
+  }
+
   // ── Radar ──────────────────────────────────────────────────────────────
   // Adaptive: 8 axes once any session carries the extended (Phase-1b) scores,
   // otherwise the original clean 4. The frontend renders whatever N it gets.
@@ -187,9 +245,14 @@ export class ProgressService {
     return Math.round((mean / 6) * 100);
   }
 
-  // ── Badge awarding (Tier-A, idempotent) ──────────────────────────────────
-  private async awardTierA(userId: number, sessions: SessionRow[], assessments: Assessment[]) {
-    if (sessions.length === 0) return;
+  // ── Badge computation ────────────────────────────────────────────────────
+  /**
+   * The set of badge keys a user's sessions currently earn. No persistence —
+   * awardTierA wraps this to store the diff, and the admin board reuses it for
+   * accurate counts without any write side-effect.
+   */
+  private earnedKeys(sessions: SessionRow[], assessments: Assessment[]): string[] {
+    if (sessions.length === 0) return [];
     const earn: string[] = ['first_contact'];
 
     if (assessments.some((a) => (a.therapist?.empathy ?? 0) >= 5)) earn.push('attuned');
@@ -271,17 +334,23 @@ export class ProgressService {
     if (assessments.some((a) => a.signals?.ruptureRepaired)) earn.push('repaired');
     if (assessments.some((a) => a.signals?.traumaGrounded)) earn.push('safe_container');
 
-    // Idempotent insert. SQLite doesn't support createMany({ skipDuplicates }),
-    // so we read the already-earned keys and only insert the diff. The
-    // unique(userId,key) constraint is the real backstop against a race
-    // between two concurrent reads — a duplicate insert there throws P2002,
+    return [...new Set(earn)];
+  }
+
+  // ── Badge awarding (idempotent persist of the earned diff) ───────────────
+  private async awardTierA(userId: number, sessions: SessionRow[], assessments: Assessment[]) {
+    const earn = this.earnedKeys(sessions, assessments);
+    if (earn.length === 0) return;
+    // SQLite doesn't support createMany({ skipDuplicates }), so read the
+    // already-earned keys and insert only the diff. unique(userId,key) is the
+    // backstop against a concurrent-award race — a dup insert throws P2002,
     // which we swallow since it means the badge is already recorded.
     const already = new Set(
       (await this.prisma.userMilestone.findMany({ where: { userId }, select: { key: true } })).map(
         (m) => m.key,
       ),
     );
-    const fresh = [...new Set(earn)].filter((key) => !already.has(key));
+    const fresh = earn.filter((key) => !already.has(key));
     if (fresh.length === 0) return;
     try {
       await this.prisma.userMilestone.createMany({ data: fresh.map((key) => ({ userId, key })) });

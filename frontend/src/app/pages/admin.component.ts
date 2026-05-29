@@ -11,8 +11,10 @@ import {
   AdminSessionListItem,
   AdminUser,
   ApiService,
+  type TherapistBoardRow,
 } from '../api.service';
 import { AuthService } from '../auth.service';
+import { IconComponent } from '../icon.component';
 
 type PlanId = 'trial' | 'lite' | 'pro' | 'master';
 
@@ -23,12 +25,12 @@ interface GrantPlanDialog {
   note: string;
 }
 
-type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost';
+type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, DatePipe, FormsModule, RouterLink],
+  imports: [CommonModule, DatePipe, FormsModule, RouterLink, IconComponent],
   template: `
     <header class="admin-header">
       <a routerLink="/" class="back">← На головну</a>
@@ -56,6 +58,10 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost';
         </button>
         <button [class.active]="tab() === 'cost'" (click)="setTab('cost')">
           💸 Витрати
+        </button>
+        <button class="board-tab" [class.active]="tab() === 'board'" (click)="setTab('board')">
+          <app-icon name="trophy" /> Дошка
+          @if (board().length) { <span class="count">{{ board().length }}</span> }
         </button>
       </nav>
     </header>
@@ -399,6 +405,55 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost';
           <p class="hint">Завантаження даних про витрати…</p>
         }
       }
+
+      @if (tab() === 'board') {
+        <p class="hint board-note">
+          Прихована дошка терапевтів (тільки адмін). Сортування — за обсягом
+          практики, НЕ за клінічними оцінками. Це насіння майбутнього
+          каталогу «обери терапевта»; ачівки тут — тренувальні віхи проти
+          AI-пацієнтів, не підтверджена компетентність.
+        </p>
+        <table class="data-table board-table">
+          <thead>
+            <tr>
+              <th>Терапевт</th>
+              <th>Рівень</th>
+              <th class="num">Компетенція</th>
+              <th class="num">Сесій</th>
+              <th class="num">Бейджів</th>
+              <th class="num">Пацієнтів</th>
+              <th class="num">Активність</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of board(); track r.userId) {
+              <tr>
+                <td>
+                  <div class="board-who">
+                    <span class="board-name">{{ r.displayName || r.email }}</span>
+                    @if (r.isAdmin) { <span class="board-admin">admin</span> }
+                  </div>
+                  @if (r.displayName) { <div class="board-email dim">{{ r.email }}</div> }
+                </td>
+                <td><span class="stage-chip">{{ r.stage }}</span></td>
+                <td class="num">
+                  <span class="comp-val">{{ r.meanCompetency }}</span><span class="dim">/100</span>
+                </td>
+                <td class="num">{{ r.sessionsCompleted }}</td>
+                <td class="num">{{ r.badgeCount }}<span class="dim">/{{ r.awardableCount }}</span></td>
+                <td class="num">
+                  {{ r.patients }}
+                  @if (r.lapsed > 0) { <span class="lapsed-tag" title="Пацієнтів покинуто (≥6 тиж.)"><span class="lapsed-dot"></span>{{ r.lapsed }}</span> }
+                </td>
+                <td class="num dim">{{ r.lastActiveAt ? (r.lastActiveAt | date: 'dd.MM.yy') : '—' }}</td>
+              </tr>
+            }
+            @if (board().length === 0) {
+              <tr><td colspan="7" class="empty">Поки немає терапевтів із завершеними сесіями</td></tr>
+            }
+          </tbody>
+        </table>
+      }
     }
 
     @if (grantDialog(); as g) {
@@ -530,6 +585,34 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost';
     .num { font-variant-numeric: tabular-nums; color: var(--fg-dim); }
     .empty { text-align: center; color: var(--fg-dim); padding: 24px; }
     .message { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Therapist board (§14) ── */
+    .tabs button.board-tab { display: inline-flex; align-items: center; gap: 6px; }
+    .tabs button.board-tab app-icon { font-size: 15px; }
+    .board-note {
+      max-width: 760px; line-height: 1.5; margin-bottom: 16px;
+      padding: 10px 14px; border-radius: 8px;
+      border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+      background: color-mix(in srgb, var(--accent) 4%, transparent);
+    }
+    .board-table th.num, .board-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .board-who { display: flex; align-items: center; gap: 8px; }
+    .board-name { font-weight: 500; }
+    .board-admin {
+      font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+      border-radius: 999px; padding: 1px 7px;
+    }
+    .board-email { font-size: 11px; margin-top: 2px; }
+    .stage-chip {
+      display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 999px;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+    }
+    .comp-val { font-weight: 500; color: var(--fg); }
+    .lapsed-tag { margin-left: 6px; font-size: 11px; color: var(--fg-dim); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+    .lapsed-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-dim); display: inline-block; }
 
     .badge {
       font-size: 11px;
@@ -890,6 +973,7 @@ export class AdminComponent implements OnInit {
   funnel = signal<AdminFunnel | null>(null);
   recentEvents = signal<AdminEvent[]>([]);
   llmUsage = signal<AdminLlmUsage | null>(null);
+  board = signal<TherapistBoardRow[]>([]);
 
   /** Format a USD cost for display — keeps the `$` out of the backtick
    *  template (where `${` would start a JS interpolation). */
@@ -963,6 +1047,9 @@ export class AdminComponent implements OnInit {
           break;
         case 'cost':
           this.llmUsage.set(await this.api.adminLlmUsage());
+          break;
+        case 'board':
+          this.board.set(await this.api.adminTherapistBoard());
           break;
       }
     } catch (e: unknown) {

@@ -1159,6 +1159,34 @@ export class ApiService {
       this.http.get<AdminLlmUsage>(`${this.base}/admin/analytics/llm-usage`),
     );
   }
+
+  /**
+   * Admin-only therapist board (design §14) — every practising therapist's
+   * progress + caseload health. Sorted by practice volume (not clinical
+   * score). Seed for a future client-facing directory.
+   */
+  adminTherapistBoard(): Promise<TherapistBoardRow[]> {
+    return firstValueFrom(
+      this.http.get<TherapistBoardRow[]>(`${this.base}/admin/therapist-board`),
+    );
+  }
+}
+
+export interface TherapistBoardRow {
+  userId: number;
+  email: string;
+  displayName: string | null;
+  isAdmin: boolean;
+  /** 'Стажер' | 'Практик' | 'Досвідчений' | 'Майстер'. */
+  stage: string;
+  meanCompetency: number;
+  sessionsCompleted: number;
+  badgeCount: number;
+  awardableCount: number;
+  patients: number;
+  /** Patients whose care-loop meter has lapsed (≥6 weeks idle). */
+  lapsed: number;
+  lastActiveAt: string | null;
 }
 
 export interface AdminLlmUsageRoll {
