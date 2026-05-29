@@ -52,7 +52,7 @@ import { IconComponent } from '../icon.component';
             [attr.aria-label]="city.displayName">
             <img [src]="cityImgSrc()" [alt]="city.displayName" class="city-frame-img" />
             <div class="city-frame-overlay">
-              <span class="city-frame-pin">📍</span>
+              <span class="city-frame-pin"><app-icon name="map-pin" /></span>
               <span class="city-frame-name">{{ city.displayName }}</span>
               @if (city.weatherSummary) {
                 <span class="city-frame-weather">· {{ city.weatherSummary }}</span>
@@ -417,10 +417,15 @@ import { IconComponent } from '../icon.component';
     }
 
     @media (max-width: 480px) {
-      /* On narrow phones the framed card eats too much hero space —
-         hide it; the city info is also surfaced inside the patient
-         section, no information lost. */
-      .city-frame { display: none; }
+      /* On phones, show the city photo as a full-width banner (it's the
+         first child of .title-row, so it wraps onto its own line above the
+         greeting). Shorter 16/7 aspect so it sets the scene without eating
+         the whole hero. Previously hidden — which left a blank top gap. */
+      .city-frame {
+        width: 100%;
+        aspect-ratio: 16 / 7;
+      }
+      .title-row { gap: 12px; }
     }
 
     /* Continue-stack — vertical list of vital-row cards (one per
