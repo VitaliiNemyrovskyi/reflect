@@ -862,6 +862,25 @@ export class SessionsService {
         },
       };
 
+      // World Tick loop-closer: if a hidden between-session layer was active
+      // going into this session (an 'avoided' memory the patient was
+      // guarding, which the trainee was never told), hand it to the
+      // synthesizer so the feedback can assess whether the trainee drew it
+      // out — that surfacing was the skill being trained. Prepended to the
+      // skill results as a priority teaching point.
+      let hiddenLayerBlock = '';
+      if (session.userId != null) {
+        const avoided = await this.memory.loadRecent(session.userId, session.characterId, {
+          limit: 1,
+          kinds: ['avoided'],
+        });
+        if (avoided.length > 0) {
+          hiddenLayerBlock = lang === 'en'
+            ? `## Hidden between-session layer active this session\n\nThe patient arrived guarding this (the trainee was NOT told it): "${avoided[0].content}"\n\nAssess in the feedback: did the trainee notice and gently draw it out? If the patient never disclosed it, what specifically could the therapist have done to surface it? Make this a priority teaching point.\n\n---\n\n`
+            : `## Прихований шар між сесіями (активний цю сесію)\n\nПацієнт прийшов, оберігаючи це (стажеру цього НЕ казали): «${avoided[0].content}»\n\nОціни у фідбеку: чи помітив і м'яко витягнув це стажер? Якщо пацієнт так і не розкрив — що конкретно терапевт міг зробити, щоб це випливло? Винеси це як пріоритетний навчальний момент.\n\n---\n\n`;
+        }
+      }
+
       // Pass 3: synthesis — modelSkillsSynthesizer (Qwen 3.7 Max on
       // OpenRouter, Sonnet on Anthropic-native) reads the draft + all
       // skill JSONs → final coherent feedback streaming to client.
@@ -872,7 +891,7 @@ export class SessionsService {
         TRANSCRIPT: ctx.transcript,
         NOTES: notesText,
         DRAFT: skillDraft,
-        SKILL_RESULTS: skillResults,
+        SKILL_RESULTS: hiddenLayerBlock + skillResults,
       });
       for await (const chunk of this.streamFeedbackWithFallback(
         [{ text: synthesisFilled }],
