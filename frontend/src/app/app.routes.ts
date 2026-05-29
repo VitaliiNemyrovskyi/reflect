@@ -112,6 +112,14 @@ export const routes: Routes = [
       import('./pages/cohorts.component').then((m) => m.CohortsComponent),
   },
   {
+    // Invite link — pre-fills the join code on the cohorts page so the
+    // student just confirms. Same component, reads the :code param.
+    path: 'cohorts/join/:code',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/cohorts.component').then((m) => m.CohortsComponent),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard],
     loadComponent: () =>

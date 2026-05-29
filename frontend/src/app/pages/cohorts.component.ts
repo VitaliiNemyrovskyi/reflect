@@ -1,12 +1,14 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   ApiService,
   type CohortList,
   type CohortDetail,
   type OwnedCohort,
+  type JoinedCohort,
+  type TherapistBoardRow,
 } from '../api.service';
 import { AuthService } from '../auth.service';
 import { I18nService } from '../i18n.service';
@@ -97,6 +99,10 @@ import { IconComponent } from '../icon.component';
                           <code>{{ c.inviteCode }}</code>
                           @if (copiedCode() === c.inviteCode) { <span class="copied">✓</span> }
                         </button>
+                        <button class="link-btn" (click)="copyLink(c.inviteCode)"
+                                [title]="tr('Скопіювати посилання-запрошення', 'Copy invite link')">
+                          {{ copiedLink() === c.inviteCode ? tr('скопійовано ✓', 'copied ✓') : tr('лінк', 'link') }}
+                        </button>
                         <button class="link-btn" (click)="toggleDetail(c)">
                           {{ selectedId() === c.id ? tr('Згорнути', 'Close') : tr('Студенти →', 'Students →') }}
                         </button>
@@ -122,6 +128,7 @@ import { IconComponent } from '../icon.component';
                                   <th class="num">{{ tr('Бейджів', 'Badges') }}</th>
                                   <th class="num">{{ tr('Пацієнтів', 'Patients') }}</th>
                                   <th class="num">{{ tr('Активність', 'Active') }}</th>
+                                  <th></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -144,6 +151,11 @@ import { IconComponent } from '../icon.component';
                                       }
                                     </td>
                                     <td class="num dim">{{ s.lastActiveAt ? (s.lastActiveAt | date: 'dd.MM.yy') : '—' }}</td>
+                                    <td class="num">
+                                      <button class="link-btn danger" [disabled]="memberBusy() === s.userId" (click)="removeStudent(det, s)">
+                                        {{ memberBusy() === s.userId ? '…' : tr('видалити', 'remove') }}
+                                      </button>
+                                    </td>
                                   </tr>
                                 }
                               </tbody>
@@ -163,6 +175,14 @@ import { IconComponent } from '../icon.component';
         <!-- ── Student: join + joined groups ─────────────────────────── -->
         <section class="panel panel-soft frame-bordered block">
           <span class="section-label"><app-icon name="users" /> {{ tr('Мої групи', 'My groups') }}</span>
+
+          @if (viaInvite()) {
+            <p class="invite-note">
+              <app-icon name="link" />
+              {{ tr('Тебе запросили до групи. Натисни «Приєднатись», щоб підтвердити.',
+                    'You have been invited to a group. Tap Join to confirm.') }}
+            </p>
+          }
 
           <form class="create-row" (submit)="join($event)">
             <input
@@ -190,13 +210,24 @@ import { IconComponent } from '../icon.component';
                     <div class="cohort-id">
                       <span class="cohort-name">{{ c.name }}</span>
                     </div>
-                    <span class="instructor-tag">
-                      <app-icon name="flag" />{{ c.instructor }}
-                    </span>
+                    <div class="joined-right">
+                      <span class="instructor-tag">
+                        <app-icon name="flag" />{{ c.instructor }}
+                      </span>
+                      <button class="link-btn danger" [disabled]="leaveBusy() === c.id" (click)="leave(c)">
+                        {{ leaveBusy() === c.id ? '…' : tr('вийти', 'leave') }}
+                      </button>
+                    </div>
                   </div>
                 </li>
               }
             </ul>
+
+            <p class="consent-note">
+              <app-icon name="shield-check" />
+              {{ tr('Інструктор групи бачить твій навчальний прогрес: рівень, компетенцію, кількість сесій, бейджі та стан пацієнтів. Зміст самих сесій залишається приватним.',
+                    'Your group instructor can see your training progress — stage, competency, session count, badges, and patient health. The content of your sessions stays private.') }}
+            </p>
           }
         </section>
 
@@ -286,6 +317,25 @@ import { IconComponent } from '../icon.component';
       cursor: pointer; font-size: 13px; padding: 0; min-height: auto;
     }
     .link-btn:hover { text-decoration: underline; }
+    .link-btn.danger { color: var(--danger); }
+    .link-btn:disabled { opacity: .5; cursor: default; text-decoration: none; }
+
+    .joined-right { display: flex; align-items: center; gap: 14px; }
+
+    .invite-note {
+      display: flex; align-items: center; gap: 8px;
+      margin: 12px 0 0; padding: 9px 12px; border-radius: 8px;
+      font-size: 13px; color: var(--fg);
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+    }
+    .invite-note app-icon { font-size: 15px; color: var(--accent); flex: 0 0 auto; }
+
+    .consent-note {
+      display: flex; align-items: flex-start; gap: 8px;
+      margin: 14px 0 0; font-size: 12px; line-height: 1.5; color: var(--fg-dim);
+    }
+    .consent-note app-icon { font-size: 14px; color: var(--accent); flex: 0 0 auto; margin-top: 1px; }
 
     /* ── Student progress table (scoped copy of admin board-table) ── */
     .students { margin-top: 14px; overflow-x: auto; }
@@ -320,6 +370,7 @@ import { IconComponent } from '../icon.component';
 export class CohortsComponent {
   private api = inject(ApiService);
   private auth = inject(AuthService);
+  private route = inject(ActivatedRoute);
   protected i18n = inject(I18nService);
 
   loading = signal(true);
@@ -342,8 +393,26 @@ export class CohortsComponent {
   detailLoading = signal(false);
 
   copiedCode = signal<string | null>(null);
+  copiedLink = signal<string | null>(null);
+
+  // Membership lifecycle in-flight markers (keyed by id so one row's
+  // button spins without locking the rest).
+  memberBusy = signal<number | null>(null);
+  leaveBusy = signal<number | null>(null);
+
+  /** True when the page was opened via an /cohorts/join/:code invite link
+   *  — surfaces a short banner and pre-fills the join code. */
+  viaInvite = signal(false);
 
   constructor() {
+    // Invite-link entry: /cohorts/join/:code pre-fills the join field so
+    // the student just confirms (explicit click = consent), rather than
+    // auto-joining on navigation.
+    const code = this.route.snapshot.paramMap.get('code');
+    if (code) {
+      this.joinCode.set(code.trim().toUpperCase().slice(0, 6));
+      this.viaInvite.set(true);
+    }
     void this.reload();
   }
 
@@ -390,6 +459,7 @@ export class CohortsComponent {
     try {
       await this.api.joinCohort(code);
       this.joinCode.set('');
+      this.viaInvite.set(false);
       // Reload so the joined list reflects the new membership (and dedups
       // if they were already in it).
       await this.reload();
@@ -397,6 +467,51 @@ export class CohortsComponent {
       alert(this.msg(e, this.tr('Не вдалось приєднатись.', 'Failed to join.')));
     } finally {
       this.joining.set(false);
+    }
+  }
+
+  /** Student leaves a group; drop it from the joined list on success. */
+  async leave(c: JoinedCohort) {
+    if (!confirm(this.tr(`Вийти з групи «${c.name}»?`, `Leave the group "${c.name}"?`))) return;
+    this.leaveBusy.set(c.id);
+    try {
+      await this.api.leaveCohort(c.id);
+      this.data.update((d) =>
+        d ? { ...d, joined: d.joined.filter((x) => x.id !== c.id) } : d,
+      );
+    } catch (e: unknown) {
+      alert(this.msg(e, this.tr('Не вдалось вийти з групи.', 'Failed to leave.')));
+    } finally {
+      this.leaveBusy.set(null);
+    }
+  }
+
+  /** Instructor removes a student: drop the row + decrement member count. */
+  async removeStudent(det: CohortDetail, s: TherapistBoardRow) {
+    const name = s.displayName || s.email;
+    if (!confirm(this.tr(`Видалити ${name} з групи?`, `Remove ${name} from the group?`))) return;
+    this.memberBusy.set(s.userId);
+    try {
+      await this.api.removeCohortMember(det.id, s.userId);
+      this.detail.update((d) =>
+        d ? { ...d, students: d.students.filter((x) => x.userId !== s.userId) } : d,
+      );
+      this.data.update((data) =>
+        data
+          ? {
+              ...data,
+              owned: data.owned.map((c) =>
+                c.id === det.id
+                  ? { ...c, memberCount: Math.max(0, (c.memberCount ?? 1) - 1) }
+                  : c,
+              ),
+            }
+          : data,
+      );
+    } catch (e: unknown) {
+      alert(this.msg(e, this.tr('Не вдалось видалити студента.', 'Failed to remove student.')));
+    } finally {
+      this.memberBusy.set(null);
     }
   }
 
@@ -416,6 +531,20 @@ export class CohortsComponent {
       this.selectedId.set(null);
     } finally {
       this.detailLoading.set(false);
+    }
+  }
+
+  /** Copy a full shareable invite link (origin + /cohorts/join/CODE). */
+  async copyLink(code: string) {
+    const url = `${location.origin}/cohorts/join/${code}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      this.copiedLink.set(code);
+      setTimeout(() => {
+        if (this.copiedLink() === code) this.copiedLink.set(null);
+      }, 1800);
+    } catch {
+      // Clipboard blocked — no-op; the code chip still works to type manually.
     }
   }
 
