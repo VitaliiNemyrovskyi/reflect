@@ -85,8 +85,14 @@ At the END of the response (AFTER all markdown feedback) add:
     "guidedDiscovery": <0-6>,
     "strategyForChange": <0-6>
   },
+  "signals": {
+    "riskScreened": <true if there were suicidal-risk signals (passive/active SI) AND the therapist ran a screening; else false>,
+    "hiddenLayerReached": <true if the therapist drew out hidden between-session material the client was avoiding; else false>,
+    "ruptureRepaired": <true if an alliance rupture occurred AND the therapist noticed and repaired it within the session; else false>,
+    "traumaGrounded": <true if trauma material was worked with grounding/stabilization, without retraumatization; else false>
+  },
   "patientMemory": "<5-10 sentences in the client's first-person voice about what happened in the session and how she is feeling. Write in her voice, not clinically.>"
 }
 ```
 
-Numbers — realistic, grounded in the transcript. `null` if impossible to assess.
+Numbers — realistic, grounded in the transcript. `null` if impossible to assess. In `signals` use only `true`/`false` (NOT null): `true` only when the event genuinely happened; otherwise `false`.

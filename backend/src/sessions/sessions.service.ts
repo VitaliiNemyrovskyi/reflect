@@ -91,7 +91,7 @@ const SEED_OPENING =
 const FEEDBACK_USER_PROMPT =
   'Будь ласка, дай структурований фідбек згідно інструкції вище.\n\n' +
   '**ПОВТОРНО**: кожне твердження про конкретний момент сесії — підкріплюй посиланням `[L<n>]` на номер рядка транскрипту. Цитати у `«…»` мають бути verbatim з зазначеного рядка. Сервер автоматично перевіряє це і виносить галюцинації у червону плашку — не псуй собі довіру вигадуванням.\n\n' +
-  'У КІНЦІ відповіді (ПІСЛЯ всього markdown-фідбеку) додай блок із машиночитаною оцінкою сесії у форматі:\n\n```json\n{\n  "patient": {\n    "symptomSeverity": <1-10>,\n    "insight": <1-10>,\n    "alliance": <1-10>,\n    "defensiveness": <1-10>,\n    "hopefulness": <1-10>\n  },\n  "therapist": {\n    "empathy": <0-6>,\n    "collaboration": <0-6>,\n    "guidedDiscovery": <0-6>,\n    "strategyForChange": <0-6>\n  },\n  "patientMemory": "<5-10 речень від першої особи клієнтки про те, що відбулось на сесії і як вона почувається. Це буде показано клієнтці на початку наступної сесії, тому пиши природньо її голосом, не клінічно.>"\n}\n```\n\nЦифри ставлять реалістично з опорою на транскрипт. Якщо вимір неможливо оцінити (наприклад, не було скрінінгу) — постав null. У JSON-блоці `[L<n>]` посилання НЕ потрібні.';
+  'У КІНЦІ відповіді (ПІСЛЯ всього markdown-фідбеку) додай блок із машиночитаною оцінкою сесії у форматі:\n\n```json\n{\n  "patient": {\n    "symptomSeverity": <1-10>,\n    "insight": <1-10>,\n    "alliance": <1-10>,\n    "defensiveness": <1-10>,\n    "hopefulness": <1-10>\n  },\n  "therapist": {\n    "empathy": <0-6>,\n    "collaboration": <0-6>,\n    "guidedDiscovery": <0-6>,\n    "strategyForChange": <0-6>\n  },\n  "signals": {\n    "riskScreened": <true якщо були сигнали суїцидального ризику І терапевт провів скринінг; інакше false>,\n    "hiddenLayerReached": <true якщо терапевт витягнув прихований між-сесійний матеріал, який клієнт уникав; інакше false>,\n    "ruptureRepaired": <true якщо стався розрив альянсу І терапевт його помітив і відновив; інакше false>,\n    "traumaGrounded": <true якщо опрацьовувався травматичний матеріал із заземленням, без ретравматизації; інакше false>\n  },\n  "patientMemory": "<5-10 речень від першої особи клієнтки про те, що відбулось на сесії і як вона почувається. Це буде показано клієнтці на початку наступної сесії, тому пиши природньо її голосом, не клінічно.>"\n}\n```\n\nЦифри ставлять реалістично з опорою на транскрипт. Якщо вимір неможливо оцінити (наприклад, не було скрінінгу) — постав null. У `signals` лише true/false (не null). У JSON-блоці `[L<n>]` посилання НЕ потрібні.';
 
 @Injectable()
 export class SessionsService {
@@ -1372,6 +1372,7 @@ export class SessionsService {
     json: {
       patient?: Record<string, number | null>;
       therapist?: Record<string, number | null>;
+      signals?: Record<string, boolean>;
       patientMemory?: string;
     } | null;
   } {
@@ -1419,6 +1420,7 @@ export class SessionsService {
   private extractLenient(content: string): {
     patient?: Record<string, number | null>;
     therapist?: Record<string, number | null>;
+    signals?: Record<string, boolean>;
     patientMemory?: string;
   } | null {
     const num = (key: string): number | null | undefined => {
@@ -1427,8 +1429,13 @@ export class SessionsService {
       if (!m) return undefined;
       return m[1] === 'null' ? null : Number(m[1]);
     };
+    const bool = (key: string): boolean | undefined => {
+      const m = content.match(new RegExp(`"${key}"\\s*:\\s*(true|false)`));
+      return m ? m[1] === 'true' : undefined;
+    };
     const patientKeys = ['symptomSeverity', 'insight', 'alliance', 'defensiveness', 'hopefulness'];
     const therapistKeys = ['empathy', 'collaboration', 'guidedDiscovery', 'strategyForChange'];
+    const signalKeys = ['riskScreened', 'hiddenLayerReached', 'ruptureRepaired', 'traumaGrounded'];
 
     const patient: Record<string, number | null> = {};
     for (const k of patientKeys) {
@@ -1439,6 +1446,11 @@ export class SessionsService {
     for (const k of therapistKeys) {
       const v = num(k);
       if (v !== undefined) therapist[k] = v;
+    }
+    const signals: Record<string, boolean> = {};
+    for (const k of signalKeys) {
+      const v = bool(k);
+      if (v !== undefined) signals[k] = v;
     }
 
     let patientMemory: string | undefined;
@@ -1467,16 +1479,19 @@ export class SessionsService {
     const anyField =
       Object.keys(patient).length > 0 ||
       Object.keys(therapist).length > 0 ||
+      Object.keys(signals).length > 0 ||
       !!patientMemory;
     if (!anyField) return null;
 
     const out: {
       patient?: Record<string, number | null>;
       therapist?: Record<string, number | null>;
+      signals?: Record<string, boolean>;
       patientMemory?: string;
     } = {};
     if (Object.keys(patient).length) out.patient = patient;
     if (Object.keys(therapist).length) out.therapist = therapist;
+    if (Object.keys(signals).length) out.signals = signals;
     if (patientMemory) out.patientMemory = patientMemory;
     return out;
   }

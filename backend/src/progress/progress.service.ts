@@ -56,11 +56,12 @@ export const BADGES: BadgeDef[] = [
   // ── Широта / залученість ──
   { key: 'roster_of_ten', title: 'Десять облич', description: 'Сесії з 10 різними пацієнтами', category: 'breadth' },
   { key: 'weekender', title: 'І в вихідні', description: 'Сесія у суботу або неділю', category: 'growth' },
-  // Flagship — awarded in Phase 1b (need per-skill signals). Shown as goals.
-  { key: 'quiet_signal', title: 'Тихий сигнал', description: 'Помітив пасивний суїцидальний сигнал і провів скринінг', category: 'safety', flagship: true, comingSoon: true },
-  { key: 'drew_it_out', title: 'Витягнув приховане', description: 'Витягнув прихований між-сесійний шар', category: 'depth', flagship: true, comingSoon: true },
-  { key: 'repaired', title: 'Полагодив', description: 'Помітив і відновив розрив альянсу', category: 'alliance', flagship: true, comingSoon: true },
-  { key: 'safe_container', title: 'Безпечний контейнер', description: 'Травма-матеріал із заземленням, без ретравматизації', category: 'trauma', comingSoon: true },
+  // Flagship clinical badges — awarded from synthesis `signals` (Phase 1b).
+  // Only trip on sessions scored after the signals schema shipped.
+  { key: 'quiet_signal', title: 'Тихий сигнал', description: 'Помітив пасивний суїцидальний сигнал і провів скринінг', category: 'safety', flagship: true },
+  { key: 'drew_it_out', title: 'Витягнув приховане', description: 'Витягнув прихований між-сесійний шар', category: 'depth', flagship: true },
+  { key: 'repaired', title: 'Полагодив', description: 'Помітив і відновив розрив альянсу', category: 'alliance', flagship: true },
+  { key: 'safe_container', title: 'Безпечний контейнер', description: 'Травма-матеріал із заземленням, без ретравматизації', category: 'trauma', flagship: true },
   // difficulty lives in profileText (not a column), so this needs profile
   // parsing — deferred to Phase 1b alongside the skill-signal flagships.
   { key: 'tough_room', title: 'Складний кейс', description: 'Найскладніший пацієнт (5/5) з добрими оцінками', category: 'technique', comingSoon: true },
@@ -91,6 +92,15 @@ interface Assessment {
     alliance?: number | null;
     defensiveness?: number | null;
     hopefulness?: number | null;
+  };
+  /** Clinical-event flags the synthesis sets when a flagship-worthy moment
+   *  genuinely happened (Phase 1b). Only present on sessions scored after the
+   *  schema shipped — older sessions simply never trip the flagship badges. */
+  signals?: {
+    riskScreened?: boolean;
+    hiddenLayerReached?: boolean;
+    ruptureRepaired?: boolean;
+    traumaGrounded?: boolean;
   };
 }
 
@@ -225,6 +235,14 @@ export class ProgressService {
       if (typeof fs === 'number' && typeof ls === 'number' && fs - ls >= 3 && ls <= 4)
         earn.push('symptom_relief');
     }
+
+    // ── Flagship clinical signals (Phase 1b) ──
+    // Synthesis sets these booleans when the moment genuinely happened. Any
+    // single qualifying session earns the badge.
+    if (assessments.some((a) => a.signals?.riskScreened)) earn.push('quiet_signal');
+    if (assessments.some((a) => a.signals?.hiddenLayerReached)) earn.push('drew_it_out');
+    if (assessments.some((a) => a.signals?.ruptureRepaired)) earn.push('repaired');
+    if (assessments.some((a) => a.signals?.traumaGrounded)) earn.push('safe_container');
 
     // Idempotent insert. SQLite doesn't support createMany({ skipDuplicates }),
     // so we read the already-earned keys and only insert the diff. The
