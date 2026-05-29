@@ -495,6 +495,8 @@ export interface AdminUser {
   displayName: string | null;
   provider: string;
   isAdmin: boolean;
+  /** Admin-granted: can create teaching cohorts (instructor mode). */
+  isInstructor: boolean;
   sessionCount: number;
   createdAt: string;
   /** Current billing state — null when the user has no Subscription row
@@ -789,6 +791,36 @@ export class ApiService {
   pushUnsubscribe(endpoint: string): Promise<{ ok: boolean }> {
     return firstValueFrom(
       this.http.post<{ ok: boolean }>(`${this.base}/push/unsubscribe`, { endpoint }),
+    );
+  }
+
+  // ─── Cohorts (instructor mode) ───────────────────────────────────────────
+
+  listCohorts(): Promise<CohortList> {
+    return firstValueFrom(this.http.get<CohortList>(`${this.base}/cohorts`));
+  }
+
+  createCohort(name: string): Promise<OwnedCohort> {
+    return firstValueFrom(this.http.post<OwnedCohort>(`${this.base}/cohorts`, { name }));
+  }
+
+  joinCohort(code: string): Promise<{ id: number; name: string }> {
+    return firstValueFrom(
+      this.http.post<{ id: number; name: string }>(`${this.base}/cohorts/join`, { code }),
+    );
+  }
+
+  getCohort(id: number): Promise<CohortDetail> {
+    return firstValueFrom(this.http.get<CohortDetail>(`${this.base}/cohorts/${id}`));
+  }
+
+  /** Admin: grant/revoke the instructor role. */
+  adminSetInstructor(userId: number, value: boolean): Promise<{ id: number; isInstructor: boolean }> {
+    return firstValueFrom(
+      this.http.post<{ id: number; isInstructor: boolean }>(
+        `${this.base}/admin/users/${userId}/instructor`,
+        { value },
+      ),
     );
   }
 
@@ -1221,6 +1253,29 @@ export class ApiService {
       this.http.get<TherapistBoardRow[]>(`${this.base}/admin/therapist-board`),
     );
   }
+}
+
+export interface OwnedCohort {
+  id: number;
+  name: string;
+  inviteCode: string;
+  memberCount?: number;
+}
+export interface JoinedCohort {
+  id: number;
+  name: string;
+  instructor: string;
+}
+export interface CohortList {
+  owned: OwnedCohort[];
+  joined: JoinedCohort[];
+}
+/** Cohort detail for the instructor — students share the board-row shape. */
+export interface CohortDetail {
+  id: number;
+  name: string;
+  inviteCode: string;
+  students: TherapistBoardRow[];
 }
 
 export interface TherapistBoardRow {

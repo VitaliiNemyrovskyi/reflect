@@ -197,54 +197,102 @@ export class ProgressService {
     const users = await this.prisma.user.findMany({
       select: { id: true, email: true, displayName: true, isAdmin: true },
     });
-    const awardable = BADGES.filter((b) => !b.comingSoon).length;
-    const now = new Date();
     const rows = [];
     for (const u of users) {
-      const sessions = await this.loadScoredSessions(u.id);
-      if (sessions.length === 0) continue;
-      const assessments = sessions
-        .map((s) => this.parse(s.feedbackJson))
-        .filter((a): a is Assessment => a !== null);
-      const meanCompetency = Math.round(
-        CORE_AXES.reduce((s, ax) => s + this.axisMean(assessments, ax.key), 0) / CORE_AXES.length,
-      );
-      const earned = this.earnedKeys(sessions, assessments);
-
-      // Caseload health: keep the LAST scored session per patient (sessions are
-      // asc by endedAt, so the final set() wins), then count lapsed meters.
-      const lastByPatient = new Map<number, SessionRow>();
-      for (const s of sessions) lastByPatient.set(s.characterId, s);
-      let lapsed = 0;
-      for (const s of lastByPatient.values()) {
-        if (!s.endedAt) continue;
-        const patient = this.parse(s.feedbackJson)?.patient ?? null;
-        const wb = computeWellbeing(patientStateScore(patient), s.endedAt, now);
-        if (wb?.stage === 'lapsed') lapsed++;
-      }
-
-      rows.push({
-        userId: u.id,
-        email: u.email,
-        displayName: u.displayName,
-        isAdmin: u.isAdmin,
-        stage: this.computeStage(
-          earned.length,
-          earned.filter((k) => FLAGSHIP_KEYS.has(k)).length,
-          meanCompetency,
-          sessions,
-        ),
-        meanCompetency,
-        sessionsCompleted: sessions.length,
-        badgeCount: earned.length,
-        awardableCount: awardable,
-        patients: lastByPatient.size,
-        lapsed,
-        lastActiveAt: sessions[sessions.length - 1].endedAt,
-      });
+      const row = await this.summarizeUser(u);
+      if (row) rows.push(row); // admin board skips users who never practised
     }
     rows.sort((a, b) => b.sessionsCompleted - a.sessionsCompleted);
     return rows;
+  }
+
+  /**
+   * Cohort board (instructor view) — per-member summary scoped to one group.
+   * Unlike the admin board, students who haven't started yet ARE included
+   * (a zero-row), so the instructor sees who hasn't begun. Sorted by name —
+   * a private oversight list, not a competitive ranking (Principle #2).
+   */
+  async getCohortMemberSummaries(userIds: number[]) {
+    if (userIds.length === 0) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, email: true, displayName: true, isAdmin: true },
+    });
+    const awardable = BADGES.filter((b) => !b.comingSoon).length;
+    const rows = [];
+    for (const u of users) {
+      const row = await this.summarizeUser(u);
+      rows.push(
+        row ?? {
+          userId: u.id,
+          email: u.email,
+          displayName: u.displayName,
+          isAdmin: u.isAdmin,
+          stage: 'Стажер',
+          meanCompetency: 0,
+          sessionsCompleted: 0,
+          badgeCount: 0,
+          awardableCount: awardable,
+          patients: 0,
+          lapsed: 0,
+          lastActiveAt: null as Date | null,
+        },
+      );
+    }
+    rows.sort((a, b) =>
+      (a.displayName ?? a.email).localeCompare(b.displayName ?? b.email, 'uk'),
+    );
+    return rows;
+  }
+
+  /** One progress-summary row for a user. null when they've never practised. */
+  private async summarizeUser(u: {
+    id: number;
+    email: string;
+    displayName: string | null;
+    isAdmin: boolean;
+  }) {
+    const sessions = await this.loadScoredSessions(u.id);
+    if (sessions.length === 0) return null;
+    const assessments = sessions
+      .map((s) => this.parse(s.feedbackJson))
+      .filter((a): a is Assessment => a !== null);
+    const meanCompetency = Math.round(
+      CORE_AXES.reduce((s, ax) => s + this.axisMean(assessments, ax.key), 0) / CORE_AXES.length,
+    );
+    const earned = this.earnedKeys(sessions, assessments);
+
+    // Caseload health: last scored session per patient → count lapsed meters.
+    const now = new Date();
+    const lastByPatient = new Map<number, SessionRow>();
+    for (const s of sessions) lastByPatient.set(s.characterId, s);
+    let lapsed = 0;
+    for (const s of lastByPatient.values()) {
+      if (!s.endedAt) continue;
+      const patient = this.parse(s.feedbackJson)?.patient ?? null;
+      const wb = computeWellbeing(patientStateScore(patient), s.endedAt, now);
+      if (wb?.stage === 'lapsed') lapsed++;
+    }
+
+    return {
+      userId: u.id,
+      email: u.email,
+      displayName: u.displayName,
+      isAdmin: u.isAdmin,
+      stage: this.computeStage(
+        earned.length,
+        earned.filter((k) => FLAGSHIP_KEYS.has(k)).length,
+        meanCompetency,
+        sessions,
+      ),
+      meanCompetency,
+      sessionsCompleted: sessions.length,
+      badgeCount: earned.length,
+      awardableCount: BADGES.filter((b) => !b.comingSoon).length,
+      patients: lastByPatient.size,
+      lapsed,
+      lastActiveAt: sessions[sessions.length - 1].endedAt as Date | null,
+    };
   }
 
   // ── Radar ──────────────────────────────────────────────────────────────

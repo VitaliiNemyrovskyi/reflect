@@ -110,6 +110,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
                     <span class="badge admin-badge">admin</span>
                     @if (u.id === currentUserId()) { <span class="self-tag">(ти)</span> }
                   }
+                  @if (u.isInstructor) { <span class="badge instructor-badge">instructor</span> }
                 </td>
                 <td class="dim">{{ u.createdAt | date: 'dd.MM.yyyy' }}</td>
                 <td class="row-actions">
@@ -128,6 +129,21 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
                       [disabled]="adminBusy() === u.id"
                       (click)="grantAdmin(u)">
                       {{ adminBusy() === u.id ? '…' : '+ admin' }}
+                    </button>
+                  }
+                  @if (u.isInstructor) {
+                    <button
+                      class="link-btn danger"
+                      [disabled]="instructorBusy() === u.id"
+                      (click)="setInstructor(u, false)">
+                      {{ instructorBusy() === u.id ? '…' : '× instructor' }}
+                    </button>
+                  } @else {
+                    <button
+                      class="link-btn"
+                      [disabled]="instructorBusy() === u.id"
+                      (click)="setInstructor(u, true)">
+                      {{ instructorBusy() === u.id ? '…' : '+ instructor' }}
                     </button>
                   }
                 </td>
@@ -624,6 +640,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
     .badge.done { background: #143c2c; color: #6ee7b7; border: 1px solid #2a6f4d; }
     .badge.open { background: #3c2c14; color: #fbbf6e; border: 1px solid #6f5a2a; }
     .badge.admin-badge { background: rgba(216,201,255,0.15); color: var(--accent); border: 1px solid rgba(216,201,255,0.3); }
+    .badge.instructor-badge { background: rgba(110,231,183,0.12); color: #6ee7b7; border: 1px solid #2a6f4d; margin-left: 4px; }
     .badge[class*="status-5"] { background: #3c1a1a; color: var(--danger); border: 1px solid #6f2a2a; }
     .badge[class*="status-4"] { background: #3c2c14; color: #fbbf6e; border: 1px solid #6f5a2a; }
     /* Plan badges: visually rank-ordered — neutral trial, accent for pro,
@@ -990,6 +1007,10 @@ export class AdminComponent implements OnInit {
    *  disable just that row's button without locking the rest of the table. */
   adminBusy = signal<number | null>(null);
 
+  /** Same idea for the instructor-role toggle (independent of adminBusy so
+   *  the two buttons on a row don't disable each other). */
+  instructorBusy = signal<number | null>(null);
+
   /** Grant-plan modal state. null = closed. The whole dialog object lives
    *  here so the modal can read/write all four fields (user, plan, months,
    *  note) without four separate signals. */
@@ -1149,6 +1170,26 @@ export class AdminComponent implements OnInit {
       alert(errMsg);
     } finally {
       this.adminBusy.set(null);
+    }
+  }
+
+  /**
+   * Grant or revoke the instructor role (can create teaching cohorts).
+   * Lower-stakes than admin — no confirm dialog, no last-instructor guard.
+   * Updates the row in-place so the badge flips without a full reload.
+   */
+  async setInstructor(user: AdminUser, value: boolean) {
+    this.instructorBusy.set(user.id);
+    try {
+      const updated = await this.api.adminSetInstructor(user.id, value);
+      this.users.update((list) =>
+        list.map((u) => (u.id === user.id ? { ...u, isInstructor: updated.isInstructor } : u)),
+      );
+    } catch (e: unknown) {
+      const msg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось змінити роль інструктора.';
+      alert(msg);
+    } finally {
+      this.instructorBusy.set(null);
     }
   }
 

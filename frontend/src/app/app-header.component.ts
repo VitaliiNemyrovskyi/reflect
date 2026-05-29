@@ -50,6 +50,10 @@ import { IconComponent } from './icon.component';
                class="ghost icon small"
                [title]="i18n.t('nav.network')"
                [attr.aria-label]="i18n.t('nav.network')"><app-icon name="network" /></a>
+            <a routerLink="/cohorts"
+               class="ghost icon small"
+               [title]="i18n.isEn ? 'Cohorts' : 'Групи'"
+               [attr.aria-label]="i18n.isEn ? 'Cohorts' : 'Групи'"><app-icon name="users" /></a>
             @if (u.isAdmin) {
               <a routerLink="/admin"
                  class="ghost icon small admin-link"
@@ -84,6 +88,9 @@ import { IconComponent } from './icon.component';
             <a routerLink="/network" class="mm-item" (click)="menuOpen.set(false)">
               <app-icon name="network" /><span>{{ i18n.t('nav.network') }}</span>
             </a>
+            <a routerLink="/cohorts" class="mm-item" (click)="menuOpen.set(false)">
+              <app-icon name="users" /><span>{{ i18n.isEn ? 'Cohorts' : 'Групи' }}</span>
+            </a>
             @if (u.isAdmin) {
               <a routerLink="/admin" class="mm-item" (click)="menuOpen.set(false)">
                 <app-icon name="shield-check" /><span>{{ i18n.isEn ? 'Admin' : 'Адмін' }}</span>
@@ -104,7 +111,13 @@ import { IconComponent } from './icon.component';
   /* All styles copied verbatim from characters-list.component — single
      source of truth for the chrome across pages. */
   styles: [`
-    .header { margin-bottom: 24px; position: relative; z-index: 1; }
+    /* z-index 100 (not 1): page-root containers create their own stacking
+       context at z-index:1 (e.g. .progress-page) and render AFTER the
+       header in DOM order, so a z-index:1 header loses the tie and page
+       content paints over the open dropdown menu. 100 keeps the whole
+       header subtree (incl. the absolutely-positioned dropdown) above all
+       normal page content, while staying below full-screen modals. */
+    .header { margin-bottom: 24px; position: relative; z-index: 100; }
     .brand-block { display: flex; flex-direction: column; gap: 6px; }
     .brand-link {
       display: inline-flex;

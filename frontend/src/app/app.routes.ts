@@ -104,6 +104,14 @@ export const routes: Routes = [
       import('./pages/progress.component').then((m) => m.ProgressComponent),
   },
   {
+    // Teaching cohort mode — instructor creates groups + sees student
+    // progress; students join by code. Page self-gates by role.
+    path: 'cohorts',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/cohorts.component').then((m) => m.CohortsComponent),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard],
     loadComponent: () =>
