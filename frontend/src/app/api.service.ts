@@ -656,12 +656,27 @@ export interface ProgressBadgeView {
   earnedAt: string | null;
 }
 
+/** A horizontal specialisation track (§3.4 Layer 2) — per-modality depth. */
+export interface SpecialisationTrack {
+  key: string;
+  label: string;
+  sessions: number;
+  /** Sessions with strong core competency (≥4/6) in this modality. */
+  strong: number;
+  tier: number;            // 0-3
+  tierLabel: string;
+  /** Strong sessions needed for the next tier, or null when maxed. */
+  nextAt: number | null;
+}
+
 export interface ProgressData {
   /** Progression stage — 'Стажер' | 'Практик' | 'Досвідчений' | 'Майстер'. */
   stage: string;
   meanCompetency: number;    // 0-100, mean across the radar axes
   sessionsCompleted: number; // scored (ended + feedback) sessions
   radar: ProgressRadarAxis[];
+  /** Specialisation tracks — the open-ended "what's next" after the ladder. */
+  specialisations: SpecialisationTrack[];
   badges: ProgressBadgeView[];
 }
 

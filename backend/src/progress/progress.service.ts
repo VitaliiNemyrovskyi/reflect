@@ -57,6 +57,7 @@ export const BADGES: BadgeDef[] = [
   // ── Широта / залученість ──
   { key: 'roster_of_ten', title: 'Десять облич', description: 'Сесії з 10 різними пацієнтами', category: 'breadth' },
   { key: 'weekender', title: 'І в вихідні', description: 'Сесія у суботу або неділю', category: 'growth' },
+  { key: 'comeback', title: 'Повернення', description: 'Відновив роботу з пацієнтом після тривалої перерви', category: 'alliance' },
   // Flagship clinical badges — awarded from synthesis `signals` (Phase 1b).
   // Only trip on sessions scored after the signals schema shipped.
   { key: 'quiet_signal', title: 'Тихий сигнал', description: 'Помітив пасивний суїцидальний сигнал і провів скринінг', category: 'safety', flagship: true },
@@ -84,6 +85,23 @@ const EXT_AXES = [
   { key: 'homework', label: 'Закріплення' },
 ] as const;
 const RADAR_AXES = [...CORE_AXES, ...EXT_AXES] as const;
+
+/** Keys of the flagship clinical badges — gate the Майстер stage. */
+const FLAGSHIP_KEYS = new Set(['quiet_signal', 'drew_it_out', 'repaired', 'safe_container']);
+
+// Specialisation tracks (§3.4 Layer 2) — the horizontal, endless "what's next".
+// Keyed on modality (3 of the design's 5 specialisations are modalities;
+// theme tracks like Trauma/Grief need theme tagging → later). A track levels
+// up on STRONG sessions (core competency ≥4/6) in that modality.
+const MODALITY_LABELS: Record<string, string> = {
+  individual: 'Індивідуальна',
+  couples: 'Парна',
+  family: 'Сімейна',
+  adolescent: 'Підліткова',
+  crisis: 'Кризова',
+};
+const SPEC_TIERS = [3, 8, 16]; // strong-session thresholds for tiers 1/2/3
+const SPEC_TIER_LABELS = ['Перші кроки', 'Знайомство', 'Впевнено', 'Спеціаліст'];
 
 interface SessionRow {
   characterId: number;
@@ -153,10 +171,16 @@ export class ProgressService {
     }));
 
     return {
-      stage: this.computeStage(badges.filter((b) => b.earned).length, meanCompetency, sessions),
+      stage: this.computeStage(
+        badges.filter((b) => b.earned).length,
+        badges.filter((b) => b.earned && b.flagship).length,
+        meanCompetency,
+        sessions,
+      ),
       meanCompetency,
       sessionsCompleted: sessions.length,
       radar,
+      specialisations: this.computeSpecialisations(sessions),
       badges,
     };
   }
@@ -204,7 +228,12 @@ export class ProgressService {
         email: u.email,
         displayName: u.displayName,
         isAdmin: u.isAdmin,
-        stage: this.computeStage(earned.length, meanCompetency, sessions),
+        stage: this.computeStage(
+          earned.length,
+          earned.filter((k) => FLAGSHIP_KEYS.has(k)).length,
+          meanCompetency,
+          sessions,
+        ),
         meanCompetency,
         sessionsCompleted: sessions.length,
         badgeCount: earned.length,
@@ -233,6 +262,42 @@ export class ProgressService {
       allTime: this.axisMean(assessments, axis.key),
       recent: this.axisMean(recent, axis.key),
     }));
+  }
+
+  // ── Specialisation tracks (§3.4 Layer 2) ────────────────────────────────
+  /** Per-modality progression: a track levels up on STRONG sessions (core
+   *  therapist mean ≥4/6) in that modality. Sorted most-developed first. */
+  private computeSpecialisations(sessions: SessionRow[]) {
+    const byMod = new Map<string, { total: number; strong: number }>();
+    for (const s of sessions) {
+      const mod = s.character.modality;
+      const rec = byMod.get(mod) ?? { total: 0, strong: 0 };
+      rec.total++;
+      const a = this.parse(s.feedbackJson);
+      if (a) {
+        const vals = CORE_AXES.map((ax) => a.therapist?.[ax.key]).filter(
+          (v): v is number => typeof v === 'number',
+        );
+        const mean = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 0;
+        if (mean >= 4) rec.strong++;
+      }
+      byMod.set(mod, rec);
+    }
+    return [...byMod.entries()]
+      .map(([key, rec]) => {
+        let tier = 0;
+        for (let i = 0; i < SPEC_TIERS.length; i++) if (rec.strong >= SPEC_TIERS[i]) tier = i + 1;
+        return {
+          key,
+          label: MODALITY_LABELS[key] ?? key,
+          sessions: rec.total,
+          strong: rec.strong,
+          tier,
+          tierLabel: SPEC_TIER_LABELS[tier],
+          nextAt: tier < SPEC_TIERS.length ? SPEC_TIERS[tier] : null,
+        };
+      })
+      .sort((a, b) => b.strong - a.strong || b.sessions - a.sessions);
   }
 
   /** Mean of a 0-6 therapist score across assessments, normalised to 0-100. */
@@ -334,6 +399,27 @@ export class ProgressService {
     if (assessments.some((a) => a.signals?.ruptureRepaired)) earn.push('repaired');
     if (assessments.some((a) => a.signals?.traumaGrounded)) earn.push('safe_container');
 
+    // ── Win-back: re-engaged a patient after a ≥6-week lapse ──
+    // Such a gap means the patient had gone cold (Tamagotchi "lapsed"); coming
+    // back and rebuilding the alliance is the rewardable act (continuity-of-care).
+    const SIX_WEEKS_MS = 6 * 7 * 24 * 60 * 60 * 1000;
+    const timesByChar = new Map<number, number[]>();
+    for (const s of sessions) {
+      if (!s.endedAt) continue;
+      const arr = timesByChar.get(s.characterId);
+      if (arr) arr.push(s.endedAt.getTime());
+      else timesByChar.set(s.characterId, [s.endedAt.getTime()]);
+    }
+    outer: for (const times of timesByChar.values()) {
+      times.sort((a, b) => a - b);
+      for (let i = 1; i < times.length; i++) {
+        if (times[i] - times[i - 1] >= SIX_WEEKS_MS) {
+          earn.push('comeback');
+          break outer;
+        }
+      }
+    }
+
     return [...new Set(earn)];
   }
 
@@ -374,9 +460,23 @@ export class ProgressService {
   }
 
   // ── Stage (un-rushable; Master needs flagship badges from Phase 1b) ──────
-  private computeStage(earnedCount: number, meanCompetency: number, sessions: SessionRow[]): string {
+  private computeStage(
+    earnedCount: number,
+    flagshipCount: number,
+    meanCompetency: number,
+    sessions: SessionRow[],
+  ): string {
     const mods = new Set(sessions.map((s) => s.character.modality)).size;
-    // Counts are calibrated against the ~19 awardable badges. The competency +
+    // Майстер (Layer 1, §3.4) is deliberately un-rushable: it needs genuine
+    // BREADTH (all 5 modalities) × clinical DEPTH (≥3 flagship badges — the
+    // quiet signal, the rupture repair, etc.) × SUSTAINED quality (mean ≥75),
+    // on top of a large badge count. You physically can't grind it in weeks
+    // without covering the whole range. Beyond it, the journey continues
+    // horizontally via specialisation tracks (Layer 2), not a ceiling.
+    if (earnedCount >= 14 && flagshipCount >= 3 && mods >= 5 && meanCompetency >= 75) {
+      return 'Майстер';
+    }
+    // Counts are calibrated against the awardable-badge pool. The competency +
     // modality-breadth gates are the real constraint — a grinder with many easy
     // volume badges but weak scores still can't pass meanCompetency.
     if (earnedCount >= 8 && mods >= 3 && meanCompetency >= 65) return 'Досвідчений';

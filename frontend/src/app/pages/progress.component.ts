@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ApiService, type ProgressData } from '../api.service';
+import { ApiService, type ProgressData, type SpecialisationTrack } from '../api.service';
 import { I18nService } from '../i18n.service';
 import { IconComponent } from '../icon.component';
 
@@ -146,6 +146,39 @@ import { IconComponent } from '../icon.component';
            }
           }
         </section>
+
+        <!-- ── Specialisations (§3.4 Layer 2) ───────────────────────── -->
+        @if (d.specialisations.length) {
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">{{ tr('Спеціалізації', 'Specialisations') }}</h2>
+              <span class="panel-meta">{{ tr('сильні сесії за напрямом', 'strong sessions by domain') }}</span>
+            </div>
+            <ul class="spec-list">
+              @for (s of d.specialisations; track s.key) {
+                <li class="spec">
+                  <div class="spec-top">
+                    <span class="spec-label">{{ s.label }}</span>
+                    <span class="spec-tier" [class.maxed]="s.nextAt === null">{{ s.tierLabel }}</span>
+                  </div>
+                  <div class="spec-bar"><span class="spec-fill" [style.width.%]="specPct(s)"></span></div>
+                  <div class="spec-meta">
+                    {{ s.strong }} {{ tr('сильних', 'strong') }} / {{ s.sessions }}
+                    @if (s.nextAt !== null) {
+                      · {{ tr('до наступного', 'next at') }} {{ s.nextAt }}
+                    } @else {
+                      · {{ tr('максимум', 'maxed') }}
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
+            <p class="spec-note">
+              {{ tr('Горизонтальний шлях: після рівнів — поглиблення в напрямах, а не стеля.',
+                    'A horizontal path: beyond the stages, depth in domains — not a ceiling.') }}
+            </p>
+          </section>
+        }
 
         <!-- ── Badges ───────────────────────────────────────────────── -->
         <section class="panel">
@@ -302,6 +335,34 @@ import { IconComponent } from '../icon.component';
 
     .empty { color: var(--fg-dim); font-size: 14px; margin: 4px 0; line-height: 1.6; }
 
+    /* ── Specialisations ───────────────────────────────────────────── */
+    .spec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+    .spec-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .spec-label { font-size: 14px; color: var(--fg); }
+    .spec-tier {
+      font-size: 11px; letter-spacing: 0.04em; color: var(--accent);
+      padding: 1px 9px; border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+    }
+    .spec-tier.maxed {
+      color: var(--success);
+      border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+      background: color-mix(in srgb, var(--success) 10%, transparent);
+    }
+    .spec-bar {
+      position: relative; height: 6px; margin-top: 7px; border-radius: 3px;
+      background: var(--user-bg); overflow: hidden;
+    }
+    .spec-fill {
+      position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px;
+      background: var(--accent);
+      box-shadow: 0 0 8px -1px color-mix(in srgb, var(--accent) 50%, transparent);
+      transition: width .5s cubic-bezier(.16,1,.3,1);
+    }
+    .spec-meta { margin-top: 6px; font-size: 11.5px; color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+    .spec-note { margin: 18px 0 0; font-size: 12px; color: var(--fg-dim); line-height: 1.6; border-top: 1px dashed var(--border); padding-top: 14px; }
+
     /* ── Badges ────────────────────────────────────────────────────── */
     .badge-grid {
       display: grid;
@@ -426,6 +487,7 @@ export class ProgressComponent {
     symptom_relief: 'sun',
     roster_of_ten: 'users',
     weekender: 'calendar',
+    comeback: 'rotate-ccw',
   };
 
   protected earnedCount = computed(() => this.data()?.badges.filter((b) => b.earned).length ?? 0);
@@ -503,6 +565,11 @@ export class ProgressComponent {
 
   protected glyph(key: string): string {
     return this.GLYPHS[key] ?? 'diamond';
+  }
+
+  /** Fill % for a specialisation bar — progress toward the next tier (or full). */
+  protected specPct(s: SpecialisationTrack): number {
+    return s.nextAt ? Math.min(100, Math.round((s.strong / s.nextAt) * 100)) : 100;
   }
 
   protected async reload(): Promise<void> {

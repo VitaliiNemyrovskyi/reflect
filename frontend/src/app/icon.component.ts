@@ -114,6 +114,8 @@ const ICONS: Record<string, string> = {
   calendar:
     '<rect x="4" y="5" width="16" height="16" rx="2"/><line x1="4" y1="9.5" x2="20" y2="9.5"/>' +
     '<line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/>',
+  'rotate-ccw':
+    '<path d="M3 12 a9 9 0 1 0 9 -9 9.75 9.75 0 0 0 -6.74 2.74 L3 8"/><path d="M3 3 v5 h5"/>',
 
   diamond: '<path d="M12 3 L21 12 L12 21 L3 12 Z"/>',
 };
