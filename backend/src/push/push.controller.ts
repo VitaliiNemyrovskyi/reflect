@@ -21,14 +21,6 @@ export class PushController {
     return { publicKey: this.push.getPublicKey() };
   }
 
-  /** Debug: is push enabled server-side + how many subscriptions exist total.
-   *  No PII — just an integer count — so we can verify the opt-in path works. */
-  @Public()
-  @Get('diag')
-  async diag() {
-    return { enabled: this.push.isEnabled(), totalSubscriptions: await this.push.totalSubscriptions() };
-  }
-
   @Post('subscribe')
   async subscribe(
     @CurrentUser() user: AuthUser,

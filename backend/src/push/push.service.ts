@@ -89,11 +89,6 @@ export class PushService {
     return this.prisma.pushSubscription.count({ where: { userId } });
   }
 
-  /** Total device subscriptions across all users (debug/health only). */
-  totalSubscriptions(): Promise<number> {
-    return this.prisma.pushSubscription.count();
-  }
-
   /** Send a notification to every device a user has. Returns how many landed. */
   async sendToUser(userId: number, payload: PushPayload): Promise<number> {
     if (!this.enabled) return 0;
