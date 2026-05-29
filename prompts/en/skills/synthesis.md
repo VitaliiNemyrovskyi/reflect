@@ -83,7 +83,11 @@ At the END of the response (AFTER all markdown feedback) add:
     "empathy": <0-6>,
     "collaboration": <0-6>,
     "guidedDiscovery": <0-6>,
-    "strategyForChange": <0-6>
+    "strategyForChange": <0-6>,
+    "structure": <0-6: session structure / agenda / focus>,
+    "pacing": <0-6: pacing and efficient use of time>,
+    "formulation": <0-6: shared formulation / case conceptualization>,
+    "homework": <0-6: consolidation / between-session plan; null if not applicable>
   },
   "signals": {
     "riskScreened": <true if there were suicidal-risk signals (passive/active SI) AND the therapist ran a screening; else false>,

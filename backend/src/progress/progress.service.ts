@@ -62,23 +62,33 @@ export const BADGES: BadgeDef[] = [
   { key: 'drew_it_out', title: 'Витягнув приховане', description: 'Витягнув прихований між-сесійний шар', category: 'depth', flagship: true },
   { key: 'repaired', title: 'Полагодив', description: 'Помітив і відновив розрив альянсу', category: 'alliance', flagship: true },
   { key: 'safe_container', title: 'Безпечний контейнер', description: 'Травма-матеріал із заземленням, без ретравматизації', category: 'trauma', flagship: true },
-  // difficulty lives in profileText (not a column), so this needs profile
-  // parsing — deferred to Phase 1b alongside the skill-signal flagships.
-  { key: 'tough_room', title: 'Складний кейс', description: 'Найскладніший пацієнт (5/5) з добрими оцінками', category: 'technique', comingSoon: true },
+  { key: 'tough_room', title: 'Складний кейс', description: 'Найскладніший пацієнт (5/5) з добрими оцінками', category: 'technique' },
 ];
 
-const RADAR_AXES = [
+// Core competencies — present on EVERY scored session. Drive meanCompetency,
+// the stage gate, and the well_rounded/flawless/on_the_rise badges. Stable.
+const CORE_AXES = [
   { key: 'empathy', label: 'Емпатія' },
   { key: 'collaboration', label: 'Співпраця' },
   { key: 'guidedDiscovery', label: 'Скерований пошук' },
   { key: 'strategyForChange', label: 'Стратегія змін' },
 ] as const;
+// Extended competencies — scored from Phase 1b onward (CTS-R-derived). The
+// radar grows from 4 → 8 axes once a user has at least one session carrying
+// these, so existing users keep a clean 4-axis radar until their next session.
+const EXT_AXES = [
+  { key: 'structure', label: 'Структура' },
+  { key: 'pacing', label: 'Темп' },
+  { key: 'formulation', label: 'Формулювання' },
+  { key: 'homework', label: 'Закріплення' },
+] as const;
+const RADAR_AXES = [...CORE_AXES, ...EXT_AXES] as const;
 
 interface SessionRow {
   characterId: number;
   endedAt: Date | null;
   feedbackJson: string | null;
-  character: { modality: string; lang: string; city: { key: string } | null };
+  character: { modality: string; lang: string; difficulty: number | null; city: { key: string } | null };
 }
 
 interface Assessment {
@@ -129,9 +139,11 @@ export class ProgressService {
     const earnedMap = new Map(earned.map((e) => [e.key, e.earnedAt]));
 
     const radar = this.computeRadar(assessments);
-    const meanCompetency = radar.length
-      ? Math.round(radar.reduce((s, a) => s + a.allTime, 0) / radar.length)
-      : 0;
+    // meanCompetency is pinned to the CORE axes (present on every session), so
+    // the headline number + stage gate stay stable when the radar expands to 8.
+    const meanCompetency = Math.round(
+      CORE_AXES.reduce((s, ax) => s + this.axisMean(assessments, ax.key), 0) / CORE_AXES.length,
+    );
 
     const badges = BADGES.map((b) => ({
       ...b,
@@ -149,9 +161,15 @@ export class ProgressService {
   }
 
   // ── Radar ──────────────────────────────────────────────────────────────
+  // Adaptive: 8 axes once any session carries the extended (Phase-1b) scores,
+  // otherwise the original clean 4. The frontend renders whatever N it gets.
   private computeRadar(assessments: Assessment[]) {
     const recent = assessments.slice(-8); // sessions are oldest→newest
-    return RADAR_AXES.map((axis) => ({
+    const hasExtended = assessments.some((a) =>
+      EXT_AXES.some((ax) => typeof a.therapist?.[ax.key] === 'number'),
+    );
+    const axes = hasExtended ? RADAR_AXES : CORE_AXES;
+    return axes.map((axis) => ({
       key: axis.key,
       label: axis.label,
       allTime: this.axisMean(assessments, axis.key),
@@ -201,9 +219,18 @@ export class ProgressService {
     if (assessments.some((a) => (a.therapist?.collaboration ?? 0) >= 5)) earn.push('collaborator');
     if (assessments.some((a) => (a.therapist?.strategyForChange ?? 0) >= 5)) earn.push('change_agent');
     const allAxesAtLeast = (a: Assessment, v: number) =>
-      RADAR_AXES.every((ax) => (a.therapist?.[ax.key] ?? 0) >= v);
+      CORE_AXES.every((ax) => (a.therapist?.[ax.key] ?? 0) >= v);
     if (assessments.some((a) => allAxesAtLeast(a, 4))) earn.push('well_rounded');
     if (assessments.some((a) => allAxesAtLeast(a, 5))) earn.push('flawless');
+
+    // ── Tough room: solid work (all 4 core ≥4) with a max-difficulty (5/5)
+    // patient. difficulty is a real Character column (behavioural 1-5). ──
+    const toughRoom = sessions.some((s) => {
+      if (s.character.difficulty !== 5) return false;
+      const a = this.parse(s.feedbackJson);
+      return a ? allAxesAtLeast(a, 4) : false;
+    });
+    if (toughRoom) earn.push('tough_room');
 
     // ── Breadth / engagement ──
     if (perPair.size >= 10) earn.push('roster_of_ten');
@@ -270,7 +297,7 @@ export class ProgressService {
     const mid = Math.floor(assessments.length / 2);
     const meanOf = (arr: Assessment[]) => {
       const vals = arr.flatMap((a) =>
-        RADAR_AXES.map((ax) => a.therapist?.[ax.key]).filter((v): v is number => typeof v === 'number'),
+        CORE_AXES.map((ax) => a.therapist?.[ax.key]).filter((v): v is number => typeof v === 'number'),
       );
       return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
     };
@@ -299,7 +326,7 @@ export class ProgressService {
         characterId: true,
         endedAt: true,
         feedbackJson: true,
-        character: { select: { modality: true, lang: true, city: { select: { key: true } } } },
+        character: { select: { modality: true, lang: true, difficulty: true, city: { select: { key: true } } } },
       },
     });
   }

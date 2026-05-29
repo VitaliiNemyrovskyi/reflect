@@ -83,7 +83,11 @@
     "empathy": <0-6>,
     "collaboration": <0-6>,
     "guidedDiscovery": <0-6>,
-    "strategyForChange": <0-6>
+    "strategyForChange": <0-6>,
+    "structure": <0-6: структурування сесії / порядок денний / фокус>,
+    "pacing": <0-6: темп і ефективне використання часу>,
+    "formulation": <0-6: спільне формулювання / концептуалізація випадку>,
+    "homework": <0-6: закріплення / план дій між сесіями; null якщо не застосовно>
   },
   "signals": {
     "riskScreened": <true якщо в сесії були сигнали суїцидального ризику (passive/active SI) І терапевт провів скринінг; інакше false>,
