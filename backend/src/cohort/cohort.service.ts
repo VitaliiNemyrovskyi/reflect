@@ -84,6 +84,7 @@ export class CohortService {
       where: { userId },
       orderBy: { joinedAt: 'desc' },
       select: {
+        shareSessions: true,
         cohort: {
           select: { id: true, name: true, owner: { select: { displayName: true, email: true } } },
         },
@@ -100,6 +101,7 @@ export class CohortService {
         id: m.cohort.id,
         name: m.cohort.name,
         instructor: m.cohort.owner.displayName ?? m.cohort.owner.email,
+        shareSessions: m.shareSessions,
       })),
     };
   }
@@ -113,16 +115,23 @@ export class CohortService {
         name: true,
         inviteCode: true,
         ownerId: true,
-        members: { select: { userId: true } },
+        members: { select: { userId: true, shareSessions: true } },
       },
     });
     if (!cohort) throw new NotFoundException('Групу не знайдено.');
     if (cohort.ownerId !== ownerId) {
       throw new ForbiddenException('Це не ваша група.');
     }
-    const students = await this.progress.getCohortMemberSummaries(
+    const shareMap = new Map(cohort.members.map((m) => [m.userId, m.shareSessions]));
+    const summaries = await this.progress.getCohortMemberSummaries(
       cohort.members.map((m) => m.userId),
     );
+    // Tag each row with whether the student opted in to session-level
+    // sharing (Phase 3) — drives the instructor drilldown affordance.
+    const students = summaries.map((s) => ({
+      ...s,
+      sharing: shareMap.get(s.userId) ?? false,
+    }));
     return { id: cohort.id, name: cohort.name, inviteCode: cohort.inviteCode, students };
   }
 
@@ -170,5 +179,119 @@ export class CohortService {
     }
     await this.prisma.cohort.delete({ where: { id: cohortId } });
     return { deleted: true };
+  }
+
+  // ── Phase 3: session-level sharing (opt-in) ─────────────────────────────
+
+  /**
+   * Student sets their own session-sharing consent for one cohort. Must be
+   * a member. Per-cohort + opt-in (default false): turning it on lets the
+   * cohort owner open this student's transcripts + AI feedback.
+   */
+  async setConsent(userId: number, cohortId: number, share: boolean) {
+    const res = await this.prisma.cohortMember.updateMany({
+      where: { cohortId, userId },
+      data: { shareSessions: share },
+    });
+    if (res.count === 0) throw new NotFoundException('Ви не є учасником цієї групи.');
+    return { shareSessions: share };
+  }
+
+  /**
+   * Guard for the instructor drilldown: caller must own the cohort, the
+   * target must be a member, and that member must have opted in to sharing.
+   */
+  private async assertCanViewStudent(
+    ownerId: number,
+    cohortId: number,
+    studentId: number,
+  ) {
+    const cohort = await this.prisma.cohort.findUnique({
+      where: { id: cohortId },
+      select: { ownerId: true },
+    });
+    if (!cohort) throw new NotFoundException('Групу не знайдено.');
+    if (cohort.ownerId !== ownerId) throw new ForbiddenException('Це не ваша група.');
+    const member = await this.prisma.cohortMember.findUnique({
+      where: { cohortId_userId: { cohortId, userId: studentId } },
+      select: { shareSessions: true },
+    });
+    if (!member) throw new NotFoundException('Студент не в цій групі.');
+    if (!member.shareSessions) {
+      throw new ForbiddenException('Студент не надав доступу до своїх сесій.');
+    }
+  }
+
+  /** Instructor: list one consenting student's completed sessions. */
+  async listStudentSessions(ownerId: number, cohortId: number, studentId: number) {
+    await this.assertCanViewStudent(ownerId, cohortId, studentId);
+    const sessions = await this.prisma.session.findMany({
+      where: { userId: studentId, endedAt: { not: null } },
+      orderBy: { startedAt: 'desc' },
+      take: 100,
+      select: {
+        id: true,
+        startedAt: true,
+        endedAt: true,
+        feedback: true,
+        character: { select: { displayName: true } },
+        _count: { select: { messages: true } },
+      },
+    });
+    return sessions.map((s) => ({
+      id: s.id,
+      character: s.character?.displayName ?? '—',
+      startedAt: s.startedAt,
+      endedAt: s.endedAt,
+      messageCount: s._count.messages,
+      hasFeedback: !!s.feedback,
+    }));
+  }
+
+  /**
+   * Instructor: full detail of one consenting student's session — transcript
+   * + narrative feedback + structured assessment. Private working notes are
+   * intentionally excluded (they stay the student's own).
+   */
+  async getStudentSession(
+    ownerId: number,
+    cohortId: number,
+    studentId: number,
+    sessionId: number,
+  ) {
+    await this.assertCanViewStudent(ownerId, cohortId, studentId);
+    const session = await this.prisma.session.findFirst({
+      where: { id: sessionId, userId: studentId },
+      select: {
+        id: true,
+        startedAt: true,
+        endedAt: true,
+        feedback: true,
+        feedbackJson: true,
+        character: { select: { displayName: true } },
+        messages: {
+          orderBy: { id: 'asc' },
+          select: { role: true, content: true, createdAt: true },
+        },
+      },
+    });
+    if (!session) throw new NotFoundException('Сесію не знайдено.');
+    return {
+      id: session.id,
+      character: session.character?.displayName ?? '—',
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      feedback: session.feedback ?? null,
+      assessment: session.feedbackJson ? safeParse(session.feedbackJson) : null,
+      messages: session.messages,
+    };
+  }
+}
+
+function safeParse(json: string): unknown {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
   }
 }

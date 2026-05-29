@@ -8,7 +8,9 @@ import {
   type CohortDetail,
   type OwnedCohort,
   type JoinedCohort,
-  type TherapistBoardRow,
+  type CohortStudentRow,
+  type StudentSessionRow,
+  type StudentSessionDetail,
 } from '../api.service';
 import { AuthService } from '../auth.service';
 import { I18nService } from '../i18n.service';
@@ -154,7 +156,14 @@ import { IconComponent } from '../icon.component';
                                       }
                                     </td>
                                     <td class="num dim">{{ s.lastActiveAt ? (s.lastActiveAt | date: 'dd.MM.yy') : '—' }}</td>
-                                    <td class="num">
+                                    <td class="num actions-cell">
+                                      @if (s.sharing) {
+                                        <button class="link-btn" (click)="openStudent(det, s)">{{ tr('сесії →', 'sessions →') }}</button>
+                                      } @else {
+                                        <span class="dim no-access" [title]="tr('Студент не надав доступу до сесій', 'No session access')">
+                                          <app-icon name="lock" />
+                                        </span>
+                                      }
                                       <button class="link-btn danger" [disabled]="memberBusy() === s.userId" (click)="removeStudent(det, s)">
                                         {{ memberBusy() === s.userId ? '…' : tr('видалити', 'remove') }}
                                       </button>
@@ -222,6 +231,12 @@ import { IconComponent } from '../icon.component';
                       </button>
                     </div>
                   </div>
+                  <label class="consent-toggle">
+                    <input type="checkbox" [checked]="c.shareSessions"
+                           [disabled]="consentBusy() === c.id" (change)="setConsent(c, $event)" />
+                    <span>{{ tr('Дозволити інструктору переглядати мої сесії — текст розмов і фідбек',
+                              'Let the instructor view my sessions — transcripts and feedback') }}</span>
+                  </label>
                 </li>
               }
             </ul>
@@ -233,6 +248,78 @@ import { IconComponent } from '../icon.component';
             </p>
           }
         </section>
+
+        <!-- ── Instructor drilldown: one consenting student's sessions ── -->
+        @if (drillStudent(); as ds) {
+          <div class="modal-backdrop" (click)="closeStudent()"></div>
+          <div class="drill-modal fx-fade-up" role="dialog" aria-modal="true">
+            <div class="drill-head">
+              <div class="drill-head-left">
+                @if (drillDetail() || drillDetailLoading()) {
+                  <button class="link-btn" (click)="backToList()">← {{ tr('до списку', 'back') }}</button>
+                }
+                <span class="drill-title">{{ ds.row.displayName || ds.row.email }}</span>
+              </div>
+              <button class="x-btn" (click)="closeStudent()" [attr.aria-label]="tr('Закрити','Close')">✕</button>
+            </div>
+
+            @if (drillDetailLoading()) {
+              <div class="fx-shimmer skel-line w70" style="margin:14px"></div>
+            } @else {
+              @if (drillDetail(); as sd) {
+                <div class="drill-body">
+                  <div class="sd-meta">
+                    <strong>{{ sd.character }}</strong>
+                    <span class="dim">{{ sd.startedAt | date: 'dd.MM.yy HH:mm' }}</span>
+                  </div>
+                  @if (sd.feedback) {
+                    <div class="sd-block">
+                      <span class="section-label">{{ tr('Фідбек супервізора', 'Supervisor feedback') }}</span>
+                      <pre class="fb-text">{{ sd.feedback }}</pre>
+                    </div>
+                  }
+                  <div class="sd-block">
+                    <span class="section-label">{{ tr('Транскрипт', 'Transcript') }}</span>
+                    <div class="transcript">
+                      @for (m of sd.messages; track $index) {
+                        <div class="msg" [class.mine]="m.role === 'user'">
+                          <span class="msg-role">{{ roleLabel(m.role) }}</span>
+                          <div class="msg-bubble">{{ m.content }}</div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="drill-body">
+                  @if (drillLoading()) {
+                    <div class="fx-shimmer skel-line w70"></div>
+                  } @else {
+                    @if (drillSessions(); as rows) {
+                    @if (rows.length === 0) {
+                      <p class="empty-hint">{{ tr('У студента ще немає завершених сесій.', 'No completed sessions yet.') }}</p>
+                    } @else {
+                      <ul class="sess-list">
+                        @for (r of rows; track r.id) {
+                          <li>
+                            <button class="sess-row" (click)="openSession(r.id)">
+                              <span class="sess-char">{{ r.character }}</span>
+                              <span class="dim">{{ r.startedAt | date: 'dd.MM.yy' }}</span>
+                              <span class="dim sess-msgs">{{ r.messageCount }} {{ tr('реплік', 'msgs') }}</span>
+                              @if (!r.hasFeedback) { <span class="dim">· {{ tr('без фідбеку', 'no feedback') }}</span> }
+                              <span class="sess-go">→</span>
+                            </button>
+                          </li>
+                        }
+                      </ul>
+                    }
+                    }
+                  }
+                </div>
+              }
+            }
+          </div>
+        }
 
         @if (!isInstructor()) {
           <p class="footnote">
@@ -364,9 +451,88 @@ import { IconComponent } from '../icon.component';
     .skel-line { height: 14px; border-radius: 6px; margin: 8px 0; background: var(--user-bg); }
     .skel-line.w40 { width: 40%; } .skel-line.w70 { width: 70%; }
 
+    /* ── Phase 3: consent toggle ── */
+    .consent-toggle {
+      display: flex; align-items: flex-start; gap: 8px;
+      margin-top: 10px; padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 12.5px; color: var(--fg-dim); cursor: pointer; line-height: 1.4;
+    }
+    .consent-toggle input { margin-top: 2px; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+    .consent-toggle:hover span { color: var(--fg); }
+
+    .actions-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .no-access { display: inline-flex; }
+    .no-access app-icon { font-size: 13px; }
+
+    /* ── Phase 3: instructor drilldown modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 80;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(2px);
+    }
+    .drill-modal {
+      position: fixed; z-index: 81;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: min(720px, 92vw); max-height: 86vh; display: flex; flex-direction: column;
+      background: var(--assistant-bg);
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+      border-radius: 14px; box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+    }
+    .drill-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border); flex: 0 0 auto;
+    }
+    .drill-head-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .drill-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .x-btn {
+      background: transparent; border: none; color: var(--fg-dim);
+      font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+    }
+    .x-btn:hover { color: var(--fg); background: var(--user-bg); }
+    .drill-body { padding: 16px; overflow-y: auto; }
+
+    .sess-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+    .sess-row {
+      display: flex; align-items: center; gap: 12px; width: 100%;
+      padding: 10px 12px; border-radius: 8px; cursor: pointer; text-align: left;
+      background: color-mix(in srgb, var(--accent) 3%, transparent);
+      border: 1px solid var(--border); color: var(--fg); font: inherit; font-size: 13px;
+      transition: border-color .15s ease;
+    }
+    .sess-row:hover { border-color: var(--accent); }
+    .sess-char { font-weight: 500; }
+    .sess-msgs { margin-left: auto; }
+    .sess-go { color: var(--accent); }
+
+    .sd-meta { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+    .sd-block { margin-bottom: 18px; }
+    .sd-block .section-label { display: block; margin-bottom: 8px; }
+    .fb-text {
+      margin: 0; padding: 12px 14px; border-radius: 8px;
+      background: color-mix(in srgb, var(--accent) 4%, var(--user-bg));
+      border: 1px solid var(--border);
+      font: inherit; font-size: 13px; line-height: 1.55; color: var(--fg);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .transcript { display: flex; flex-direction: column; gap: 10px; }
+    .msg { display: flex; flex-direction: column; gap: 3px; max-width: 85%; }
+    .msg.mine { align-self: flex-end; align-items: flex-end; }
+    .msg-role { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim); }
+    .msg-bubble {
+      padding: 9px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.5;
+      background: var(--user-bg); border: 1px solid var(--border); white-space: pre-wrap;
+    }
+    .msg.mine .msg-bubble {
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    }
+
     @media (max-width: 560px) {
       .cohort-main { align-items: flex-start; }
       .cohort-tools { width: 100%; justify-content: space-between; }
+      .msg { max-width: 100%; }
     }
   `],
 })
@@ -403,6 +569,14 @@ export class CohortsComponent {
   memberBusy = signal<number | null>(null);
   leaveBusy = signal<number | null>(null);
   deletingId = signal<number | null>(null);
+
+  // Phase 3 — student consent toggle + instructor session drilldown
+  consentBusy = signal<number | null>(null);
+  drillStudent = signal<{ cohortId: number; row: CohortStudentRow } | null>(null);
+  drillSessions = signal<StudentSessionRow[] | null>(null);
+  drillLoading = signal(false);
+  drillDetail = signal<StudentSessionDetail | null>(null);
+  drillDetailLoading = signal(false);
 
   /** True when the page was opened via an /cohorts/join/:code invite link
    *  — surfaces a short banner and pre-fills the join code. */
@@ -513,8 +687,75 @@ export class CohortsComponent {
     }
   }
 
+  /** Student toggles per-cohort session-sharing consent (Phase 3). */
+  async setConsent(c: JoinedCohort, ev: Event) {
+    const input = ev.target as HTMLInputElement;
+    const share = input.checked;
+    this.consentBusy.set(c.id);
+    try {
+      await this.api.setCohortConsent(c.id, share);
+      this.data.update((d) =>
+        d
+          ? { ...d, joined: d.joined.map((x) => (x.id === c.id ? { ...x, shareSessions: share } : x)) }
+          : d,
+      );
+    } catch (e: unknown) {
+      input.checked = !share; // revert on failure
+      alert(this.msg(e, this.tr('Не вдалось змінити налаштування.', 'Failed to update setting.')));
+    } finally {
+      this.consentBusy.set(null);
+    }
+  }
+
+  /** Instructor opens a consenting student's session list. */
+  async openStudent(det: CohortDetail, row: CohortStudentRow) {
+    this.drillStudent.set({ cohortId: det.id, row });
+    this.drillDetail.set(null);
+    this.drillSessions.set(null);
+    this.drillLoading.set(true);
+    try {
+      this.drillSessions.set(await this.api.getStudentSessions(det.id, row.userId));
+    } catch (e: unknown) {
+      alert(this.msg(e, this.tr('Не вдалось завантажити сесії.', 'Failed to load sessions.')));
+      this.closeStudent();
+    } finally {
+      this.drillLoading.set(false);
+    }
+  }
+
+  closeStudent() {
+    this.drillStudent.set(null);
+    this.drillSessions.set(null);
+    this.drillDetail.set(null);
+  }
+
+  backToList() {
+    this.drillDetail.set(null);
+  }
+
+  /** Instructor opens one session's full detail (transcript + feedback). */
+  async openSession(sessionId: number) {
+    const ds = this.drillStudent();
+    if (!ds) return;
+    this.drillDetailLoading.set(true);
+    try {
+      this.drillDetail.set(await this.api.getStudentSession(ds.cohortId, ds.row.userId, sessionId));
+    } catch (e: unknown) {
+      alert(this.msg(e, this.tr('Не вдалось завантажити сесію.', 'Failed to load session.')));
+    } finally {
+      this.drillDetailLoading.set(false);
+    }
+  }
+
+  /** Map a stored message role to a display label. */
+  roleLabel(role: string): string {
+    if (role === 'user') return this.tr('Терапевт', 'Therapist');
+    if (role === 'assistant') return this.tr('Пацієнт', 'Patient');
+    return role;
+  }
+
   /** Instructor removes a student: drop the row + decrement member count. */
-  async removeStudent(det: CohortDetail, s: TherapistBoardRow) {
+  async removeStudent(det: CohortDetail, s: CohortStudentRow) {
     const name = s.displayName || s.email;
     if (!confirm(this.tr(`Видалити ${name} з групи?`, `Remove ${name} from the group?`))) return;
     this.memberBusy.set(s.userId);
