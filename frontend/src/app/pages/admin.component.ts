@@ -91,7 +91,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
             @for (u of users(); track u.id) {
               <tr>
                 <td class="num">{{ u.id }}</td>
-                <td>{{ u.email }}</td>
+                <td class="email-cell">{{ u.email }}</td>
                 <td>{{ u.displayName || '—' }}</td>
                 <td><code class="provider">{{ u.provider }}</code></td>
                 <td class="num">{{ u.sessionCount }}</td>
@@ -601,6 +601,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
     .num { font-variant-numeric: tabular-nums; color: var(--fg-dim); }
     .empty { text-align: center; color: var(--fg-dim); padding: 24px; }
     .message { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Cap the email column and let long synthetic addresses break, so the
+       users table fits its content column without horizontal scroll. */
+    .email-cell { max-width: 180px; overflow-wrap: anywhere; }
 
     /* ── Therapist board (§14) ── */
     .tabs button.board-tab { display: inline-flex; align-items: center; gap: 6px; }
@@ -673,11 +676,21 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
       font-size: 12px;
       min-height: auto;
     }
+    /* Fixed-width, wrapping cluster: the four links (sessions, plan, admin
+       toggle, instructor toggle) wrap into a tidy 2×2 instead of forcing
+       the whole table wider than its column and clipping the toggles
+       off-screen-right. Pair with .email-cell breaking to reclaim width. */
     .row-actions {
       display: flex;
-      gap: 10px;
+      flex-wrap: wrap;
+      width: 150px;
+      column-gap: 9px;
+      row-gap: 5px;
       align-items: center;
-      white-space: nowrap;
+      align-content: center;
+      justify-content: flex-end;
+      white-space: normal;
+      font-size: 12px;
     }
     .link-btn {
       background: transparent;
