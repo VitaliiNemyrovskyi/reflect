@@ -156,6 +156,20 @@ export class SessionsService {
     // Pull prior session memories for this user-character pair (most recent 5)
     const priorMemories = await this.loadPriorMemories(userId, character.id);
 
+    // stateBias (§12): how long since this trainee last saw this patient? A
+    // long gap means they come back more withdrawn (bounded — never crisis).
+    const lastScored = await this.prisma.session.findFirst({
+      where: { userId, characterId: character.id, endedAt: { not: null } },
+      orderBy: { endedAt: 'desc' },
+      select: { endedAt: true },
+    });
+    const absenceContext = lastScored?.endedAt
+      ? this.buildAbsenceContext(
+          (Date.now() - lastScored.endedAt.getTime()) / (7 * 24 * 60 * 60 * 1000),
+          character.lang,
+        )
+      : '';
+
     const session = await this.prisma.session.create({
       data: { characterId: character.id, userId },
     });
@@ -180,6 +194,7 @@ export class SessionsService {
       character.lang,
       character.id,
       userId,
+      absenceContext,
     );
 
     await this.prisma.message.create({
@@ -1591,6 +1606,34 @@ export class SessionsService {
     return rows.map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content }));
   }
 
+  /**
+   * stateBias (gamification §12): a long gap since the trainee last saw this
+   * patient bleeds into how the patient shows up today — more withdrawn the
+   * longer the absence. HARD-BOUNDED to detachment / flatness / mild skepticism;
+   * a neglected patient goes COLD, never into crisis. We explicitly forbid
+   * crisis/self-harm escalation so the away-time can never manufacture a
+   * clinical emergency (clinically grotesque + a dark pattern). Empty under 2
+   * weeks (normal cadence triggers nothing). Stage-direction, not patient text.
+   */
+  private buildAbsenceContext(weeksIdle: number, lang: string): string {
+    if (weeksIdle < 2) return '';
+    const w = Math.round(weeksIdle);
+    const uk = lang === 'uk';
+    if (weeksIdle >= 6) {
+      return uk
+        ? `\n\n## Довга перерва (${w} тиж.)\nВи майже припинили ходити на сесії. Сьогодні приходите закрито, втомлено, з відстороненістю й тихим скепсисом «чи це взагалі допомагає». Тепло не з'являється одразу — рапорт ніби треба будувати заново. ВАЖЛИВО: це лише відстороненість і млявість, БЕЗ кризи, суїцидальних думок чи самоушкодження — не загострюйте стан через паузу.\n`
+        : `\n\n## Long absence (${w} wks)\nYou'd nearly stopped coming. Today you arrive guarded, tired, detached, with a quiet "does this even help?" skepticism. Warmth doesn't return at once — rapport must be rebuilt. IMPORTANT: detachment and flatness ONLY — NO crisis, suicidal ideation, or self-harm because of the gap. Do not escalate.\n`;
+    }
+    if (weeksIdle >= 4) {
+      return uk
+        ? `\n\n## Помітна перерва (${w} тиж.)\nМинуло більше часу, ніж зазвичай. Ви трохи насторожені й відсторонені, з ноткою сумніву щодо терапії. Теплоту варто відновити поступово. Без кризи — просто стриманіше, ніж раніше.\n`
+        : `\n\n## Notable gap (${w} wks)\nMore time than usual has passed. You're a bit guarded and detached, with a hint of doubt about therapy. Warmth should return gradually. No crisis — just more reserved than before.\n`;
+    }
+    return uk
+      ? `\n\n## Невелика перерва (${w} тиж.)\nМинуло трохи більше часу між сесіями. Ви заходите трохи стриманіше, ніж зазвичай; теплота повертається протягом розмови.\n`
+      : `\n\n## Short gap (${w} wks)\nA little more time than usual has passed. You come in slightly more reserved than usual; warmth returns over the conversation.\n`;
+  }
+
   private async respondAsCharacter(
     profileText: string,
     displayName: string,
@@ -1602,6 +1645,7 @@ export class SessionsService {
     lang: string = 'uk',
     characterId: number | null = null,
     userId: number | null = null,
+    absenceContext: string = '',
   ): Promise<string> {
     const filled = this.prompts.fill(this.prompts.annaSystem, {
       CHARACTER_NAME: displayName,
@@ -1643,7 +1687,10 @@ export class SessionsService {
     // subsequent turns — double-savings on long sessions.
     const brevityInstruction = this.prompts.getBrevityInstruction(difficulty, modality);
     return this.llm.chat({
-      systemPrompt: filled + warning + memorySection + npcSection + citySection + difficultyModulator + modalityModulator + brevityInstruction,
+      // absenceContext (stage-direction about a long gap since last session)
+      // goes right after the persona + memories so the model factors it into
+      // HOW the patient shows up today, before difficulty/modality steering.
+      systemPrompt: filled + warning + memorySection + absenceContext + npcSection + citySection + difficultyModulator + modalityModulator + brevityInstruction,
       history,
       cacheSystem: true,
     });
