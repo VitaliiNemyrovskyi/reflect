@@ -153,4 +153,22 @@ export class CohortService {
     });
     return { removed: true };
   }
+
+  /**
+   * Instructor deletes their own cohort. Owner-checked. Memberships are
+   * removed automatically by the onDelete: Cascade on CohortMember.cohort,
+   * so a single delete is enough.
+   */
+  async deleteCohort(ownerId: number, cohortId: number) {
+    const cohort = await this.prisma.cohort.findUnique({
+      where: { id: cohortId },
+      select: { ownerId: true },
+    });
+    if (!cohort) throw new NotFoundException('Групу не знайдено.');
+    if (cohort.ownerId !== ownerId) {
+      throw new ForbiddenException('Це не ваша група.');
+    }
+    await this.prisma.cohort.delete({ where: { id: cohortId } });
+    return { deleted: true };
+  }
 }

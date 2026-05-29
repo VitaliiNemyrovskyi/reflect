@@ -106,6 +106,9 @@ import { IconComponent } from '../icon.component';
                         <button class="link-btn" (click)="toggleDetail(c)">
                           {{ selectedId() === c.id ? tr('Згорнути', 'Close') : tr('Студенти →', 'Students →') }}
                         </button>
+                        <button class="link-btn danger" [disabled]="deletingId() === c.id" (click)="deleteCohort(c)">
+                          {{ deletingId() === c.id ? '…' : tr('видалити', 'delete') }}
+                        </button>
                       </div>
                     </div>
 
@@ -399,6 +402,7 @@ export class CohortsComponent {
   // button spins without locking the rest).
   memberBusy = signal<number | null>(null);
   leaveBusy = signal<number | null>(null);
+  deletingId = signal<number | null>(null);
 
   /** True when the page was opened via an /cohorts/join/:code invite link
    *  — surfaces a short banner and pre-fills the join code. */
@@ -483,6 +487,29 @@ export class CohortsComponent {
       alert(this.msg(e, this.tr('Не вдалось вийти з групи.', 'Failed to leave.')));
     } finally {
       this.leaveBusy.set(null);
+    }
+  }
+
+  /** Instructor deletes a whole cohort: drop it from the owned list. */
+  async deleteCohort(c: OwnedCohort) {
+    if (!confirm(this.tr(
+      `Видалити групу «${c.name}»? Усіх учасників буде відключено.`,
+      `Delete the group "${c.name}"? All members will be removed.`,
+    ))) return;
+    this.deletingId.set(c.id);
+    try {
+      await this.api.deleteCohort(c.id);
+      if (this.selectedId() === c.id) {
+        this.selectedId.set(null);
+        this.detail.set(null);
+      }
+      this.data.update((d) =>
+        d ? { ...d, owned: d.owned.filter((x) => x.id !== c.id) } : d,
+      );
+    } catch (e: unknown) {
+      alert(this.msg(e, this.tr('Не вдалось видалити групу.', 'Failed to delete group.')));
+    } finally {
+      this.deletingId.set(null);
     }
   }
 

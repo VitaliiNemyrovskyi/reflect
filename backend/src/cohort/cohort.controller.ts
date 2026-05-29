@@ -31,6 +31,12 @@ export class CohortController {
     return this.cohort.getCohortForOwner(user.id, id);
   }
 
+  /** Instructor deletes their own cohort (owner-checked, cascades members). */
+  @Delete(':id')
+  remove(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+    return this.cohort.deleteCohort(user.id, id);
+  }
+
   /** Student leaves a cohort they joined. */
   @Delete(':id/membership')
   leave(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
