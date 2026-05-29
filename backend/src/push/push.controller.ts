@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
+import { Public } from '../auth/public.decorator';
 import { PushService, type WebPushSubscription } from './push.service';
 
 /**
@@ -11,7 +12,10 @@ import { PushService, type WebPushSubscription } from './push.service';
 export class PushController {
   constructor(private readonly push: PushService) {}
 
-  /** Browser fetches this to subscribe. `{ publicKey: null }` ⇒ push disabled. */
+  /** Browser fetches this to subscribe. `{ publicKey: null }` ⇒ push disabled.
+   *  Public by design — a VAPID *public* key is meant to be shared with any
+   *  client (it's the applicationServerKey the browser embeds). */
+  @Public()
   @Get('vapid-public-key')
   vapidPublicKey() {
     return { publicKey: this.push.getPublicKey() };
