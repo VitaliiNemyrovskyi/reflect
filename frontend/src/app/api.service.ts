@@ -792,6 +792,13 @@ export class ApiService {
     );
   }
 
+  /** Fire an immediate test push to the caller's own devices. `sent` = # reached. */
+  pushTest(lang: string): Promise<{ sent: number; enabled: boolean }> {
+    return firstValueFrom(
+      this.http.post<{ sent: number; enabled: boolean }>(`${this.base}/push/test`, { lang }),
+    );
+  }
+
   /**
    * Pull the character's full memory timeline as the current user
    * knows them — newest first, all kinds. Backend already filters

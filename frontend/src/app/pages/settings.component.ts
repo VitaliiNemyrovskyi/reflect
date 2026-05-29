@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ApiService } from '../api.service';
 import { PreferencesService } from '../preferences.service';
 import { AuthService } from '../auth.service';
 import { ThemeService } from '../theme.service';
@@ -70,6 +71,11 @@ import { PushClientService, type PushEnableResult } from '../push.service';
             [disabled]="pushBusy() || push.permission === 'denied'"
             (change)="togglePush($any($event.target).checked)" />
         </label>
+        @if (pushOn()) {
+          <button type="button" class="ghost small test-push" [disabled]="pushBusy()" (click)="sendTestPush()">
+            Надіслати тестове сповіщення
+          </button>
+        }
         @if (pushMsg(); as m) {
           <p class="group-hint" [class.danger]="pushErr()">{{ m }}</p>
         }
@@ -373,6 +379,7 @@ export class SettingsComponent implements OnInit {
   protected theme = inject(ThemeService);
   protected i18n = inject(I18nService);
   protected push = inject(PushClientService);
+  private api = inject(ApiService);
 
   saving = signal(false);
   error = signal<string | null>(null);
@@ -418,6 +425,29 @@ export class SettingsComponent implements OnInit {
         this.pushOn.set(false);
         this.pushMsg.set('Нагадування вимкнено.');
       }
+    } finally {
+      this.pushBusy.set(false);
+    }
+  }
+
+  async sendTestPush(): Promise<void> {
+    this.pushBusy.set(true);
+    this.pushMsg.set(null);
+    this.pushErr.set(false);
+    try {
+      const r = await this.api.pushTest(this.i18n.lang());
+      if (r.sent > 0) {
+        this.pushMsg.set(`Надіслано — перевір сповіщення (${r.sent} прист.).`);
+      } else if (!r.enabled) {
+        this.pushErr.set(true);
+        this.pushMsg.set('Push вимкнений на сервері.');
+      } else {
+        this.pushErr.set(true);
+        this.pushMsg.set('0 пристроїв. Спершу увімкни тумблер саме на цьому пристрої.');
+      }
+    } catch {
+      this.pushErr.set(true);
+      this.pushMsg.set('Не вдалося надіслати тест.');
     } finally {
       this.pushBusy.set(false);
     }
