@@ -695,6 +695,10 @@ import { IconComponent } from '../icon.component';
       .user-area { gap: 4px; }
       .greeting h1 { font-size: 22px; }
       .title-row { flex-direction: column; align-items: flex-start; }
+      /* In a column flex, the row's `flex: 1 1 280px` makes 280px a HEIGHT
+         basis → the greeting stretched ~280px tall, leaving a big empty gap
+         below the text. Reset to content height when stacked. */
+      .greeting { flex: 0 0 auto; width: 100%; }
       .patient-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
       .continue-row { grid-template-columns: 40px 1fr auto; padding: 10px 12px; }
       .row-avatar { width: 40px; height: 40px; }
