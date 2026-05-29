@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '../auth/current-user.decorator';
 import { CohortService } from './cohort.service';
 
@@ -51,5 +51,36 @@ export class CohortController {
     @Param('userId', ParseIntPipe) userId: number,
   ) {
     return this.cohort.removeMember(user.id, id, userId);
+  }
+
+  /** Student sets their own session-sharing consent for this cohort (Phase 3). */
+  @Patch(':id/consent')
+  setConsent(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { share: boolean },
+  ) {
+    return this.cohort.setConsent(user.id, id, !!body?.share);
+  }
+
+  /** Instructor: list a consenting student's completed sessions. */
+  @Get(':id/members/:userId/sessions')
+  studentSessions(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
+    return this.cohort.listStudentSessions(user.id, id, userId);
+  }
+
+  /** Instructor: full detail of one consenting student's session. */
+  @Get(':id/members/:userId/sessions/:sessionId')
+  studentSession(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+  ) {
+    return this.cohort.getStudentSession(user.id, id, userId, sessionId);
   }
 }

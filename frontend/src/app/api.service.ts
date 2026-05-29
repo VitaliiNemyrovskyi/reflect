@@ -814,6 +814,29 @@ export class ApiService {
     return firstValueFrom(this.http.get<CohortDetail>(`${this.base}/cohorts/${id}`));
   }
 
+  /** Student opts in/out of sharing their sessions with this cohort's instructor. */
+  setCohortConsent(id: number, share: boolean): Promise<{ shareSessions: boolean }> {
+    return firstValueFrom(
+      this.http.patch<{ shareSessions: boolean }>(`${this.base}/cohorts/${id}/consent`, { share }),
+    );
+  }
+
+  /** Instructor: list a consenting student's sessions. */
+  getStudentSessions(cohortId: number, userId: number): Promise<StudentSessionRow[]> {
+    return firstValueFrom(
+      this.http.get<StudentSessionRow[]>(`${this.base}/cohorts/${cohortId}/members/${userId}/sessions`),
+    );
+  }
+
+  /** Instructor: full detail of one of a consenting student's sessions. */
+  getStudentSession(cohortId: number, userId: number, sessionId: number): Promise<StudentSessionDetail> {
+    return firstValueFrom(
+      this.http.get<StudentSessionDetail>(
+        `${this.base}/cohorts/${cohortId}/members/${userId}/sessions/${sessionId}`,
+      ),
+    );
+  }
+
   /** Instructor deletes their own cohort. */
   deleteCohort(id: number): Promise<{ deleted: boolean }> {
     return firstValueFrom(
@@ -1286,17 +1309,47 @@ export interface JoinedCohort {
   id: number;
   name: string;
   instructor: string;
+  /** Phase 3: has this student opted in to sharing sessions with the instructor. */
+  shareSessions: boolean;
 }
 export interface CohortList {
   owned: OwnedCohort[];
   joined: JoinedCohort[];
 }
-/** Cohort detail for the instructor — students share the board-row shape. */
+/** A cohort member row = board-row shape + the Phase-3 sharing flag. */
+export interface CohortStudentRow extends TherapistBoardRow {
+  sharing: boolean;
+}
+/** Cohort detail for the instructor. */
 export interface CohortDetail {
   id: number;
   name: string;
   inviteCode: string;
-  students: TherapistBoardRow[];
+  students: CohortStudentRow[];
+}
+/** One row in a student's session list (instructor drilldown, Phase 3). */
+export interface StudentSessionRow {
+  id: number;
+  character: string;
+  startedAt: string;
+  endedAt: string | null;
+  messageCount: number;
+  hasFeedback: boolean;
+}
+export interface TranscriptMessage {
+  role: string;
+  content: string;
+  createdAt: string;
+}
+/** Full session detail for the instructor drilldown (Phase 3). */
+export interface StudentSessionDetail {
+  id: number;
+  character: string;
+  startedAt: string;
+  endedAt: string | null;
+  feedback: string | null;
+  assessment: unknown;
+  messages: TranscriptMessage[];
 }
 
 export interface TherapistBoardRow {
