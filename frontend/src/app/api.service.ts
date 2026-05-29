@@ -606,6 +606,43 @@ export interface BillingStatus {
   daysUntilPeriodEnd: number;
 }
 
+// ── Gamification progress (/progress page) ───────────────────────────
+//
+// Mirror of backend ProgressService.getProgress(). All values are
+// derived server-side from persisted assessment scores + earned
+// UserMilestone rows; the frontend only renders.
+
+export interface ProgressRadarAxis {
+  key: string;
+  label: string;
+  /** Mean of this competency across ALL scored sessions, 0-100. */
+  allTime: number;
+  /** Same, restricted to the last 8 sessions (the "recent form" line). */
+  recent: number;
+}
+
+export interface ProgressBadgeView {
+  key: string;
+  title: string;
+  description: string;
+  category: 'safety' | 'alliance' | 'technique' | 'depth' | 'trauma' | 'breadth' | 'growth';
+  /** Marquee clinical badge — rendered with extra emphasis. */
+  flagship?: boolean;
+  /** Not yet awardable (needs Phase-1b skill signals) — shown as a goal. */
+  comingSoon?: boolean;
+  earned: boolean;
+  earnedAt: string | null;
+}
+
+export interface ProgressData {
+  /** Progression stage — 'Стажер' | 'Практик' | 'Досвідчений' | 'Майстер'. */
+  stage: string;
+  meanCompetency: number;    // 0-100, mean across the radar axes
+  sessionsCompleted: number; // scored (ended + feedback) sessions
+  radar: ProgressRadarAxis[];
+  badges: ProgressBadgeView[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http   = inject(HttpClient);
@@ -681,6 +718,16 @@ export class ApiService {
     return firstValueFrom(
       this.http.get<PatientCard>(`${this.base}/characters/${characterId}/full`),
     );
+  }
+
+  /**
+   * Gamification progress for the current user — competency radar,
+   * progression stage, and earned/locked badges. Backend recomputes
+   * badge awards on every read so the page is always current without
+   * touching the feedback write-path.
+   */
+  getProgress(): Promise<ProgressData> {
+    return firstValueFrom(this.http.get<ProgressData>(`${this.base}/progress`));
   }
 
   /**

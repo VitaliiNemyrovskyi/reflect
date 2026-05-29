@@ -97,6 +97,13 @@ export const routes: Routes = [
       import('./pages/profile.component').then((m) => m.ProfileComponent),
   },
   {
+    // Gamification — competency radar, progression stage, badges.
+    path: 'progress',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/progress.component').then((m) => m.ProgressComponent),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard],
     loadComponent: () =>

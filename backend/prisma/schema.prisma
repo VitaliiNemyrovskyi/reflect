@@ -274,6 +274,7 @@ model User {
   characterShares CharacterShare[] // patients others have shared with this user
   events          Event[]    // telemetry events (funnel analysis)
   characterMemories CharacterMemory[]  // memory entries per user-character pair
+  milestones      UserMilestone[]   // earned gamification badges
   // Per-user subscription. Optional only at the schema level — every
   // user gets one provisioned on register/oauth-create (default plan
   // = 'trial', trialEndsAt = now + 14 days). Lazy-create fallback in
@@ -501,4 +502,25 @@ model LlmUsage {
 
   @@index([createdAt])
   @@index([model])
+}
+
+/**
+ * Earned gamification milestone (badge). The ONLY persistent gamification
+ * state — radar, stage, and practice rhythm are all derived on the fly from
+ * sessions + feedbackJson, so they stay truthful and need no backfill.
+ *
+ * Awarded idempotently by ProgressService (recompute-on-read): opening the
+ * progress page scans the user's completed sessions and inserts any newly
+ * earned badge. unique(userId, key) makes re-award a no-op.
+ */
+model UserMilestone {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  key       String   // catalog key, e.g. 'first_contact', 'three_cities'
+  earnedAt  DateTime @default(now())
+  sessionId Int?     // the session that triggered it, if applicable
+
+  @@unique([userId, key])
+  @@index([userId])
 }

@@ -41,6 +41,10 @@ import { LogoComponent } from './logo.component';
             <a routerLink="/profile" class="user-name-link" [title]="i18n.t('nav.profile')">
               {{ u.displayName ?? u.email }}
             </a>
+            <a routerLink="/progress"
+               class="ghost icon small"
+               [title]="i18n.isEn ? 'Progress' : 'Прогрес'"
+               [attr.aria-label]="i18n.isEn ? 'Progress' : 'Прогрес'">📈</a>
             <a routerLink="/network"
                class="ghost icon small"
                [title]="i18n.t('nav.network')"
