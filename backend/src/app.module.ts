@@ -26,6 +26,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ProgressModule } from './progress/progress.module';
 import { PushModule } from './push/push.module';
 import { CohortModule } from './cohort/cohort.module';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { CohortModule } from './cohort/cohort.module';
     ProgressModule,
     PushModule,
     CohortModule,
+    CoursesModule,
   ],
   providers: [
     // Apply the throttler globally. Individual routes opt out with

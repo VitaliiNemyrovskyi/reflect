@@ -604,3 +604,68 @@ model CohortMember {
   @@unique([cohortId, userId])
   @@index([userId])
 }
+
+/**
+ * Skill-path "course" — a short sequence of lesson + practice steps that
+ * close the learn → practice → feedback loop. Trilingual title/description
+ * (uk primary). `published` gates visibility (false = draft pending clinical
+ * review). Seeded create-only on boot by CoursesService.
+ */
+model SkillPath {
+  id        Int             @id @default(autoincrement())
+  key       String          @unique
+  titleUk   String
+  titleEn   String
+  descUk    String
+  descEn    String
+  order     Int             @default(0)
+  published Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  steps     SkillPathStep[]
+}
+
+/**
+ * One step in a SkillPath. kind='lesson' renders bodyUk/bodyEn (markdown);
+ * 'practice' launches a session with the patient named by characterRef
+ * (resolved to a Character at serve time, so seeding doesn't depend on
+ * character-seed ordering). passSignal (optional) names a feedback signal
+ * (e.g. 'riskScreened') the practice session must show for the checkpoint to
+ * pass; null = completing a session with feedback is enough.
+ */
+model SkillPathStep {
+  id           Int                  @id @default(autoincrement())
+  path         SkillPath            @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  pathId       Int
+  order        Int
+  kind         String
+  titleUk      String
+  titleEn      String
+  bodyUk       String?
+  bodyEn       String?
+  characterRef String?
+  techniqueKey String?
+  passSignal   String?
+  completions  UserStepCompletion[]
+
+  @@unique([pathId, order])
+  @@index([pathId])
+}
+
+/**
+ * Per-user completion of a single step. For practice steps sessionId links
+ * the launched session; completedAt is set when a lesson is acknowledged or a
+ * practice session's feedback meets the checkpoint. userId/sessionId are plain
+ * references (no FK) to avoid touching the core User/Session models.
+ */
+model UserStepCompletion {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  step        SkillPathStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  stepId      Int
+  sessionId   Int?
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, stepId])
+  @@index([userId])
+}
