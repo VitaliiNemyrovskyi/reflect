@@ -24,11 +24,19 @@ export class SessionStateService {
    *  can re-pin VoiceService when navigating back into a chat without
    *  re-fetching the session (the "bubbles already in state" path). */
   readonly characterGender = signal<'female' | 'male' | null>(null);
+  /** Patient avatar URL — used by the video-call mode tile. Null when
+   *  unknown (legacy rows / not yet loaded) → the tile shows initials. */
+  readonly characterAvatar = signal<string | null>(null);
   readonly bubbles = signal<ChatBubble[]>([]);
 
-  reset(displayName: string | null = null, gender: 'female' | 'male' | null = null) {
+  reset(
+    displayName: string | null = null,
+    gender: 'female' | 'male' | null = null,
+    avatar: string | null = null,
+  ) {
     this.characterDisplayName.set(displayName);
     this.characterGender.set(gender);
+    this.characterAvatar.set(avatar);
     this.bubbles.set([]);
   }
 
