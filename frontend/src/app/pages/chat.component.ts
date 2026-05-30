@@ -138,7 +138,7 @@ interface SelectionAnchor {
               <p class="hints-status">Готую варіанти…</p>
             } @else if (hintsError()) {
               <p class="hints-status danger">{{ hintsError() }}</p>
-            } @else {
+            } @else if (hints().length) {
               <ul class="hints-list">
                 @for (s of hints(); track $index) {
                   <li class="hint-card" (click)="applyHint(s)" tabindex="0"
@@ -154,6 +154,8 @@ interface SelectionAnchor {
               <p class="hints-foot">
                 Натисни варіант — він підставиться у поле, ти зможеш відредагувати перед надсиланням.
               </p>
+            } @else {
+              <p class="hints-status">Не вдалось підготувати варіанти. Спробуй ще раз.</p>
             }
           </div>
         }
@@ -1246,7 +1248,15 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
    * student should be able to tweak the wording before committing.
    */
   applyHint(s: HintSuggestion) {
-    this.draft = s.text;
+    const text = (s.text ?? '').trim();
+    // Defensive: a suggestion must be a sendable therapist line, never raw
+    // model output. Refuse a code-fence / JSON blob so it can't be dropped
+    // into the composer and sent (the session #74 L27 failure mode).
+    if (!text || text.startsWith('```') || /^\{\s*"/.test(text)) {
+      this.hintsOpen.set(false);
+      return;
+    }
+    this.draft = text;
     this.hintsOpen.set(false);
     // Move focus + caret to the end so the student can edit immediately.
     queueMicrotask(() => {
