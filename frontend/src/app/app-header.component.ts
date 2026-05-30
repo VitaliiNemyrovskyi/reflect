@@ -70,6 +70,9 @@ import { IconComponent } from './icon.component';
             <a routerLink="/progress" class="mm-item" (click)="menuOpen.set(false)">
               <app-icon name="chart-up" /><span>{{ i18n.isEn ? 'Progress' : 'Прогрес' }}</span>
             </a>
+            <a routerLink="/courses" class="mm-item" (click)="menuOpen.set(false)">
+              <app-icon name="lightbulb" /><span>{{ i18n.isEn ? 'Courses' : 'Курси' }}</span>
+            </a>
             <a routerLink="/network" class="mm-item" (click)="menuOpen.set(false)">
               <app-icon name="network" /><span>{{ i18n.t('nav.network') }}</span>
             </a>

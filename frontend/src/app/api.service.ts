@@ -682,12 +682,69 @@ export interface ProgressData {
   badges: ProgressBadgeView[];
 }
 
+export interface CourseListItem {
+  key: string;
+  titleUk: string;
+  titleEn: string;
+  descUk: string;
+  descEn: string;
+  totalSteps: number;
+  doneSteps: number;
+}
+export interface CourseStep {
+  id: number;
+  order: number;
+  kind: 'lesson' | 'practice';
+  titleUk: string;
+  titleEn: string;
+  bodyUk: string | null;
+  bodyEn: string | null;
+  techniqueKey: string | null;
+  patient: { displayName: string; avatarUrl: string | null } | null;
+  sessionId: number | null;
+  done: boolean;
+  available: boolean;
+}
+export interface CourseDetail {
+  key: string;
+  titleUk: string;
+  titleEn: string;
+  descUk: string;
+  descEn: string;
+  completed: boolean;
+  steps: CourseStep[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http   = inject(HttpClient);
   private auth   = inject(AuthService);
   private i18n   = inject(I18nService);
   private base = '/api';
+
+  // ---------------------------------------------------------------
+  // Courses (skill-paths)
+  // ---------------------------------------------------------------
+
+  listCourses(): Promise<CourseListItem[]> {
+    return firstValueFrom(this.http.get<CourseListItem[]>(`${this.base}/courses`));
+  }
+
+  courseDetail(key: string): Promise<CourseDetail> {
+    return firstValueFrom(this.http.get<CourseDetail>(`${this.base}/courses/${key}`));
+  }
+
+  completeCourseLesson(stepId: number): Promise<{ ok: boolean }> {
+    return firstValueFrom(
+      this.http.post<{ ok: boolean }>(`${this.base}/courses/steps/${stepId}/complete`, {}),
+    );
+  }
+
+  startCoursePractice(stepId: number): Promise<{ sessionId: number }> {
+    return firstValueFrom(
+      this.http.post<{ sessionId: number }>(`${this.base}/courses/steps/${stepId}/practice`, {}),
+    );
+  }
 
   // ---------------------------------------------------------------
   // Billing
