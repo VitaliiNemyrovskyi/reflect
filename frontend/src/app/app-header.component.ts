@@ -150,6 +150,8 @@ import { IconComponent } from './icon.component';
       justify-content: center;
       width: 34px;
       height: 34px;
+      min-height: 0;   /* override the global @media button min-height that was ovalising it on mobile */
+      flex: 0 0 auto;  /* never let the flex row compress the circle */
       padding: 0;
       border-radius: 50%;
       border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
