@@ -3,11 +3,12 @@ import {
   APP_INITIALIZER,
   provideZoneChangeDetection,
 } from '@angular/core';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideRouter, withComponentInputBinding, TitleStrategy } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
 import { authInterceptor } from './auth.interceptor';
 import { I18nService } from './i18n.service';
+import { SeoTitleStrategy } from './seo-title.strategy';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 
 /**
@@ -29,6 +30,8 @@ export const appConfig: ApplicationConfig = {
       useFactory: initI18n,
       deps:       [I18nService],
       multi:      true,
-    }, provideClientHydration(withEventReplay()),
+    },
+    { provide: TitleStrategy, useClass: SeoTitleStrategy },
+    provideClientHydration(withEventReplay()),
   ],
 };

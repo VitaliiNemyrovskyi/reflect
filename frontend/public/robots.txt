@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /clients
+Disallow: /patient
+Disallow: /session
+Disallow: /settings
+Disallow: /profile
+Disallow: /progress
+Disallow: /cohorts
+Disallow: /admin
+Disallow: /network
+Disallow: /account
+
+Sitemap: https://reflect.swift-mail.app/sitemap.xml
