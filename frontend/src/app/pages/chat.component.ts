@@ -35,7 +35,12 @@ interface SelectionAnchor {
   template: `
     <header class="chat-header" [class.video]="mode() === 'video'">
       <div class="left">
-        <h2>{{ state.characterDisplayName() ?? 'Клієнт' }}</h2>
+        <!-- Video mode labels the patient on the call tile (Zoom-style), so a
+             header name would be a third duplicate (tile + caption). Show it
+             only in chat mode; video header = timer + mode toggle. -->
+        @if (mode() !== 'video') {
+          <h2>{{ state.characterDisplayName() ?? 'Клієнт' }}</h2>
+        }
         <span class="timer"
               [class.warn]="elapsedMin() >= 35"
               [title]="elapsedMin() >= 35 ? 'Орієнтовний час закриття інтейк-сесії' : 'Час сесії'">
