@@ -29,7 +29,7 @@ import { IconComponent } from './icon.component';
   imports: [CommonModule, RouterLink, LogoComponent, IconComponent],
   template: `
     @if (auth.user(); as u) {
-      <header class="header">
+      <header class="header" [class.session]="sessionMode.active()">
         <div class="title-row">
           <div class="brand-block">
             <a routerLink="/" class="brand-link" [title]="i18n.t('home.patients')">
@@ -127,26 +127,34 @@ import { IconComponent } from './icon.component';
   /* All styles copied verbatim from characters-list.component — single
      source of truth for the chrome across pages. */
   styles: [`
-    /* z-index 100 (not 1): page-root containers create their own stacking
-       context at z-index:1 (e.g. .progress-page) and render AFTER the
-       header in DOM order, so a z-index:1 header loses the tie and page
-       content paints over the open dropdown menu. 100 keeps the whole
-       header subtree (incl. the absolutely-positioned dropdown) above all
-       normal page content, while staying below full-screen modals. */
-    /* Sticky, full-bleed top bar (negative side margins cancel the shell
-       padding so the blurred background spans edge-to-edge). z-index 100
-       keeps it — and the dropdown within it — above page content. */
+    /* The host must not box the header: a tight-wrapping parent leaves a
+       sticky child no room to stick (that's why it wasn't sticking).
+       display:contents drops the host box so .header becomes a direct child
+       of the scrolling shell and position:sticky actually works. */
+    :host { display: contents; }
+
+    /* Sticky, full-bleed top bar. Negative margins cancel the shell's
+       32px top / 20px side padding so the blurred bar pins flush to the very
+       top and spans edge-to-edge — matching the app's dark blur-panel look.
+       z-index 100 keeps it (and its dropdown) above page content while
+       staying below full-screen modals. */
     .header {
       position: sticky;
       top: 0;
       z-index: 100;
-      margin: 0 -20px 16px;
-      padding: 10px 20px 0;
-      background: color-mix(in srgb, var(--bg) 80%, transparent);
-      backdrop-filter: blur(16px) saturate(140%);
-      -webkit-backdrop-filter: blur(16px) saturate(140%);
+      margin: -32px -20px 18px;
+      padding: max(10px, var(--safe-top, 0px)) 20px 10px;
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
     }
-    .header-right { display: flex; align-items: center; gap: 10px; }
+    /* Focused session mode: collapse the global nav into the hamburger so the
+       bar isn't overloaded — just brand · mode toggle · menu. */
+    .header.session .user-area { display: none; }
+    .header.session .hamburger { display: inline-flex; }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
     .mode-toggle {
       display: inline-flex;
       gap: 2px;
