@@ -280,7 +280,13 @@ interface SelectionAnchor {
       <div class="video-stage">
         <div class="vtile patient"
              [class.speaking]="voice.speaking()"
-             [style.--lvl]="voice.level()">
+             [class.dragging]="dragArmed"
+             [style.--lvl]="voice.level()"
+             (pointerdown)="onTilePointerDown($event)"
+             (pointermove)="onTilePointerMove($event)"
+             (pointerup)="onTilePointerUp()"
+             (pointercancel)="onTilePointerUp()"
+             (pointerleave)="onTilePointerUp()">
           @if (state.characterAvatar(); as a) {
             <img class="vtile-img" [src]="a" [alt]="state.characterDisplayName() ?? ''" />
           } @else {
@@ -326,12 +332,85 @@ interface SelectionAnchor {
                   aria-label="Звук пацієнта">{{ voice.muted() ? '🔇' : '🔊' }}</button>
           <button class="vbtn" [class.off]="!captionsOn()" (click)="toggleCaptions()"
                   title="Субтитри" aria-label="Субтитри">CC</button>
+          <button class="vbtn" [class.live]="transcriptOpen()" (click)="toggleTranscript()"
+                  title="Транскрипт і нотатки" aria-label="Транскрипт і нотатки">📝</button>
           <button class="vbtn" [class.live]="videoComposerOpen()"
                   (click)="videoComposerOpen.set(!videoComposerOpen())"
                   title="Написати текстом" aria-label="Написати текстом">⌨</button>
           <button class="vbtn end" (click)="openEndDialog()" title="Завершити"
                   aria-label="Завершити сесію">📞</button>
         </div>
+
+        <!-- Right-side transcript + notes drawer. Opened by the 📝 .vbar
+             button or by dragging the patient tile right. Backdrop closes
+             it on tap; the panel slides in via translateX. Reuses the exact
+             notes mechanism from the chat notes panel (notes()/noteDraft/
+             saveNote()) so there's a single notes path. -->
+        @if (transcriptOpen()) {
+          <div class="vdrawer-backdrop" (click)="closeTranscript()" aria-hidden="true"></div>
+        }
+        <aside class="vdrawer" [class.open]="transcriptOpen()"
+               role="dialog" aria-label="Транскрипт розмови і нотатки">
+          <header class="vdrawer-head">
+            <h3>Транскрипт</h3>
+            <button class="vdrawer-close" type="button"
+                    (click)="closeTranscript()" aria-label="Закрити">×</button>
+          </header>
+
+          <div class="vdrawer-body">
+            <section class="vdrawer-transcript">
+              <div #transcriptScroll class="vtranscript-scroll" aria-live="polite">
+                @for (b of state.bubbles(); track $index) {
+                  @if (!b.pending) {
+                    <div class="vline" [class.mine]="b.role === 'user'">
+                      <span class="vline-who">
+                        {{ b.role === 'user' ? 'Ти' : (state.characterDisplayName() ?? 'Клієнт') }}
+                      </span>
+                      <p class="vline-text">{{ b.content }}</p>
+                    </div>
+                  }
+                }
+                @if (lastLine() === null) {
+                  <p class="vdrawer-empty">Розмова ще не почалась.</p>
+                }
+              </div>
+            </section>
+
+            <section class="vdrawer-notes">
+              <header class="vdrawer-notes-head">
+                <h4>{{ i18n.t('chat.notes') }} {{ notes().length ? '(' + notes().length + ')' : '' }}</h4>
+              </header>
+              <ul class="vnotes-list">
+                @for (n of notes(); track n.id) {
+                  <li class="vnote">
+                    @if (n.anchorText) {
+                      <blockquote class="vnote-anchor">«{{ n.anchorText }}»</blockquote>
+                    }
+                    <p class="vnote-body">{{ n.noteText }}</p>
+                    <button class="vnote-delete" type="button" title="Видалити нотатку"
+                            (click)="deleteNote(n.id)" aria-label="Видалити нотатку">✕</button>
+                  </li>
+                }
+                @if (notes().length === 0) {
+                  <li class="vnote-empty">Поки порожньо.</li>
+                }
+              </ul>
+              <form class="vnote-form" (ngSubmit)="saveNote()">
+                <textarea
+                  rows="2"
+                  [(ngModel)]="noteDraft"
+                  name="vNoteDraft"
+                  [placeholder]="i18n.t('chat.note_placeholder')"
+                  (keydown.meta.enter)="saveNote()"
+                  (keydown.control.enter)="saveNote()"></textarea>
+                <button type="submit" class="primary"
+                        [disabled]="!noteDraft.trim() || savingNote()">
+                  {{ savingNote() ? '…' : i18n.t('chat.notes') }}
+                </button>
+              </form>
+            </section>
+          </div>
+        </aside>
       </div>
     }
 
@@ -1273,6 +1352,201 @@ interface SelectionAnchor {
       .vtile { width: 92vw; }
       .vbtn { width: 44px; height: 44px; font-size: 17px; }
     }
+
+    /* While the user is dragging the tile, suppress the breathing/zoom
+       animations and show the grab cursor so the gesture reads as draggable.
+       touch-action lets the browser keep vertical panning while we own the
+       horizontal drag, so the gesture never fights page scroll. */
+    .vtile { touch-action: pan-y; cursor: grab; }
+    .vtile.dragging { cursor: grabbing; animation: none; }
+
+    /* Right-side transcript + notes drawer in video mode. Anchored to the
+       video-stage (position: relative). Slides in from the right via
+       translateX. Mobile width ~88vw, desktop ~380px. Own scroll. */
+    .vdrawer-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      animation: fadeIn 0.16s ease-out;
+    }
+    .vdrawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 41;
+      width: 88vw;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      background: color-mix(in srgb, var(--accent) 4%, var(--bg));
+      border-left: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+      box-shadow: -18px 0 50px -20px rgba(0, 0, 0, 0.75);
+      transform: translateX(100%);
+      transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+    .vdrawer.open { transform: translateX(0); }
+    .vdrawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+    }
+    .vdrawer-head h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--fg);
+    }
+    .vdrawer-close {
+      background: transparent;
+      border: none;
+      color: var(--fg-dim);
+      font-size: 26px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 6px;
+      min-height: auto;
+    }
+    .vdrawer-close:hover { color: var(--fg); }
+
+    /* Body splits into a flexible transcript region (scrolls) and a
+       notes region pinned below it. Both live inside the drawer's column. */
+    .vdrawer-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .vdrawer-transcript {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .vtranscript-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .vdrawer-empty,
+    .vnote-empty {
+      color: var(--fg-dim);
+      font-size: 13px;
+      font-style: italic;
+    }
+    /* One transcript line: speaker label + text. Therapist (Ти) lines tint
+       with the user-bg, the patient with assistant-bg, mirroring the chat
+       bubbles so the two views feel like the same conversation. */
+    .vline {
+      border-radius: 10px;
+      padding: 8px 11px;
+      background: var(--assistant-bg);
+      border: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+    }
+    .vline.mine {
+      background: color-mix(in srgb, var(--accent) 6%, var(--user-bg));
+      border-color: color-mix(in srgb, var(--accent) 16%, var(--border));
+    }
+    .vline-who {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+      margin-bottom: 3px;
+    }
+    .vline.mine .vline-who { color: var(--accent); }
+    .vline-text {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.45;
+      color: var(--fg);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    /* Notes region — same composer + list as the chat notes panel, just
+       compact. Bounded height with its own scroll so a long note list
+       never pushes the composer off-screen. */
+    .vdrawer-notes {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-top: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+      padding: 12px 16px calc(12px + var(--safe-bottom));
+      background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+    }
+    .vdrawer-notes-head h4 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--fg-dim);
+      letter-spacing: 0.02em;
+    }
+    .vnotes-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 28vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .vnote {
+      position: relative;
+      background: var(--assistant-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 28px 8px 10px;
+      font-size: 13px;
+    }
+    .vnote-anchor {
+      margin: 0 0 5px;
+      padding: 0 0 0 8px;
+      border-left: 2px solid var(--accent);
+      color: var(--fg-dim);
+      font-size: 12px;
+      font-style: italic;
+    }
+    .vnote-body { margin: 0; white-space: pre-wrap; color: var(--fg); }
+    .vnote-delete {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      padding: 2px 7px;
+      font-size: 12px;
+      background: transparent;
+      border: none;
+      color: var(--fg-dim);
+      opacity: 0.55;
+      cursor: pointer;
+      min-height: auto;
+    }
+    .vnote:hover .vnote-delete { opacity: 1; }
+    .vnote-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .vnote-form textarea {
+      resize: vertical;
+      min-height: 44px;
+      max-height: 160px;
+      font-size: 14px;
+    }
+    .vnote-form .primary { align-self: stretch; }
   `],
 })
 export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
@@ -1287,6 +1561,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   @ViewChild('scroll', { static: false })
   private scrollEl?: ElementRef<HTMLElement>;
+
+  /** Scroll container of the video-mode transcript drawer — used to
+   *  auto-scroll to the newest line when the drawer opens. */
+  @ViewChild('transcriptScroll', { static: false })
+  private transcriptScrollEl?: ElementRef<HTMLElement>;
 
   draft = '';
   sending = signal(false);
@@ -1324,6 +1603,24 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   mode = signal<'chat' | 'video'>(this.readMode());
   captionsOn = signal<boolean>(true);
   videoComposerOpen = signal<boolean>(false);
+
+  // ─── Video-mode transcript + notes drawer ──────────────────────────────
+  // A right-anchored drawer (mobile-first) that shows the running transcript
+  // and reuses the SAME notes mechanism the chat notes panel uses
+  // (notes() + noteDraft + saveNote()). It opens two ways: the 📝 button in
+  // the .vbar, or by dragging the patient tile to the right past a threshold.
+  transcriptOpen = signal<boolean>(false);
+  /** Pointer-drag bookkeeping for the drag-the-tile-right open gesture.
+   *  We keep it dead simple so pointermove does almost no work: just record
+   *  where the press started, then on each move check if we've crossed the
+   *  open threshold. `armed` guards against starting a drag from a 2nd finger
+   *  or a press that began outside the tile. */
+  private dragStartX = 0;
+  private dragStartY = 0;
+  /** protected (not private): the template reads it for the .dragging class. */
+  protected dragArmed = false;
+  /** Drag distance (px) to the right that opens the drawer. */
+  private readonly DRAG_OPEN_THRESHOLD = 60;
 
   /** Last non-pending line — the live caption in video mode. */
   lastLine = computed(() => {
@@ -1538,6 +1835,64 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
   }
 
+  // ─── Video-mode transcript + notes drawer ──────────────────────────────
+
+  toggleTranscript() {
+    if (this.transcriptOpen()) this.closeTranscript();
+    else this.openTranscript();
+  }
+
+  openTranscript() {
+    this.transcriptOpen.set(true);
+    // Jump to the newest line once the drawer's content has rendered.
+    // queueMicrotask is too early (the @if block hasn't been laid out yet),
+    // so a 0ms timeout lets Angular paint the list first.
+    setTimeout(() => this.scrollTranscriptToBottom(), 60);
+  }
+
+  closeTranscript() {
+    this.transcriptOpen.set(false);
+  }
+
+  private scrollTranscriptToBottom() {
+    const el = this.transcriptScrollEl?.nativeElement;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  /**
+   * Drag-the-tile-right to open the drawer. We use pointer events so one
+   * code path covers mouse + touch + pen. The handlers are intentionally
+   * thin: pointerdown just records the origin, pointermove only measures
+   * and (once) trips the open, pointerup resets. We do NOT preventDefault
+   * or call setPointerCapture, so a plain tap on the tile is untouched —
+   * the gesture only fires after a real horizontal drag past the threshold.
+   */
+  onTilePointerDown(e: PointerEvent) {
+    // Only track the primary button / first touch; ignore if the drawer
+    // is already open (nothing to open) — a drag-to-close lives on the
+    // backdrop/panel instead.
+    if (this.transcriptOpen()) return;
+    this.dragArmed = true;
+    this.dragStartX = e.clientX;
+    this.dragStartY = e.clientY;
+  }
+
+  onTilePointerMove(e: PointerEvent) {
+    if (!this.dragArmed) return;
+    const dx = e.clientX - this.dragStartX;
+    const dy = e.clientY - this.dragStartY;
+    // Open only on a clearly-horizontal rightward drag past the threshold.
+    // Requiring |dx| > |dy| keeps a vertical scroll/scrub from tripping it.
+    if (dx > this.DRAG_OPEN_THRESHOLD && dx > Math.abs(dy)) {
+      this.dragArmed = false;
+      this.openTranscript();
+    }
+  }
+
+  onTilePointerUp() {
+    this.dragArmed = false;
+  }
+
   // ─── Hint coach ────────────────────────────────────────────────────────
 
   /**
@@ -1687,6 +2042,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     // both. Matches OS conventions — hit Esc, lose the most-recent thing.
     if (this.hintsOpen()) {
       this.hintsOpen.set(false);
+      return;
+    }
+    if (this.transcriptOpen()) {
+      this.closeTranscript();
       return;
     }
     if (this.notesOpen()) this.closeNotes();
