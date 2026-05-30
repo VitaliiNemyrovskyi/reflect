@@ -96,7 +96,7 @@ export class IntroComponent implements OnInit {
     this.error.set(null);
     try {
       const data = await this.api.startSession(this.characterId);
-      this.state.reset(data.character.displayName);
+      this.state.reset(data.character.displayName, null, data.character.avatarUrl ?? null);
       this.state.push({ role: 'assistant', content: data.firstMessage });
       this.analytics.track('session.created', { characterId: this.characterId }, data.sessionId);
       void this.router.navigate(['/session', data.sessionId]);

@@ -137,7 +137,11 @@ export class SessionsService {
 
     return {
       sessionId: session.id,
-      character: { id: character.id, displayName: character.displayName },
+      character: {
+        id: character.id,
+        displayName: character.displayName,
+        avatarUrl: character.avatarUrl,
+      },
       firstMessage: reply,
       priorSessionCount: priorMemories.length,
     };

@@ -42,6 +42,12 @@ interface SelectionAnchor {
         </span>
       </div>
       <div class="actions">
+        <div class="mode-toggle" role="group" aria-label="Режим сесії">
+          <button class="mode-btn" [class.active]="mode() === 'chat'"
+                  (click)="setMode('chat')" title="Чат" aria-label="Чат">💬</button>
+          <button class="mode-btn" [class.active]="mode() === 'video'"
+                  (click)="setMode('video')" title="Відеодзвінок" aria-label="Відеодзвінок">📹</button>
+        </div>
         <button
           class="ghost icon mobile-only"
           [class.has-notes]="notes().length > 0"
@@ -67,6 +73,7 @@ interface SelectionAnchor {
       </div>
     </header>
 
+    @if (mode() === 'chat') {
     <div class="chat-layout">
       <section class="chat-main">
         <div #scroll class="messages" aria-live="polite">
@@ -267,6 +274,66 @@ interface SelectionAnchor {
         </form>
       </aside>
     </div>
+    }
+
+    @if (mode() === 'video') {
+      <div class="video-stage">
+        <div class="vtile patient"
+             [class.speaking]="voice.speaking()"
+             [style.--lvl]="voice.level()">
+          @if (state.characterAvatar(); as a) {
+            <img class="vtile-img" [src]="a" [alt]="state.characterDisplayName() ?? ''" />
+          } @else {
+            <div class="vtile-initials">{{ patientInitials() }}</div>
+          }
+          <div class="vtile-glow"></div>
+          <div class="vtile-name">
+            <span>{{ state.characterDisplayName() ?? 'Клієнт' }}</span>
+            @if (voice.speaking()) {
+              <span class="speaking-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+            }
+          </div>
+          @if (sending()) {
+            <div class="vtile-typing">{{ (state.characterDisplayName() ?? 'Клієнт') }} відповідає…</div>
+          }
+        </div>
+
+        @if (captionsOn() && lastLine(); as line) {
+          <div class="captions" [class.mine]="line.role === 'user'">
+            <span class="cap-who">{{ line.role === 'user' ? 'Ти' : (state.characterDisplayName() ?? 'Клієнт') }}</span>
+            <p>{{ line.content }}</p>
+          </div>
+        }
+
+        @if (videoComposerOpen()) {
+          <form class="vcomposer" (ngSubmit)="send(); videoComposerOpen.set(false)">
+            <input type="text" [(ngModel)]="draft" name="vdraft" autocomplete="off"
+                   placeholder="Напишіть повідомлення…" />
+            <button type="submit" class="vsend" [disabled]="sending() || !draft.trim()">→</button>
+          </form>
+        }
+
+        <div class="vbar" role="toolbar" aria-label="Керування дзвінком">
+          @if (recognition.supported) {
+            <button class="vbtn" [class.live]="recognition.listening()" (click)="videoMic()"
+                    [title]="recognition.listening() ? 'Стоп і надіслати' : 'Говорити'"
+                    [attr.aria-label]="recognition.listening() ? 'Стоп і надіслати' : 'Говорити'">
+              {{ recognition.listening() ? '⏹' : '🎙' }}
+            </button>
+          }
+          <button class="vbtn" [class.off]="voice.muted()" (click)="voice.toggleMute()"
+                  [title]="voice.muted() ? 'Увімкнути звук' : 'Вимкнути звук'"
+                  aria-label="Звук пацієнта">{{ voice.muted() ? '🔇' : '🔊' }}</button>
+          <button class="vbtn" [class.off]="!captionsOn()" (click)="toggleCaptions()"
+                  title="Субтитри" aria-label="Субтитри">CC</button>
+          <button class="vbtn" [class.live]="videoComposerOpen()"
+                  (click)="videoComposerOpen.set(!videoComposerOpen())"
+                  title="Написати текстом" aria-label="Написати текстом">⌨</button>
+          <button class="vbtn end" (click)="openEndDialog()" title="Завершити"
+                  aria-label="Завершити сесію">📞</button>
+        </div>
+      </div>
+    }
 
     @if (selectionAnchor()) {
       <button #selBtn class="floating-add-note"
@@ -1006,6 +1073,206 @@ interface SelectionAnchor {
       font-size: 13px;
       min-height: 40px;
     }
+
+    /* ── Mode toggle (chat | video) in the header ── */
+    .mode-toggle {
+      display: inline-flex;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--accent) 4%, transparent);
+    }
+    .mode-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      padding: 5px 9px;
+      border-radius: 7px;
+      filter: grayscale(0.4) opacity(0.7);
+      transition: background .15s ease, filter .15s ease;
+    }
+    .mode-btn:hover { filter: none; }
+    .mode-btn.active {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      filter: none;
+    }
+
+    /* ── Video-call stage (Meet/Zoom-style) ── */
+    .video-stage {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      min-height: calc(100dvh - 150px);
+      padding: 16px 12px 28px;
+    }
+    .vtile {
+      position: relative;
+      width: min(440px, 80vw);
+      aspect-ratio: 4 / 3;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        radial-gradient(120% 120% at 50% 30%, color-mix(in srgb, var(--accent) 14%, #14141c), #0c0c12);
+      border: 1px solid var(--border);
+      box-shadow: 0 18px 50px -20px rgba(0,0,0,0.7);
+      /* idle "breathing" so the tile never feels frozen */
+      animation: vtile-breathe 6s ease-in-out infinite;
+      transition: box-shadow .12s linear, transform .12s linear;
+      will-change: transform;
+    }
+    @keyframes vtile-breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.012); }
+    }
+    .vtile-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .vtile-initials {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 84px; font-weight: 600;
+      color: color-mix(in srgb, var(--accent) 70%, #fff);
+    }
+    /* speaking: amplitude (--lvl 0..1) drives micro-zoom + accent glow.
+       A base glow + the breathing keep it alive even on the SpeechSynthesis
+       fallback where --lvl stays 0. */
+    .vtile.speaking {
+      transform: scale(calc(1 + var(--lvl, 0) * 0.05));
+      box-shadow:
+        0 18px 50px -20px rgba(0,0,0,0.7),
+        0 0 calc(18px + var(--lvl, 0) * 46px) color-mix(in srgb, var(--accent) 55%, transparent);
+      animation: none;
+    }
+    .vtile-glow {
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 2px transparent;
+    }
+    .vtile.speaking .vtile-glow {
+      box-shadow: inset 0 0 0 calc(2px + var(--lvl, 0) * 4px)
+        color-mix(in srgb, var(--accent) 70%, transparent);
+      animation: vtile-ring 1.3s ease-in-out infinite;
+    }
+    @keyframes vtile-ring {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+    .vtile-name {
+      position: absolute; left: 12px; bottom: 12px;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(6px);
+      color: #fff; font-size: 13px; font-weight: 500;
+    }
+    .speaking-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+    .speaking-eq i {
+      width: 3px; height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: eq 0.9s ease-in-out infinite;
+    }
+    .speaking-eq i:nth-child(2) { animation-delay: 0.15s; }
+    .speaking-eq i:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes eq {
+      0%, 100% { transform: scaleY(0.35); }
+      50% { transform: scaleY(1); }
+    }
+    .vtile-typing {
+      position: absolute; right: 12px; bottom: 12px;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(6px);
+      color: var(--fg-dim); font-size: 12px;
+    }
+
+    .captions {
+      max-width: min(560px, 90vw);
+      text-align: center;
+      color: #fff;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(6px);
+      border-radius: 12px;
+      padding: 10px 16px;
+    }
+    .captions .cap-who {
+      display: block;
+      font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 3px;
+    }
+    .captions.mine .cap-who { color: var(--fg-dim); }
+    .captions p { margin: 0; font-size: 15px; line-height: 1.45; }
+
+    .vcomposer {
+      display: flex; gap: 8px;
+      width: min(560px, 92vw);
+    }
+    .vcomposer input {
+      flex: 1; min-width: 0;
+      padding: 11px 14px; font-size: 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--user-bg); color: var(--fg);
+    }
+    .vcomposer input:focus { outline: none; border-color: var(--accent); }
+    .vsend {
+      flex: 0 0 auto; width: 44px;
+      border-radius: 50%; border: none; cursor: pointer;
+      background: var(--accent); color: #1a1430; font-size: 18px;
+    }
+    .vsend:disabled { opacity: .5; cursor: default; }
+
+    .vbar {
+      display: inline-flex; gap: 12px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 5%, rgba(0,0,0,0.35));
+      border: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+    }
+    .vbtn {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--user-bg);
+      color: var(--fg);
+      font-size: 19px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .vbtn:hover { border-color: var(--accent); }
+    .vbtn.live {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #1a1430;
+      animation: vbtn-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes vbtn-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+      50% { box-shadow: 0 0 0 7px transparent; }
+    }
+    .vbtn.off { color: var(--fg-dim); opacity: 0.7; }
+    .vbtn.end {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+      font-size: 17px;
+    }
+
+    @media (max-width: 560px) {
+      .video-stage { min-height: calc(100dvh - 130px); gap: 14px; }
+      .vtile { width: 92vw; }
+      .vbtn { width: 44px; height: 44px; font-size: 17px; }
+    }
   `],
 })
 export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
@@ -1049,6 +1316,35 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   hintsOpen = signal(false);
   hintsError = signal<string | null>(null);
   hints = signal<HintSuggestion[]>([]);
+
+  // ─── Video-call mode ───────────────────────────────────────────────────
+  // Toggle between the classic chat and a Meet/Zoom-style call. The patient
+  // tile animates with the TTS voice (voice.level()/voice.speaking()). Mode
+  // is persisted globally so the trainee's preference sticks across sessions.
+  mode = signal<'chat' | 'video'>(this.readMode());
+  captionsOn = signal<boolean>(true);
+  videoComposerOpen = signal<boolean>(false);
+
+  /** Last non-pending line — the live caption in video mode. */
+  lastLine = computed(() => {
+    const bubbles = this.state.bubbles();
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      if (!bubbles[i].pending) return bubbles[i];
+    }
+    return null;
+  });
+  /** Initials shown on the tile when the patient has no avatar. */
+  patientInitials = computed(() => {
+    const name = this.state.characterDisplayName() ?? '';
+    return (
+      name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() ?? '')
+        .join('') || '🙂'
+    );
+  });
 
   // Psychological tests admin'd during this session. Cards render
   // below the message stream and above the composer.
@@ -1099,7 +1395,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           void this.router.navigate(['/session', this.sessionId, 'view']);
           return;
         }
-        this.state.reset(sv.character.displayName, sv.character.gender);
+        this.state.reset(sv.character.displayName, sv.character.gender, sv.character.avatarUrl);
         // Pin the patient's gender on voice.service so /api/tts gets it
         // and the sidecar picks the right voice (male → Ostap/Ryan/Henri,
         // female → Polina/Sonia/Denise). Source of truth = Character.gender
@@ -1200,6 +1496,46 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.recognition.toggle((text) => {
       this.draft = text;
     });
+  }
+
+  // ─── Video-call mode ───────────────────────────────────────────────────
+
+  private readMode(): 'chat' | 'video' {
+    try {
+      return localStorage.getItem('reflect.sessionMode') === 'video' ? 'video' : 'chat';
+    } catch {
+      return 'chat';
+    }
+  }
+
+  setMode(m: 'chat' | 'video') {
+    this.mode.set(m);
+    try {
+      localStorage.setItem('reflect.sessionMode', m);
+    } catch {}
+    // Leaving video: stop listening so the mic doesn't linger in chat mode.
+    if (m === 'chat') this.recognition.stop();
+  }
+
+  toggleCaptions() {
+    this.captionsOn.update((v) => !v);
+  }
+
+  /**
+   * Video-mode mic: tap to talk, tap again to stop — and on stop, auto-send
+   * whatever was dictated (a call feels like "speak, then it's sent"). Falls
+   * back to the composer (⌨) for typing when STT isn't available.
+   */
+  videoMic() {
+    if (this.recognition.listening()) {
+      this.recognition.stop();
+      if (this.draft.trim()) void this.send();
+    } else {
+      this.voice.cancel();
+      this.recognition.toggle((text) => {
+        this.draft = text;
+      });
+    }
   }
 
   // ─── Hint coach ────────────────────────────────────────────────────────

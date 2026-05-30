@@ -13,6 +13,21 @@ export class VoiceService {
   readonly muted = signal<boolean>(this.readStored());
   readonly speaking = signal<boolean>(false);
   readonly engine = signal<'elevenlabs' | 'browser' | 'unknown'>('unknown');
+  /**
+   * Live speech amplitude (0..1) while a TTS clip plays — drives the
+   * audio-reactive patient tile in video-call mode. Real RMS for the blob
+   * (neural-TTS) path via a Web Audio AnalyserNode tap; stays 0 on the
+   * SpeechSynthesis fallback (no media element to analyse), where the UI
+   * falls back to a synthetic pulse keyed off `speaking()`.
+   */
+  readonly level = signal<number>(0);
+
+  private audioCtx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private levelRaf: number | null = null;
+  /** Elements already routed via createMediaElementSource — it may be
+   *  called at most once per element, so we never re-tap one. */
+  private readonly tapped = new WeakSet<HTMLAudioElement>();
 
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private currentAudio: HTMLAudioElement | null = null;
@@ -71,6 +86,7 @@ export class VoiceService {
       this.currentObjectUrl = null;
     }
     this.speaking.set(false);
+    this.stopLevel();
     this.currentUtterance = null;
   }
 
@@ -151,9 +167,11 @@ export class VoiceService {
         return;
       }
       this.speaking.set(true);
+      this.startLevel(audio);
     };
     audio.onended = () => {
       this.speaking.set(false);
+      this.stopLevel();
       this.currentAudio = null;
       if (this.currentObjectUrl === url) {
         URL.revokeObjectURL(url);
@@ -162,11 +180,82 @@ export class VoiceService {
     };
     audio.onerror = () => {
       this.speaking.set(false);
+      this.stopLevel();
       this.currentAudio = null;
     };
     void audio.play().catch(() => {
       this.speaking.set(false);
     });
+  }
+
+  /**
+   * Tap the playing audio element through a Web Audio analyser so the
+   * video-call tile can pulse with the patient's voice. Safety: we connect
+   * the source straight to the destination FIRST — if any later step throws
+   * (or the browser lacks AudioContext), audio still plays; we just lose the
+   * reactive animation. createMediaElementSource may run once per element,
+   * so each TTS clip (a fresh Audio) is tapped at most once.
+   */
+  private startLevel(audio: HTMLAudioElement) {
+    try {
+      if (!this.audioCtx) {
+        const Ctx =
+          window.AudioContext ??
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!Ctx) return;
+        this.audioCtx = new Ctx();
+      }
+      const ctx = this.audioCtx;
+      void ctx.resume();
+      if (!this.tapped.has(audio)) {
+        const source = ctx.createMediaElementSource(audio);
+        source.connect(ctx.destination); // keep audio audible no matter what
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.6;
+        source.connect(analyser); // side tap — needs no onward connection
+        this.analyser = analyser;
+        this.tapped.add(audio);
+      }
+    } catch {
+      this.analyser = null; // animation falls back to the speaking() pulse
+    }
+    this.runLevelLoop();
+  }
+
+  private runLevelLoop() {
+    const analyser = this.analyser;
+    if (!analyser) {
+      this.level.set(0);
+      return;
+    }
+    const buf = new Uint8Array(analyser.fftSize);
+    const tick = () => {
+      if (!this.analyser) {
+        this.level.set(0);
+        return;
+      }
+      this.analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = (buf[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / buf.length);
+      // Scale + round to ~0.02 steps so the signal only notifies on real
+      // change (Angular dedups equal values) — keeps change-detection light.
+      this.level.set(Math.round(Math.min(1, rms * 2.4) * 50) / 50);
+      this.levelRaf = requestAnimationFrame(tick);
+    };
+    this.levelRaf = requestAnimationFrame(tick);
+  }
+
+  private stopLevel() {
+    if (this.levelRaf !== null) {
+      cancelAnimationFrame(this.levelRaf);
+      this.levelRaf = null;
+    }
+    this.level.set(0);
   }
 
   private speakBrowser(text: string) {

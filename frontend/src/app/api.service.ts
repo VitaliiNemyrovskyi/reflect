@@ -322,7 +322,7 @@ export interface PatientCard {
 
 export interface StartSessionResponse {
   sessionId: number;
-  character: { id: number; displayName: string };
+  character: { id: number; displayName: string; avatarUrl: string | null };
   firstMessage: string;
 }
 
