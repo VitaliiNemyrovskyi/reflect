@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestOnlyGuard } from './auth.guard';
+import { authGuard, guestOnlyGuard, landingGuard } from './auth.guard';
 
 export const routes: Routes = [
   {
@@ -20,9 +20,17 @@ export const routes: Routes = [
       import('./pages/oauth-callback.component').then((m) => m.OAuthCallbackComponent),
   },
   {
+    // Public marketing landing (prerendered for SEO). Guests see it;
+    // authenticated users are redirected to /dashboard by landingGuard.
+    path: '',
+    canActivate: [landingGuard],
+    loadComponent: () =>
+      import('./pages/landing.component').then((m) => m.LandingComponent),
+  },
+  {
     // Logged-in home: "living world dashboard" — city pulse, diary
     // feed, pending feedback, week stats, compact patient grid.
-    path: '',
+    path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/home.component').then((m) => m.HomeComponent),
