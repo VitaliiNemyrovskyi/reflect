@@ -20,6 +20,7 @@ import { RecognitionService } from '../recognition.service';
 import { PreferencesService } from '../preferences.service';
 import { TestModalComponent } from '../test-modal.component';
 import { TestResultCardComponent } from '../test-result-card.component';
+import { IconComponent } from '../icon.component';
 
 interface SelectionAnchor {
   text: string;
@@ -30,7 +31,7 @@ interface SelectionAnchor {
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TestModalComponent, TestResultCardComponent],
+  imports: [FormsModule, TestModalComponent, TestResultCardComponent, IconComponent],
   template: `
     <header class="chat-header">
       <div class="left">
@@ -38,15 +39,15 @@ interface SelectionAnchor {
         <span class="timer"
               [class.warn]="elapsedMin() >= 35"
               [title]="elapsedMin() >= 35 ? 'Орієнтовний час закриття інтейк-сесії' : 'Час сесії'">
-          🕐 {{ elapsedDisplay() }}
+          <app-icon name="clock" /> {{ elapsedDisplay() }}
         </span>
       </div>
       <div class="actions">
         <div class="mode-toggle" role="group" aria-label="Режим сесії">
           <button class="mode-btn" [class.active]="mode() === 'chat'"
-                  (click)="setMode('chat')" title="Чат" aria-label="Чат">💬</button>
+                  (click)="setMode('chat')" title="Чат" aria-label="Чат"><app-icon name="message" /></button>
           <button class="mode-btn" [class.active]="mode() === 'video'"
-                  (click)="setMode('video')" title="Відеодзвінок" aria-label="Відеодзвінок">📹</button>
+                  (click)="setMode('video')" title="Відеодзвінок" aria-label="Відеодзвінок"><app-icon name="video" /></button>
         </div>
         <button
           class="ghost icon mobile-only"
@@ -54,7 +55,7 @@ interface SelectionAnchor {
           [attr.aria-label]="i18n.t('chat.notes') + ' (' + notes().length + ')'"
           [title]="i18n.t('chat.notes')"
           (click)="toggleNotes()">
-          📝{{ notes().length > 0 ? ' ' + notes().length : '' }}
+          <app-icon name="pencil" />{{ notes().length > 0 ? ' ' + notes().length : '' }}
         </button>
         <button
           class="ghost icon"
@@ -62,7 +63,7 @@ interface SelectionAnchor {
           [attr.aria-label]="voice.muted() ? 'Увімкнути голос' : 'Вимкнути голос'"
           [title]="voice.muted() ? 'Увімкнути голос' : 'Вимкнути голос'"
           (click)="voice.toggleMute()">
-          {{ voice.muted() ? '🔇' : voice.speaking() ? '🔊' : '🔈' }}
+          <app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" />
         </button>
         <button class="ghost end-btn" (click)="openEndDialog()" [title]="i18n.t('chat.end_session')">
           {{ i18n.t('chat.end_session') }}
@@ -88,7 +89,7 @@ interface SelectionAnchor {
                 <button class="replay"
                         title="Озвучити"
                         aria-label="Озвучити репліку"
-                        (click)="voice.speak(b.content)">🔁</button>
+                        (click)="voice.speak(b.content)"><app-icon name="volume" /></button>
               }
               @if (b.failed && b.clientId !== undefined) {
                 <!-- Telegram/WhatsApp pattern: keep the user's text
@@ -191,7 +192,7 @@ interface SelectionAnchor {
                       [attr.aria-label]="i18n.t('chat.hint_label')"
                       [title]="i18n.t('chat.hint_label')"
                       (click)="toggleHints()">
-                💡
+                <app-icon name="lightbulb" />
               </button>
             }
             <!-- Psychological test trigger — opens the catalog modal so
@@ -205,7 +206,7 @@ interface SelectionAnchor {
                     aria-label="Запропонувати тест"
                     title="Запропонувати психологічний тест"
                     (click)="testModalOpen.set(true)">
-              📋
+              <app-icon name="clipboard" />
             </button>
             @if (recognition.supported) {
               <button type="button"
@@ -215,7 +216,7 @@ interface SelectionAnchor {
                       [title]="recognition.listening() ? 'Зупинити запис' : 'Говорити'"
                       [disabled]="sending()"
                       (click)="toggleMic()">
-                {{ recognition.listening() ? '⏹' : '🎙' }}
+                <app-icon [name]="recognition.listening() ? 'square' : 'mic'" />
               </button>
             }
           </div>
@@ -324,21 +325,21 @@ interface SelectionAnchor {
             <button class="vbtn" [class.live]="recognition.listening()" (click)="videoMic()"
                     [title]="recognition.listening() ? 'Стоп і надіслати' : 'Говорити'"
                     [attr.aria-label]="recognition.listening() ? 'Стоп і надіслати' : 'Говорити'">
-              {{ recognition.listening() ? '⏹' : '🎙' }}
+              <app-icon [name]="recognition.listening() ? 'square' : 'mic'" />
             </button>
           }
           <button class="vbtn" [class.off]="voice.muted()" (click)="voice.toggleMute()"
                   [title]="voice.muted() ? 'Увімкнути звук' : 'Вимкнути звук'"
-                  aria-label="Звук пацієнта">{{ voice.muted() ? '🔇' : '🔊' }}</button>
+                  aria-label="Звук пацієнта"><app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" /></button>
           <button class="vbtn" [class.off]="!captionsOn()" (click)="toggleCaptions()"
-                  title="Субтитри" aria-label="Субтитри">CC</button>
+                  title="Субтитри" aria-label="Субтитри"><app-icon name="captions" /></button>
           <button class="vbtn" [class.live]="transcriptOpen()" (click)="toggleTranscript()"
-                  title="Транскрипт і нотатки" aria-label="Транскрипт і нотатки">📝</button>
+                  title="Транскрипт і нотатки" aria-label="Транскрипт і нотатки"><app-icon name="pencil" /></button>
           <button class="vbtn" [class.live]="videoComposerOpen()"
                   (click)="videoComposerOpen.set(!videoComposerOpen())"
-                  title="Написати текстом" aria-label="Написати текстом">⌨</button>
+                  title="Написати текстом" aria-label="Написати текстом"><app-icon name="keyboard" /></button>
           <button class="vbtn end" (click)="openEndDialog()" title="Завершити"
-                  aria-label="Завершити сесію">📞</button>
+                  aria-label="Завершити сесію"><app-icon name="phone" /></button>
         </div>
 
         <!-- Right-side transcript + notes drawer. Opened by the 📝 .vbar
@@ -494,13 +495,16 @@ interface SelectionAnchor {
     h2 { font-size: 22px; margin: 0; font-weight: 500; }
     @media (max-width: 720px) {
       h2 { font-size: 18px; }
+      /* Let the bar wrap instead of overflowing the viewport: the action
+         buttons flow onto a second line (right-aligned) when they don't fit. */
+      .chat-header { flex-wrap: wrap; row-gap: 8px; }
       .chat-header .danger,
       .chat-header .end-btn,
       .chat-header .feedback-btn { padding: 8px 12px; font-size: 13px; }
       .chat-header .icon { padding: 8px 10px; font-size: 16px; min-width: 44px; min-height: 44px; }
       .left { gap: 8px; flex-shrink: 1; min-width: 0; }
       .left h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .actions { flex-shrink: 0; gap: 6px; }
+      .actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
     }
     /* The "Завершити" button is the *destructive-with-question* path —
        muted ghost styling so the primary "Отримати фідбек" pulls the
@@ -1166,17 +1170,17 @@ interface SelectionAnchor {
       border: none;
       background: transparent;
       cursor: pointer;
-      font-size: 15px;
-      line-height: 1;
-      padding: 5px 9px;
+      font-size: 16px;
+      line-height: 0;
+      padding: 6px 9px;
       border-radius: 7px;
-      filter: grayscale(0.4) opacity(0.7);
-      transition: background .15s ease, filter .15s ease;
+      color: var(--fg-dim);
+      transition: background .15s ease, color .15s ease;
     }
-    .mode-btn:hover { filter: none; }
+    .mode-btn:hover { color: var(--fg); }
     .mode-btn.active {
       background: color-mix(in srgb, var(--accent) 18%, transparent);
-      filter: none;
+      color: var(--accent);
     }
 
     /* ── Video-call stage (Meet/Zoom-style) ── */
@@ -1192,7 +1196,7 @@ interface SelectionAnchor {
     }
     .vtile {
       position: relative;
-      width: min(440px, 80vw);
+      width: min(520px, 88vw);
       aspect-ratio: 4 / 3;
       border-radius: 18px;
       overflow: hidden;
@@ -1348,8 +1352,10 @@ interface SelectionAnchor {
     }
 
     @media (max-width: 560px) {
-      .video-stage { min-height: calc(100dvh - 130px); gap: 14px; }
-      .vtile { width: 92vw; }
+      .video-stage { min-height: calc(100dvh - 130px); gap: 14px; padding-top: 8px; }
+      /* Phone: a bigger, portrait tile — fills the width and shows the
+         face larger, like a real video call on a phone. */
+      .vtile { width: 94vw; aspect-ratio: 4 / 5; }
       .vbtn { width: 44px; height: 44px; font-size: 17px; }
     }
 
