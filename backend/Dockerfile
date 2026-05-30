@@ -60,6 +60,7 @@ COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 
 # Compiled JS + runtime assets.
 COPY --chown=node:node --from=builder /app/backend/dist ./backend/dist
+COPY --chown=node:node backend/docker-entrypoint.sh ./backend/docker-entrypoint.sh
 COPY --chown=node:node prompts ./prompts
 
 # /data is the SQLite volume mount point. Single mkdir + chown — no
@@ -71,8 +72,9 @@ WORKDIR /app/backend
 
 EXPOSE 3000
 
-# `prisma db push` is idempotent — applies any schema diff, no-ops if in
-# sync. We use `db push` (not migrate deploy) because the project has no
-# migrations folder; the schema is the source of truth.
+# The entrypoint applies the schema (`prisma db push`, idempotent — we use it
+# rather than `migrate deploy` because the project has no migrations folder;
+# the schema is the source of truth) and starts the API. It also runs a
+# one-time, marker-gated drop of the legacy course tables — see the script.
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node dist/main.js"]
+CMD ["sh", "docker-entrypoint.sh"]
