@@ -691,14 +691,22 @@ export interface CourseListItem {
   totalSteps: number;
   doneSteps: number;
 }
+/** A lesson content block (rendered natively — no markdown). Flat shape so
+ *  Angular templates can read fields without union narrowing. */
+export interface LessonBlock {
+  type: 'h' | 'p' | 'list' | 'quote';
+  text?: string;
+  ordered?: boolean;
+  items?: { term?: string; text: string }[];
+}
 export interface CourseStep {
   id: number;
   order: number;
   kind: 'lesson' | 'practice';
   titleUk: string;
   titleEn: string;
-  bodyUk: string | null;
-  bodyEn: string | null;
+  contentUk: LessonBlock[];
+  contentEn: LessonBlock[];
   techniqueKey: string | null;
   patient: { displayName: string; avatarUrl: string | null } | null;
   sessionId: number | null;
