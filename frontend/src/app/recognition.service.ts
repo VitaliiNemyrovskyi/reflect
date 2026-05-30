@@ -22,6 +22,22 @@ interface SpeechRecognitionEvent {
 }
 
 /**
+ * Join two spoken-text fragments with exactly one separating space.
+ *
+ * STT delivers final segments (and the trailing interim) as separate
+ * chunks with no boundary whitespace, so naive concatenation glues
+ * words at sentence boundaries (e.g. «хвилин» + «Може» → «хвилинМоже»).
+ * This inserts a single space only when neither side already supplies
+ * boundary whitespace, and adds no leading space when `a` is empty.
+ */
+export function joinSpoken(a: string, b: string): string {
+  if (!a) return b;
+  if (!b) return a;
+  const needsSpace = !/\s$/.test(a) && !/^\s/.test(b);
+  return needsSpace ? a + ' ' + b : a + b;
+}
+
+/**
  * Web Speech API wrapper for live transcription in the chat composer.
  *
  * Two non-obvious things this service does:
@@ -132,7 +148,7 @@ export class RecognitionService {
       if (r.isFinal) final += r[0].transcript;
       else interim += r[0].transcript;
     }
-    if (final) this.finalText += final;
+    if (final) this.finalText = joinSpoken(this.finalText, final);
     const isFinal = !interim;
 
     if (isFinal) {
@@ -170,7 +186,7 @@ export class RecognitionService {
     const interim = this.pendingInterim ?? '';
     this.pendingInterim = null;
     this.lastInterimEmit = performance.now();
-    const text = (this.finalText + interim).trim();
+    const text = joinSpoken(this.finalText, interim).trim();
     const isFinal = !interim;
     // Single zone re-entry per throttled tick → at most 5 CD cycles/sec
     // instead of one per raw onresult event.
