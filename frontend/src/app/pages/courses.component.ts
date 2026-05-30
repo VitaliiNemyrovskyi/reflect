@@ -1,16 +1,26 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService, CourseDetail, CourseListItem, CourseStep, LessonBlock } from '../api.service';
+import {
+  ApiService,
+  CourseDetail,
+  CourseListItem,
+  CourseModule,
+  CourseStep,
+  LessonBlock,
+  QuizQuestion,
+} from '../api.service';
 import { I18nService } from '../i18n.service';
 import { IconComponent } from '../icon.component';
 
 /**
  * Skill-path courses. Two views in one component (like /cohorts):
- *  - `/courses`        → catalog of published tracks with progress
- *  - `/courses/:key`   → the track stepper (lessons render markdown; practice
- *                        steps launch a real session; checkpoints flip to ✓
- *                        once the session's feedback meets the criterion)
- * Authed route, so the global app-header provides the chrome.
+ *  - `/courses`        → catalog of published courses with progress
+ *  - `/courses/:key`   → the course: modules (with learning objectives), each a
+ *                        stepper of lessons (structured blocks), quizzes (graded
+ *                        client-side) and practice steps that launch a real
+ *                        session and flip to ✓ once the feedback meets the bar.
+ * Steps unlock sequentially across the whole course. Authed route, so the
+ * global app-header provides the chrome.
  */
 @Component({
   selector: 'app-courses',
@@ -24,87 +34,145 @@ import { IconComponent } from '../icon.component';
         <p class="danger">{{ error() }}</p>
       } @else {
         @if (detail(); as d) {
-        <!-- ── Track stepper ── -->
+        <!-- ── Course view ── -->
         <a routerLink="/courses" class="back">← {{ tr('Усі курси', 'All courses') }}</a>
         <header class="track-head">
           <h1>{{ i18n.isEn ? d.titleEn : d.titleUk }}</h1>
           <p class="muted">{{ i18n.isEn ? d.descEn : d.descUk }}</p>
           @if (d.completed) {
-            <span class="done-pill"><app-icon name="shield-check" /> {{ tr('Трек пройдено', 'Track complete') }}</span>
+            <span class="done-pill"><app-icon name="shield-check" /> {{ tr('Курс пройдено', 'Course complete') }}</span>
           }
         </header>
 
-        <ol class="steps">
-          @for (s of d.steps; track s.id) {
-            <li class="step" [class.done]="s.done" [class.locked]="!s.available && !s.done">
-              <div class="step-rail">
-                <span class="step-dot">
-                  @if (s.done) { <app-icon name="shield-check" /> }
-                  @else { {{ s.order + 1 }} }
-                </span>
-              </div>
-              <div class="step-body">
-                <div class="step-top">
-                  <span class="step-kind">{{ s.kind === 'practice' ? tr('Практика', 'Practice') : tr('Урок', 'Lesson') }}</span>
-                  <h3>{{ i18n.isEn ? s.titleEn : s.titleUk }}</h3>
+        @for (m of d.modules; track m.id) {
+          <section class="module">
+            <div class="module-head">
+              <span class="module-eyebrow">{{ tr('Модуль', 'Module') }} {{ m.order + 1 }}</span>
+              <h2>{{ i18n.isEn ? m.titleEn : m.titleUk }}</h2>
+              @if (objectivesOf(m).length) {
+                <div class="objectives">
+                  <span class="obj-label">{{ tr('Чого навчишся', 'What you will learn') }}</span>
+                  <ul>
+                    @for (o of objectivesOf(m); track $index) { <li>{{ o }}</li> }
+                  </ul>
                 </div>
+              }
+            </div>
 
-                @if (s.done) {
-                  <p class="step-status ok">✓ {{ tr('Зараховано', 'Completed') }}</p>
-                } @else if (!s.available) {
-                  <p class="step-status muted">{{ tr('Відкриється після попереднього кроку', 'Unlocks after the previous step') }}</p>
-                } @else {
-                  <!-- Active step content -->
-                  @if (blocksOf(s).length) {
-                    <div class="lesson">
-                      @for (b of blocksOf(s); track $index) {
-                        @switch (b.type) {
-                          @case ('h') { <h4 class="lb-h">{{ b.text }}</h4> }
-                          @case ('quote') { <p class="lb-quote">{{ b.text }}</p> }
-                          @case ('list') {
-                            <ul class="lb-list">
-                              @for (it of (b.items ?? []); track $index) {
-                                <li>@if (it.term) { <strong>{{ it.term }}</strong> — }{{ it.text }}</li>
+            <ol class="steps">
+              @for (s of m.steps; track s.id) {
+                <li class="step" [class.done]="s.done" [class.locked]="!s.available && !s.done">
+                  <div class="step-rail">
+                    <span class="step-dot">
+                      @if (s.done) { <app-icon name="shield-check" /> }
+                      @else { {{ s.order + 1 }} }
+                    </span>
+                  </div>
+                  <div class="step-body">
+                    <div class="step-top">
+                      <span class="step-kind" [attr.data-kind]="s.kind">{{ kindLabel(s) }}</span>
+                      <h3>{{ i18n.isEn ? s.titleEn : s.titleUk }}</h3>
+                    </div>
+
+                    @if (s.done) {
+                      <p class="step-status ok">✓ {{ tr('Зараховано', 'Completed') }}</p>
+                    } @else if (!s.available) {
+                      <p class="step-status muted">{{ tr('Відкриється після попереднього кроку', 'Unlocks after the previous step') }}</p>
+                    } @else {
+                      <!-- Lesson / practice body blocks -->
+                      @if (blocksOf(s).length) {
+                        <div class="lesson">
+                          @for (b of blocksOf(s); track $index) {
+                            @switch (b.type) {
+                              @case ('h') { <h4 class="lb-h">{{ b.text }}</h4> }
+                              @case ('quote') { <p class="lb-quote">{{ b.text }}</p> }
+                              @case ('list') {
+                                <ul class="lb-list">
+                                  @for (it of (b.items ?? []); track $index) {
+                                    <li>@if (it.term) { <strong>{{ it.term }}</strong> — }{{ it.text }}</li>
+                                  }
+                                </ul>
                               }
-                            </ul>
+                              @case ('dialogue') {
+                                <div class="lb-dialogue">
+                                  @for (ln of (b.lines ?? []); track $index) {
+                                    <p class="lb-line"><strong>{{ ln.who }}:</strong> {{ ln.text }}</p>
+                                  }
+                                </div>
+                              }
+                              @default { <p class="lb-p">{{ b.text }}</p> }
+                            }
                           }
-                          @default { <p class="lb-p">{{ b.text }}</p> }
+                        </div>
+                      }
+
+                      @switch (s.kind) {
+                        @case ('lesson') {
+                          <button class="primary" [disabled]="busy() === s.id" (click)="finishStep(s)">
+                            {{ busy() === s.id ? '…' : tr('Зрозуміло, далі', 'Got it, next') }}
+                          </button>
+                        }
+                        @case ('quiz') {
+                          <div class="quiz">
+                            @for (q of quizFor(s); track $index; let qi = $index) {
+                              <div class="quiz-q">
+                                <p class="q-text">{{ qi + 1 }}. {{ q.q }}</p>
+                                <div class="q-opts">
+                                  @for (opt of q.options; track $index; let oi = $index) {
+                                    <button type="button" class="q-opt"
+                                      [class.sel]="selectedAnswer(s.id, qi) === oi"
+                                      [class.correct]="isChecked(s.id) && oi === q.correct"
+                                      [class.wrong]="isChecked(s.id) && selectedAnswer(s.id, qi) === oi && oi !== q.correct"
+                                      [disabled]="isChecked(s.id)"
+                                      (click)="selectQuizOption(s.id, qi, oi)">
+                                      {{ opt }}
+                                    </button>
+                                  }
+                                </div>
+                                @if (isChecked(s.id) && q.explain) { <p class="q-explain">{{ q.explain }}</p> }
+                              </div>
+                            }
+                            @if (!isChecked(s.id)) {
+                              <button class="primary" [disabled]="!quizComplete(s) || busy() === s.id" (click)="checkQuiz(s)">
+                                {{ tr('Перевірити', 'Check answers') }}
+                              </button>
+                            } @else {
+                              <p class="quiz-score">{{ quizScoreLabel(s) }}</p>
+                              <button class="primary" (click)="retryQuiz(s)">{{ tr('Спробувати ще раз', 'Try again') }}</button>
+                            }
+                          </div>
+                        }
+                        @default {
+                          <div class="practice-row">
+                            @if (s.patient; as p) {
+                              <span class="patient">
+                                @if (p.avatarUrl) { <img [src]="p.avatarUrl" [alt]="p.displayName" /> }
+                                {{ p.displayName }}
+                              </span>
+                            }
+                            <button class="primary" [disabled]="busy() === s.id" (click)="startPractice(s)">
+                              {{ busy() === s.id ? '…' : tr('Почати практику', 'Start practice') }}
+                            </button>
+                            @if (s.sessionId) {
+                              <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ tr('Продовжити сесію', 'Resume session') }}</a>
+                            }
+                          </div>
+                          <p class="hint">{{ tr('Крок зараховується після того, як завершиш сесію й отримаєш фідбек.', 'The step is credited once you finish the session and get feedback.') }}</p>
                         }
                       }
-                    </div>
-                  }
-                  @if (s.kind === 'lesson') {
-                    <button class="primary" [disabled]="busy() === s.id" (click)="finishLesson(s)">
-                      {{ busy() === s.id ? '…' : tr('Зрозуміло, далі', 'Got it, next') }}
-                    </button>
-                  } @else {
-                    <div class="practice-row">
-                      @if (s.patient; as p) {
-                        <span class="patient">
-                          @if (p.avatarUrl) { <img [src]="p.avatarUrl" [alt]="p.displayName" /> }
-                          {{ p.displayName }}
-                        </span>
-                      }
-                      <button class="primary" [disabled]="busy() === s.id" (click)="startPractice(s)">
-                        {{ busy() === s.id ? '…' : tr('Почати практику', 'Start practice') }}
-                      </button>
-                      @if (s.sessionId) {
-                        <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ tr('Продовжити сесію', 'Resume session') }}</a>
-                      }
-                    </div>
-                    <p class="hint">{{ tr('Крок зараховується після того, як завершиш сесію й отримаєш фідбек.', 'The step is credited once you finish the session and get feedback.') }}</p>
-                  }
-                }
-              </div>
-            </li>
-          }
-        </ol>
+                    }
+                  </div>
+                </li>
+              }
+            </ol>
+          </section>
+        }
       } @else {
         <!-- ── Catalog ── -->
         <a routerLink="/dashboard" class="back">← {{ tr('На головну', 'Home') }}</a>
         <header class="cat-head">
           <h1>{{ tr('Курси', 'Courses') }}</h1>
-          <p class="muted">{{ tr('Скіл-паси: коротка теорія → практика з AI-пацієнтом → фідбек.', 'Skill paths: short theory → practice with an AI patient → feedback.') }}</p>
+          <p class="muted">{{ tr('Повноцінні курси: модулі з теорією → квізи → практика з AI-пацієнтом і фідбек.', 'Full courses: modules of theory → quizzes → practice with an AI patient and feedback.') }}</p>
         </header>
 
         @if (list().length === 0) {
@@ -116,7 +184,10 @@ import { IconComponent } from '../icon.component';
                 <h3>{{ i18n.isEn ? c.titleEn : c.titleUk }}</h3>
                 <p class="muted">{{ i18n.isEn ? c.descEn : c.descUk }}</p>
                 <div class="bar"><span [style.width.%]="pct(c)"></span></div>
-                <span class="bar-label">{{ c.doneSteps }} / {{ c.totalSteps }} {{ tr('кроків', 'steps') }}</span>
+                <span class="bar-label">
+                  {{ c.doneSteps }} / {{ c.totalSteps }} {{ tr('кроків', 'steps') }}
+                  · {{ c.moduleCount }} {{ tr('модулів', 'modules') }}
+                </span>
               </a>
             }
           </div>
@@ -151,15 +222,26 @@ import { IconComponent } from '../icon.component';
       background: color-mix(in srgb, var(--accent) 12%, transparent);
       border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border)); }
 
+    /* Module */
+    .module { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
+    .module-head { display: flex; flex-direction: column; gap: 6px; }
+    .module-eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-dim); }
+    .module-head h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    .objectives { margin-top: 4px; padding: 12px 14px; border-radius: 12px;
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border)); }
+    .obj-label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+    .objectives ul { margin: 6px 0 0; padding-left: 18px; }
+    .objectives li { font-size: 14px; line-height: 1.5; color: var(--fg); margin: 3px 0; }
+
     /* Stepper */
-    .steps { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; }
+    .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .step { display: grid; grid-template-columns: 40px 1fr; gap: 14px; }
     .step-rail { display: flex; flex-direction: column; align-items: center; }
     .step-dot { width: 32px; height: 32px; flex: 0 0 auto; border-radius: 50%;
       display: inline-flex; align-items: center; justify-content: center;
       font-size: 13px; font-weight: 600; color: var(--fg-dim);
       background: var(--user-bg); border: 1px solid var(--border); }
-    /* vertical connector */
     .step:not(:last-child) .step-rail::after { content: ''; flex: 1; width: 2px; min-height: 18px;
       background: var(--border); margin: 4px 0; }
     .step.done .step-dot { color: var(--accent); border-color: var(--accent);
@@ -167,6 +249,8 @@ import { IconComponent } from '../icon.component';
     .step-body { padding-bottom: 26px; min-width: 0; }
     .step-top { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
     .step-kind { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+    .step-kind[data-kind="quiz"] { color: #e0a458; }
+    .step-kind[data-kind="practice"] { color: #6fae8f; }
     .step-body h3 { margin: 0; font-size: 17px; font-weight: 600; }
     .step.locked .step-body { opacity: 0.55; }
     .step-status { margin: 0; font-size: 14px; }
@@ -182,6 +266,26 @@ import { IconComponent } from '../icon.component';
     .lb-list strong { color: var(--fg); }
     .lb-quote { margin: 12px 0; padding: 8px 12px; border-left: 2px solid var(--accent);
       background: color-mix(in srgb, var(--accent) 6%, transparent); color: var(--fg-dim); font-style: italic; border-radius: 0 8px 8px 0; }
+    .lb-dialogue { margin: 10px 0; padding: 10px 14px; border-radius: 10px; background: var(--user-bg); }
+    .lb-line { font-size: 14.5px; line-height: 1.55; color: var(--fg); margin: 4px 0; }
+    .lb-line strong { color: var(--accent); }
+
+    /* Quiz */
+    .quiz { display: flex; flex-direction: column; gap: 16px; margin: 4px 0 6px; }
+    .quiz-q { display: flex; flex-direction: column; gap: 8px; }
+    .q-text { margin: 0; font-size: 15px; font-weight: 600; color: var(--fg); }
+    .q-opts { display: flex; flex-direction: column; gap: 6px; }
+    .q-opt { text-align: left; padding: 10px 14px; border-radius: 10px; font-size: 14.5px; line-height: 1.4;
+      color: var(--fg); background: var(--user-bg); border: 1px solid var(--border); cursor: pointer;
+      transition: border-color .12s ease, background .12s ease; }
+    .q-opt:hover:not(:disabled) { border-color: var(--accent); }
+    .q-opt.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+    .q-opt.correct { border-color: #6fae8f; background: color-mix(in srgb, #6fae8f 16%, transparent); color: var(--fg); }
+    .q-opt.wrong { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+    .q-opt:disabled { cursor: default; }
+    .q-explain { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--fg-dim);
+      padding-left: 10px; border-left: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
+    .quiz-score { margin: 0; font-size: 14px; color: var(--fg); }
 
     .practice-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 6px; }
     .patient { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--fg); }
@@ -205,6 +309,10 @@ export class CoursesComponent implements OnInit {
   detail = signal<CourseDetail | null>(null);
   busy = signal<number | null>(null);
 
+  // Quiz interaction state (client-side grading).
+  private quizAnswers = signal<Record<string, number>>({});
+  private checkedSteps = signal<number[]>([]);
+
   async ngOnInit(): Promise<void> {
     const key = this.route.snapshot.paramMap.get('key');
     await (key ? this.loadDetail(key) : this.loadList());
@@ -218,10 +326,68 @@ export class CoursesComponent implements OnInit {
     return c.totalSteps ? Math.round((c.doneSteps / c.totalSteps) * 100) : 0;
   }
 
+  protected objectivesOf(m: CourseModule): string[] {
+    return this.i18n.isEn ? m.objectivesEn : m.objectivesUk;
+  }
+
   protected blocksOf(s: CourseStep): LessonBlock[] {
     return this.i18n.isEn ? s.contentEn : s.contentUk;
   }
 
+  protected quizFor(s: CourseStep): QuizQuestion[] {
+    return this.i18n.isEn ? s.quizEn : s.quizUk;
+  }
+
+  protected kindLabel(s: CourseStep): string {
+    switch (s.kind) {
+      case 'practice': return this.tr('Практика', 'Practice');
+      case 'quiz': return this.tr('Квіз', 'Quiz');
+      default: return this.tr('Урок', 'Lesson');
+    }
+  }
+
+  // ── Quiz helpers ──────────────────────────────────────────────────────────
+  private qaKey(stepId: number, qi: number): string {
+    return `${stepId}:${qi}`;
+  }
+  protected selectedAnswer(stepId: number, qi: number): number | undefined {
+    return this.quizAnswers()[this.qaKey(stepId, qi)];
+  }
+  protected isChecked(stepId: number): boolean {
+    return this.checkedSteps().includes(stepId);
+  }
+  protected selectQuizOption(stepId: number, qi: number, oi: number): void {
+    if (this.isChecked(stepId)) return;
+    this.quizAnswers.update((m) => ({ ...m, [this.qaKey(stepId, qi)]: oi }));
+  }
+  protected quizComplete(s: CourseStep): boolean {
+    return this.quizFor(s).every((_, qi) => this.selectedAnswer(s.id, qi) !== undefined);
+  }
+  private quizCorrectCount(s: CourseStep): number {
+    return this.quizFor(s).reduce((n, q, qi) => (this.selectedAnswer(s.id, qi) === q.correct ? n + 1 : n), 0);
+  }
+  protected quizScoreLabel(s: CourseStep): string {
+    const total = this.quizFor(s).length;
+    const correct = this.quizCorrectCount(s);
+    return this.tr(`Правильно ${correct} з ${total}. Спробуй ще раз, щоб пройти.`,
+      `${correct} of ${total} correct. Try again to pass.`);
+  }
+  protected retryQuiz(s: CourseStep): void {
+    this.checkedSteps.update((ids) => ids.filter((id) => id !== s.id));
+    this.quizAnswers.update((m) => {
+      const next = { ...m };
+      this.quizFor(s).forEach((_, qi) => delete next[this.qaKey(s.id, qi)]);
+      return next;
+    });
+  }
+  protected async checkQuiz(s: CourseStep): Promise<void> {
+    if (!this.quizComplete(s)) return;
+    const allCorrect = this.quizCorrectCount(s) === this.quizFor(s).length;
+    this.checkedSteps.update((ids) => (ids.includes(s.id) ? ids : [...ids, s.id]));
+    if (allCorrect) await this.finishStep(s);
+  }
+
+  // ── Data ────────────────────────────────────────────────────────────────
   private async loadList(): Promise<void> {
     this.loading.set(true);
     this.detail.set(null);
@@ -245,12 +411,12 @@ export class CoursesComponent implements OnInit {
     }
   }
 
-  protected async finishLesson(s: CourseStep): Promise<void> {
+  protected async finishStep(s: CourseStep): Promise<void> {
     const d = this.detail();
     if (!d || this.busy()) return;
     this.busy.set(s.id);
     try {
-      await this.api.completeCourseLesson(s.id);
+      await this.api.completeCourseStep(s.id);
       await this.loadDetail(d.key);
     } catch {
       this.error.set(this.tr('Не вдалося зберегти прогрес.', 'Failed to save progress.'));
