@@ -7,5 +7,6 @@ import { TestsModule } from '../tests/tests.module';
   imports: [TestsModule],
   controllers: [SessionsController],
   providers: [SessionsService],
+  exports: [SessionsService],
 })
 export class SessionsModule {}
