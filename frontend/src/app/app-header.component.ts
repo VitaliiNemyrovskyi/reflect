@@ -3,6 +3,7 @@ import { Component, Input, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
 import { I18nService } from './i18n.service';
+import { SessionModeService } from './session-mode.service';
 import { LogoComponent } from './logo.component';
 import { IconComponent } from './icon.component';
 
@@ -38,6 +39,20 @@ import { IconComponent } from './icon.component';
               <p class="subtitle">{{ subtitle }}</p>
             }
           </div>
+          <div class="header-right">
+            @if (sessionMode.active()) {
+              <div class="mode-toggle" role="group"
+                   [attr.aria-label]="i18n.isEn ? 'Session mode' : 'Режим сесії'">
+                <button class="mode-btn" [class.active]="sessionMode.mode() === 'chat'"
+                        (click)="sessionMode.set('chat')"
+                        [title]="i18n.isEn ? 'Chat' : 'Чат'"
+                        [attr.aria-label]="i18n.isEn ? 'Chat' : 'Чат'"><app-icon name="message" /></button>
+                <button class="mode-btn" [class.active]="sessionMode.mode() === 'video'"
+                        (click)="sessionMode.set('video')"
+                        [title]="i18n.isEn ? 'Video call' : 'Відеодзвінок'"
+                        [attr.aria-label]="i18n.isEn ? 'Video call' : 'Відеодзвінок'"><app-icon name="video" /></button>
+              </div>
+            }
           <div class="user-area">
             <a routerLink="/profile" class="user-name-link" [title]="i18n.t('nav.profile')">
               {{ u.displayName ?? u.email }}
@@ -73,6 +88,7 @@ import { IconComponent } from './icon.component';
                   (click)="menuOpen.set(!menuOpen())"
                   [attr.aria-expanded]="menuOpen()"
                   [attr.aria-label]="i18n.isEn ? 'Menu' : 'Меню'"><app-icon name="menu" /></button>
+          </div>
         </div>
 
         @if (menuOpen()) {
@@ -117,7 +133,44 @@ import { IconComponent } from './icon.component';
        content paints over the open dropdown menu. 100 keeps the whole
        header subtree (incl. the absolutely-positioned dropdown) above all
        normal page content, while staying below full-screen modals. */
-    .header { margin-bottom: 24px; position: relative; z-index: 100; }
+    /* Sticky, full-bleed top bar (negative side margins cancel the shell
+       padding so the blurred background spans edge-to-edge). z-index 100
+       keeps it — and the dropdown within it — above page content. */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      margin: 0 -20px 16px;
+      padding: 10px 20px 0;
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      backdrop-filter: blur(16px) saturate(140%);
+      -webkit-backdrop-filter: blur(16px) saturate(140%);
+    }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .mode-toggle {
+      display: inline-flex;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--accent) 4%, transparent);
+    }
+    .mode-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 0;
+      padding: 6px 9px;
+      border-radius: 7px;
+      color: var(--fg-dim);
+      transition: background .15s ease, color .15s ease;
+    }
+    .mode-btn:hover { color: var(--fg); }
+    .mode-btn.active {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+    }
     .brand-block { display: flex; flex-direction: column; gap: 6px; }
     .brand-link {
       display: inline-flex;
@@ -258,6 +311,7 @@ export class AppHeaderComponent {
 
   protected auth = inject(AuthService);
   protected i18n = inject(I18nService);
+  protected sessionMode = inject(SessionModeService);
   private router = inject(Router);
 
   /** Mobile hamburger menu open state. */

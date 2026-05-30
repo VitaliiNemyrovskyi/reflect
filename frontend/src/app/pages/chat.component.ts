@@ -7,6 +7,7 @@ import {
   OnInit,
   ViewChild,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -21,6 +22,7 @@ import { PreferencesService } from '../preferences.service';
 import { TestModalComponent } from '../test-modal.component';
 import { TestResultCardComponent } from '../test-result-card.component';
 import { IconComponent } from '../icon.component';
+import { SessionModeService } from '../session-mode.service';
 
 interface SelectionAnchor {
   text: string;
@@ -48,14 +50,9 @@ interface SelectionAnchor {
         </span>
       </div>
       <div class="actions">
-        <div class="mode-toggle" role="group" aria-label="Режим сесії">
-          <button class="mode-btn" [class.active]="mode() === 'chat'"
-                  (click)="setMode('chat')" title="Чат" aria-label="Чат"><app-icon name="message" /></button>
-          <button class="mode-btn" [class.active]="mode() === 'video'"
-                  (click)="setMode('video')" title="Відеодзвінок" aria-label="Відеодзвінок"><app-icon name="video" /></button>
-        </div>
-        <!-- In video mode the bottom controls bar owns mute / notes / end,
-             so the header stays minimal (name · timer · mode toggle). -->
+        <!-- The chat/video mode toggle lives in the global app header now
+             (next to the hamburger). In video mode the bottom controls bar
+             owns mute / notes / end, so these header actions are chat-only. -->
         @if (mode() === 'chat') {
         <button
           class="ghost icon mobile-only"
@@ -487,8 +484,9 @@ interface SelectionAnchor {
        shell's 20px side padding so messages don't peek through at
        the edges of a sticky header. top respects the iOS safe area. */
     .chat-header {
-      position: sticky;
-      top: var(--safe-top, 0px);
+      /* Not sticky anymore — the global app header (with the mode toggle)
+         is the sticky top bar; a second sticky bar would stack/overlap. */
+      position: relative;
       z-index: 10;
       display: flex;
       justify-content: space-between;
@@ -1176,32 +1174,6 @@ interface SelectionAnchor {
       min-height: 40px;
     }
 
-    /* ── Mode toggle (chat | video) in the header ── */
-    .mode-toggle {
-      display: inline-flex;
-      gap: 2px;
-      padding: 2px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      background: color-mix(in srgb, var(--accent) 4%, transparent);
-    }
-    .mode-btn {
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 16px;
-      line-height: 0;
-      padding: 6px 9px;
-      border-radius: 7px;
-      color: var(--fg-dim);
-      transition: background .15s ease, color .15s ease;
-    }
-    .mode-btn:hover { color: var(--fg); }
-    .mode-btn.active {
-      background: color-mix(in srgb, var(--accent) 18%, transparent);
-      color: var(--accent);
-    }
-
     /* ── Video-call stage (Meet/Zoom-style) ── */
     .video-stage {
       position: relative;
@@ -1587,6 +1559,13 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   protected recognition = inject(RecognitionService);
   protected prefs = inject(PreferencesService);
   readonly i18n = inject(I18nService);
+  protected sessionMode = inject(SessionModeService);
+
+  /** Stop the mic when the session switches to chat mode (the toggle now
+   *  lives in the global header, which can't reach RecognitionService). */
+  private readonly _stopMicOnChat = effect(() => {
+    if (this.sessionMode.mode() === 'chat') this.recognition.stop();
+  });
 
   @ViewChild('scroll', { static: false })
   private scrollEl?: ElementRef<HTMLElement>;
@@ -1627,9 +1606,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   // ─── Video-call mode ───────────────────────────────────────────────────
   // Toggle between the classic chat and a Meet/Zoom-style call. The patient
-  // tile animates with the TTS voice (voice.level()/voice.speaking()). Mode
-  // is persisted globally so the trainee's preference sticks across sessions.
-  mode = signal<'chat' | 'video'>(this.readMode());
+  // tile animates with the TTS voice (voice.level()/voice.speaking()). The
+  // mode signal lives in SessionModeService so the global app header can host
+  // the toggle (next to the hamburger) — we just alias it here.
+  mode = this.sessionMode.mode;
   captionsOn = signal<boolean>(true);
   videoComposerOpen = signal<boolean>(false);
 
@@ -1706,6 +1686,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private shouldScroll = false;
 
   async ngOnInit() {
+    // Surface the chat/video toggle in the global app header for this session.
+    this.sessionMode.active.set(true);
     this.sessionId = Number(this.route.snapshot.paramMap.get('sessionId'));
     let bubbles = this.state.bubbles();
     // Empty bubbles = direct URL hit / refresh / new tab. In that case
@@ -1814,6 +1796,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   ngOnDestroy() {
     this.voice.cancel();
     this.recognition.stop();
+    this.sessionMode.active.set(false); // hide the header toggle off-session
     if (this.tickHandle) clearInterval(this.tickHandle);
   }
 
@@ -1825,23 +1808,6 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   // ─── Video-call mode ───────────────────────────────────────────────────
-
-  private readMode(): 'chat' | 'video' {
-    try {
-      return localStorage.getItem('reflect.sessionMode') === 'video' ? 'video' : 'chat';
-    } catch {
-      return 'chat';
-    }
-  }
-
-  setMode(m: 'chat' | 'video') {
-    this.mode.set(m);
-    try {
-      localStorage.setItem('reflect.sessionMode', m);
-    } catch {}
-    // Leaving video: stop listening so the mic doesn't linger in chat mode.
-    if (m === 'chat') this.recognition.stop();
-  }
 
   toggleCaptions() {
     this.captionsOn.update((v) => !v);
