@@ -60,6 +60,13 @@ interface SelectionAnchor {
             <div class="vtile-initials">{{ patientInitials() }}</div>
           }
           <div class="vtile-glow"></div>
+          @if (prefs.hintsEnabled()) {
+            <button class="vtile-hint" [class.live]="hintsOpen()"
+                    (pointerdown)="$event.stopPropagation()"
+                    (click)="toggleHints()"
+                    [title]="i18n.t('chat.hint_label')"
+                    [attr.aria-label]="i18n.t('chat.hint_label')"><app-icon name="lightbulb" /></button>
+          }
           <div class="vtile-name">
             <span>{{ state.characterDisplayName() ?? 'Клієнт' }}</span>
             @if (voice.speaking()) {
@@ -104,11 +111,6 @@ interface SelectionAnchor {
           <button class="vbtn" [class.live]="videoComposerOpen()"
                   (click)="videoComposerOpen.set(!videoComposerOpen())"
                   title="Написати текстом" aria-label="Написати текстом"><app-icon name="keyboard" /></button>
-          @if (prefs.hintsEnabled()) {
-            <button class="vbtn" [class.live]="hintsOpen()" (click)="toggleHints()"
-                    [title]="i18n.t('chat.hint_label')"
-                    [attr.aria-label]="i18n.t('chat.hint_label')"><app-icon name="lightbulb" /></button>
-          }
           <button class="vbtn end" (click)="openEndDialog()" title="Завершити"
                   aria-label="Завершити сесію"><app-icon name="phone" /></button>
         </div>
@@ -1060,6 +1062,39 @@ interface SelectionAnchor {
       color: var(--fg-dim); font-size: 12px;
     }
 
+    /* Hint coach trigger, overlaid on the call tile (top-right). Frosted dark
+       chip so it stays legible over any photo; accent-filled when the popover
+       is open. min-height:0/padding:0 override the global mobile button rules
+       (otherwise it ovals like the header avatar did). */
+    .vtile-hint {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 4;
+      width: 40px;
+      height: 40px;
+      min-height: 0;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .vtile-hint:hover { border-color: var(--accent); }
+    .vtile-hint.live {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #1a1430;
+    }
+
     .captions {
       max-width: min(560px, 90vw);
       text-align: center;
@@ -1165,10 +1200,7 @@ interface SelectionAnchor {
       /* Phone: a bigger, portrait tile — fills the width and shows the
          face larger, like a real video call on a phone. */
       .vtile { width: 94vw; aspect-ratio: 4 / 5; }
-      /* 7 controls now (hint coach added): tighten the row and allow it to
-         wrap so the pill never overflows a narrow phone. */
-      .vbar { gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 16px); }
-      .vbtn { width: 42px; height: 42px; font-size: 16px; }
+      .vbtn { width: 44px; height: 44px; font-size: 17px; }
     }
 
     /* While the user is dragging the tile, suppress the breathing/zoom
