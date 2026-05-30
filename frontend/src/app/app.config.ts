@@ -8,6 +8,7 @@ import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/
 import { routes } from './app.routes';
 import { authInterceptor } from './auth.interceptor';
 import { I18nService } from './i18n.service';
+import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 
 /**
  * Initialise I18nService before any component renders so `i18n.t()`
@@ -28,6 +29,6 @@ export const appConfig: ApplicationConfig = {
       useFactory: initI18n,
       deps:       [I18nService],
       multi:      true,
-    },
+    }, provideClientHydration(withEventReplay()),
   ],
 };

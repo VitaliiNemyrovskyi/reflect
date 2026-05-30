@@ -1,4 +1,5 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 
 /**
@@ -18,6 +19,9 @@ import { HttpClient } from '@angular/common/http';
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
   private http = inject(HttpClient);
+  /** No telemetry during SSR/prerender — an in-flight POST keeps the
+   *  server-render zone unstable and aborts prerendering. */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /**
    * @param type   one of the known event types (server validates)
@@ -29,6 +33,7 @@ export class AnalyticsService {
     props?: Record<string, unknown>,
     sessionId?: number,
   ): void {
+    if (!this.isBrowser) return;
     // Fire-and-forget. Don't await. Swallow errors.
     try {
       this.http

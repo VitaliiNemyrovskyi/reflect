@@ -1,4 +1,5 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
@@ -532,6 +533,10 @@ const T: Record<Lang, Record<string, string>> = {
 @Injectable({ providedIn: 'root' })
 export class I18nService {
   private readonly http = inject(HttpClient);
+  /** False during SSR/prerender (no localStorage, no backend reachable).
+   *  Gates browser-only init so SSG route extraction doesn't hang on the
+   *  /api/config fetch. */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** Reactive lang signal — components can read directly */
   readonly lang = signal<Lang>('uk');
@@ -542,6 +547,10 @@ export class I18nService {
    * Falls back to 'uk' on any error.
    */
   async init(): Promise<void> {
+    // SSR / prerender: no localStorage, no backend reachable — keep the 'uk'
+    // default and return immediately so SSG route extraction doesn't block on
+    // the /api/config fetch (which would never resolve at build time).
+    if (!this.isBrowser) return;
     // User's explicit preference always wins over the server default.
     // This lets them switch language once and have it persist across
     // page refreshes without needing a separate EN/FR deployment.

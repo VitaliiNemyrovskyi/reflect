@@ -1,4 +1,5 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -38,6 +39,8 @@ interface ProvidersStatus {
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  /** False during SSR/prerender — skip backend calls + browser listeners. */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly user = signal<AuthUser | null>(this.readStoredUser());
   readonly accessToken = signal<string | null>(this.readStored(ACCESS_KEY));
@@ -57,6 +60,10 @@ export class AuthService {
   private static readonly REFRESH_LEAD_SECONDS = 60;
 
   constructor() {
+    // SSR / prerender: no stored tokens, no backend reachable. Skip the
+    // provider fetch (a hanging /api request blocks render → prerender abort),
+    // the refresh scheduling, and the visibility listener.
+    if (!this.isBrowser) return;
     void this.fetchProviders();
     // Bootstrap: if we have a stored access token, schedule the next
     // refresh based on its actual `exp` claim. If the token is already

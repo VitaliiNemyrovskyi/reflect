@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 
 /**
  * Available theme keys. The default theme (lavender on near-black) is
@@ -49,6 +50,9 @@ export class ThemeService {
 
   readonly options = OPTIONS;
 
+  /** Guards DOM/localStorage access during SSR/prerender (no global document). */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
   constructor() {
     // Apply on bootstrap — before AppComponent renders, so no FOUC.
     this.apply(this.current());
@@ -71,6 +75,7 @@ export class ThemeService {
   }
 
   private apply(key: ThemeKey) {
+    if (!this.isBrowser) return;
     const root = document.documentElement;
     if (key === 'default') {
       root.removeAttribute('data-theme');
