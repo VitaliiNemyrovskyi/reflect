@@ -132,6 +132,20 @@ export const routes: Routes = [
       import('./pages/cohorts.component').then((m) => m.CohortsComponent),
   },
   {
+    // Skill-path courses — catalog.
+    path: 'courses',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/courses.component').then((m) => m.CoursesComponent),
+  },
+  {
+    // Skill-path course — track stepper (same component, reads :key).
+    path: 'courses/:key',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/courses.component').then((m) => m.CoursesComponent),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard],
     loadComponent: () =>
