@@ -33,7 +33,7 @@ interface SelectionAnchor {
   standalone: true,
   imports: [FormsModule, TestModalComponent, TestResultCardComponent, IconComponent],
   template: `
-    <header class="chat-header">
+    <header class="chat-header" [class.video]="mode() === 'video'">
       <div class="left">
         <h2>{{ state.characterDisplayName() ?? 'Клієнт' }}</h2>
         <span class="timer"
@@ -49,6 +49,9 @@ interface SelectionAnchor {
           <button class="mode-btn" [class.active]="mode() === 'video'"
                   (click)="setMode('video')" title="Відеодзвінок" aria-label="Відеодзвінок"><app-icon name="video" /></button>
         </div>
+        <!-- In video mode the bottom controls bar owns mute / notes / end,
+             so the header stays minimal (name · timer · mode toggle). -->
+        @if (mode() === 'chat') {
         <button
           class="ghost icon mobile-only"
           [class.has-notes]="notes().length > 0"
@@ -71,6 +74,7 @@ interface SelectionAnchor {
         <button class="primary feedback-btn" (click)="getFeedback()" [title]="i18n.t('chat.get_feedback')">
           {{ i18n.t('chat.get_feedback') }}
         </button>
+        }
       </div>
     </header>
 
@@ -491,6 +495,16 @@ interface SelectionAnchor {
       backdrop-filter: blur(20px) saturate(140%);
       -webkit-backdrop-filter: blur(20px) saturate(140%);
       border-bottom: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+    }
+    /* Video mode: minimal, immersive — the header floats borderless over the
+       dark call stage (name · timer · mode toggle only; everything else lives
+       in the bottom controls bar). */
+    .chat-header.video {
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border-bottom: none;
+      padding-bottom: 6px;
     }
     h2 { font-size: 22px; margin: 0; font-weight: 500; }
     @media (max-width: 720px) {
@@ -1369,21 +1383,25 @@ interface SelectionAnchor {
     /* Right-side transcript + notes drawer in video mode. Anchored to the
        video-stage (position: relative). Slides in from the right via
        translateX. Mobile width ~88vw, desktop ~380px. Own scroll. */
+    /* Fixed (viewport-anchored), not absolute: the .video-stage's right
+       edge is inset by the shell padding, so an absolutely-positioned
+       drawer translated 100% still left a sliver peeking on the right.
+       z-index above the global app header so it reads as a full overlay. */
     .vdrawer-backdrop {
-      position: absolute;
+      position: fixed;
       inset: 0;
-      z-index: 40;
+      z-index: 108;
       background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(2px);
       -webkit-backdrop-filter: blur(2px);
       animation: fadeIn 0.16s ease-out;
     }
     .vdrawer {
-      position: absolute;
+      position: fixed;
       top: 0;
       right: 0;
       bottom: 0;
-      z-index: 41;
+      z-index: 109;
       width: 88vw;
       max-width: 380px;
       display: flex;
