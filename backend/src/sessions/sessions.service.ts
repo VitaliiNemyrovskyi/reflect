@@ -9,60 +9,7 @@ import { SubscriptionsService } from '../billing/subscriptions.service';
 import { CityService } from '../city/city.service';
 import { MemoryService } from '../memory/memory.service';
 import { NpcService } from '../npc/npc.service';
-
-export type HintKind =
-  | 'open-question'
-  | 'reflection'
-  | 'summary'
-  | 'screening'
-  | 'here-and-now'
-  | 'psychoeducation'
-  | 'closing'
-  | 'other';
-
-export interface HintSuggestion {
-  text: string;
-  rationale: string;
-  kind: HintKind;
-}
-
-export interface HintResult {
-  suggestions: HintSuggestion[];
-}
-
-/**
- * Pull the JSON payload out of the LLM response (raw or fenced) and
- * normalize into HintResult. Tolerant — if the model adds prose around the
- * JSON, we extract the first balanced { ... } block. If parsing fails
- * entirely, returns a single suggestion holding the raw text so the
- * frontend has something to show instead of an error.
- */
-function parseHintResult(raw: string): HintResult {
-  const fence = raw.match(/```(?:json)?\s*\n([\s\S]*?)\n```/i);
-  const candidate = fence ? fence[1] : raw;
-  // Find first { ... } block — handles preamble before/after JSON.
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    return fallbackHint(raw);
-  }
-  try {
-    const parsed = JSON.parse(candidate.slice(start, end + 1)) as {
-      suggestions?: { text?: unknown; rationale?: unknown; kind?: unknown }[];
-    };
-    const out: HintSuggestion[] = [];
-    for (const s of parsed.suggestions ?? []) {
-      const text = typeof s.text === 'string' ? s.text.trim() : '';
-      const rationale = typeof s.rationale === 'string' ? s.rationale.trim() : '';
-      const kind = (typeof s.kind === 'string' ? s.kind : 'other') as HintKind;
-      if (text) out.push({ text, rationale, kind });
-    }
-    if (out.length === 0) return fallbackHint(raw);
-    return { suggestions: out.slice(0, 3) };
-  } catch {
-    return fallbackHint(raw);
-  }
-}
+import { parseHintResult, type HintResult } from './hint-parse';
 
 function safeParseJson(json: string): unknown {
   try {
@@ -70,19 +17,6 @@ function safeParseJson(json: string): unknown {
   } catch {
     return null;
   }
-}
-
-function fallbackHint(raw: string): HintResult {
-  const text = raw.trim().slice(0, 400);
-  return {
-    suggestions: [
-      {
-        text: text || 'Не вдалось розпарсити підказку. Спробуй ще раз.',
-        rationale: 'Модель не повернула очікуваний JSON; це сирий текст.',
-        kind: 'other',
-      },
-    ],
-  };
 }
 
 const SEED_OPENING =
@@ -285,7 +219,11 @@ export class SessionsService {
       // Hints come from the same provider but we use the chat model — feedback
       // model is heavier and slower. Speed matters here, the student is mid-session.
       model: this.llm.modelChat,
-      maxTokens: 800,
+      // 1400 (was 800): three Ukrainian suggestions + rationales overflowed
+      // 800 and got truncated mid-JSON, which used to surface as a raw blob.
+      // The parser now salvages truncated output too, but more headroom means
+      // it rarely needs to.
+      maxTokens: 1400,
     });
 
     return parseHintResult(raw);
