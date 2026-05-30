@@ -3,7 +3,6 @@ import { Component, HostListener, Input, computed, inject, signal } from '@angul
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
 import { I18nService } from './i18n.service';
-import { SessionModeService } from './session-mode.service';
 import { LogoComponent } from './logo.component';
 import { IconComponent } from './icon.component';
 
@@ -24,8 +23,6 @@ import { IconComponent } from './icon.component';
  * secondary nav (progress / network / cohorts / admin / settings) and
  * logout — and it's the same menu on every breakpoint, so desktop and
  * mobile no longer diverge into an inline icon row vs. a hamburger.
- * During a live session a chat/video mode toggle appears to the left of
- * the avatar (gated on SessionModeService.active()).
  *
  * Pages pass an optional `subtitle` rendered under the wordmark.
  */
@@ -47,20 +44,6 @@ import { IconComponent } from './icon.component';
           </div>
 
           <div class="header-right">
-            @if (sessionMode.active()) {
-              <div class="mode-toggle" role="group"
-                   [attr.aria-label]="i18n.isEn ? 'Session mode' : 'Режим сесії'">
-                <button class="mode-btn" [class.active]="sessionMode.mode() === 'chat'"
-                        (click)="sessionMode.set('chat')"
-                        [title]="i18n.isEn ? 'Chat' : 'Чат'"
-                        [attr.aria-label]="i18n.isEn ? 'Chat' : 'Чат'"><app-icon name="message" /></button>
-                <button class="mode-btn" [class.active]="sessionMode.mode() === 'video'"
-                        (click)="sessionMode.set('video')"
-                        [title]="i18n.isEn ? 'Video call' : 'Відеодзвінок'"
-                        [attr.aria-label]="i18n.isEn ? 'Video call' : 'Відеодзвінок'"><app-icon name="video" /></button>
-              </div>
-            }
-
             <button type="button"
                     class="account-btn"
                     [class.open]="menuOpen()"
@@ -160,32 +143,6 @@ import { IconComponent } from './icon.component';
 
     .header-right { display: flex; align-items: center; gap: 12px; }
 
-    /* chat/video segmented toggle — session only */
-    .mode-toggle {
-      display: inline-flex;
-      gap: 2px;
-      padding: 2px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      background: color-mix(in srgb, var(--accent) 4%, transparent);
-    }
-    .mode-btn {
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 16px;
-      line-height: 0;
-      padding: 6px 9px;
-      border-radius: 7px;
-      color: var(--fg-dim);
-      transition: background .15s ease, color .15s ease;
-    }
-    .mode-btn:hover { color: var(--fg); }
-    .mode-btn.active {
-      background: color-mix(in srgb, var(--accent) 18%, transparent);
-      color: var(--accent);
-    }
-
     /* Account avatar — single entry to profile + nav + logout. */
     .account-btn {
       display: inline-flex;
@@ -283,7 +240,6 @@ export class AppHeaderComponent {
 
   protected auth = inject(AuthService);
   protected i18n = inject(I18nService);
-  protected sessionMode = inject(SessionModeService);
   private router = inject(Router);
 
   /** Account dropdown open state. */

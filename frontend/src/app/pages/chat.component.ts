@@ -7,7 +7,6 @@ import {
   OnInit,
   ViewChild,
   computed,
-  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -19,10 +18,7 @@ import { SessionStateService } from '../session-state.service';
 import { VoiceService } from '../voice.service';
 import { RecognitionService } from '../recognition.service';
 import { PreferencesService } from '../preferences.service';
-import { TestModalComponent } from '../test-modal.component';
-import { TestResultCardComponent } from '../test-result-card.component';
 import { IconComponent } from '../icon.component';
-import { SessionModeService } from '../session-mode.service';
 
 interface SelectionAnchor {
   text: string;
@@ -33,257 +29,21 @@ interface SelectionAnchor {
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TestModalComponent, TestResultCardComponent, IconComponent],
+  imports: [FormsModule, IconComponent],
   template: `
-    <header class="chat-header" [class.video]="mode() === 'video'">
+    <!-- Video call is the only session mode now: a minimal, borderless
+         header that floats over the dark call stage and shows just the
+         session timer. Mute / notes / end live in the bottom controls bar. -->
+    <header class="chat-header video">
       <div class="left">
-        <!-- Video mode labels the patient on the call tile (Zoom-style), so a
-             header name would be a third duplicate (tile + caption). Show it
-             only in chat mode; video header = timer + mode toggle. -->
-        @if (mode() !== 'video') {
-          <h2>{{ state.characterDisplayName() ?? 'Клієнт' }}</h2>
-        }
         <span class="timer"
               [class.warn]="elapsedMin() >= 35"
               [title]="elapsedMin() >= 35 ? 'Орієнтовний час закриття інтейк-сесії' : 'Час сесії'">
           <app-icon name="clock" /> {{ elapsedDisplay() }}
         </span>
       </div>
-      <div class="actions">
-        <!-- The chat/video mode toggle lives in the global app header now
-             (next to the hamburger). In video mode the bottom controls bar
-             owns mute / notes / end, so these header actions are chat-only. -->
-        @if (mode() === 'chat') {
-        <button
-          class="ghost icon mobile-only"
-          [class.has-notes]="notes().length > 0"
-          [attr.aria-label]="i18n.t('chat.notes') + ' (' + notes().length + ')'"
-          [title]="i18n.t('chat.notes')"
-          (click)="toggleNotes()">
-          <app-icon name="pencil" />{{ notes().length > 0 ? ' ' + notes().length : '' }}
-        </button>
-        <button
-          class="ghost icon"
-          [class.active]="!voice.muted()"
-          [attr.aria-label]="voice.muted() ? 'Увімкнути голос' : 'Вимкнути голос'"
-          [title]="voice.muted() ? 'Увімкнути голос' : 'Вимкнути голос'"
-          (click)="voice.toggleMute()">
-          <app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" />
-        </button>
-        <button class="ghost end-btn" (click)="openEndDialog()" [title]="i18n.t('chat.end_session')">
-          {{ i18n.t('chat.end_session') }}
-        </button>
-        <button class="primary feedback-btn" (click)="getFeedback()" [title]="i18n.t('chat.get_feedback')">
-          {{ i18n.t('chat.get_feedback') }}
-        </button>
-        }
-      </div>
     </header>
 
-    @if (mode() === 'chat') {
-    <div class="chat-layout">
-      <section class="chat-main">
-        <div #scroll class="messages" aria-live="polite">
-          @for (b of state.bubbles(); track $index) {
-            <div class="bubble fx-fade-up"
-                 [class.user]="b.role === 'user'"
-                 [class.assistant]="b.role === 'assistant'"
-                 [class.typing]="b.pending"
-                 [class.failed]="b.failed">
-              {{ b.content }}
-              @if (b.role === 'assistant' && !b.pending) {
-                <button class="replay"
-                        title="Озвучити"
-                        aria-label="Озвучити репліку"
-                        (click)="voice.speak(b.content)"><app-icon name="volume" /></button>
-              }
-              @if (b.failed && b.clientId !== undefined) {
-                <!-- Telegram/WhatsApp pattern: keep the user's text
-                     visible, show a red marker + actions row to retry
-                     or delete. Tapping Retry re-sends through the
-                     normal pipeline; if it fails again, the bubble
-                     simply gets re-marked as failed at the new spot. -->
-                <div class="bubble-failed-row">
-                  <span class="failed-icon"
-                        [attr.aria-label]="i18n.t('chat.failed_label')"
-                        [title]="i18n.t('chat.failed_label')">⚠</span>
-                  <button type="button"
-                          class="failed-action retry"
-                          [disabled]="sending()"
-                          (click)="retryFailed(b.clientId)">
-                    ↻ {{ i18n.t('chat.failed_retry') }}
-                  </button>
-                  <button type="button"
-                          class="failed-action delete"
-                          [disabled]="sending()"
-                          (click)="deleteFailed(b.clientId)">
-                    × {{ i18n.t('chat.failed_delete') }}
-                  </button>
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Test result cards appear inline at the bottom of the
-               message stream so they scroll with the chat. Order is
-               administration time (sessionTests is pushed-to, not
-               re-sorted). Pending cards show a loading state until
-               the LLM resolves. -->
-          @for (t of sessionTests(); track t.id) {
-            <app-test-result-card
-              [test]="t"
-              [summary]="summaryFor(t.testKey)" />
-          }
-        </div>
-
-        @if (testModalOpen()) {
-          <app-test-modal
-            (picked)="onTestPicked($event)"
-            (close)="testModalOpen.set(false)" />
-        }
-
-        @if (hintsOpen()) {
-          <div class="hints-popover" (click)="$event.stopPropagation()">
-            <header class="hints-head">
-              <span class="hints-title">💡 Що спитати?</span>
-              <button class="hints-close" type="button" (click)="hintsOpen.set(false)" aria-label="Закрити">×</button>
-            </header>
-            @if (hintsLoading()) {
-              <p class="hints-status">Готую варіанти…</p>
-            } @else if (hintsError()) {
-              <p class="hints-status danger">{{ hintsError() }}</p>
-            } @else if (hints().length) {
-              <ul class="hints-list">
-                @for (s of hints(); track $index) {
-                  <li class="hint-card" (click)="applyHint(s)" tabindex="0"
-                      (keydown.enter)="applyHint(s)">
-                    <span class="hint-kind">{{ hintKindLabel(s.kind) }}</span>
-                    <p class="hint-text">{{ s.text }}</p>
-                    @if (s.rationale) {
-                      <p class="hint-rationale">{{ s.rationale }}</p>
-                    }
-                  </li>
-                }
-              </ul>
-              <p class="hints-foot">
-                Натисни варіант — він підставиться у поле, ти зможеш відредагувати перед надсиланням.
-              </p>
-            } @else {
-              <p class="hints-status">Не вдалось підготувати варіанти. Спробуй ще раз.</p>
-            }
-          </div>
-        }
-
-        <form class="composer" (ngSubmit)="send()">
-          <textarea
-            rows="2"
-            [(ngModel)]="draft"
-            name="draft"
-            [placeholder]="i18n.t('chat.placeholder')"
-            [disabled]="sending()"
-            (ngModelChange)="saveDraft()"
-            (keydown.meta.enter)="send()"
-            (keydown.control.enter)="send()"></textarea>
-          <!-- Action icons grouped so they can flow into a sub-row on
-               mobile (display: contents on desktop keeps them as direct
-               flex children of .composer; on mobile this becomes a real
-               flex container in the grid's "tools" area). -->
-          <div class="composer-tools">
-            @if (prefs.hintsEnabled()) {
-              <button type="button"
-                      class="ghost icon hint-trigger"
-                      [class.active]="hintsOpen()"
-                      [class.loading]="hintsLoading()"
-                      [disabled]="sending()"
-                      [attr.aria-label]="i18n.t('chat.hint_label')"
-                      [title]="i18n.t('chat.hint_label')"
-                      (click)="toggleHints()">
-                <app-icon name="lightbulb" />
-              </button>
-            }
-            <!-- Psychological test trigger — opens the catalog modal so
-                 the therapist can pick a test for the AI patient to take
-                 (PHQ-9, GAD-7, WHO-5, PSS-10). Disabled while a test is
-                 already being administered. -->
-            <button type="button"
-                    class="ghost icon test-trigger"
-                    [class.loading]="loadingTestKey() !== null"
-                    [disabled]="sending() || loadingTestKey() !== null"
-                    aria-label="Запропонувати тест"
-                    title="Запропонувати психологічний тест"
-                    (click)="testModalOpen.set(true)">
-              <app-icon name="clipboard" />
-            </button>
-            @if (recognition.supported) {
-              <button type="button"
-                      class="ghost icon mic"
-                      [class.listening]="recognition.listening()"
-                      [attr.aria-label]="recognition.listening() ? 'Зупинити запис' : 'Говорити'"
-                      [title]="recognition.listening() ? 'Зупинити запис' : 'Говорити'"
-                      [disabled]="sending()"
-                      (click)="toggleMic()">
-                <app-icon [name]="recognition.listening() ? 'square' : 'mic'" />
-              </button>
-            }
-          </div>
-          <button class="primary send-btn" type="submit" [disabled]="sending() || !draft.trim()">
-            {{ i18n.t('chat.send') }}
-          </button>
-        </form>
-      </section>
-
-      @if (notesOpen()) {
-        <div class="sheet-backdrop visible" (click)="closeNotes()"></div>
-      }
-
-      <aside class="notes-panel" [class.open]="notesOpen()">
-        <button class="sheet-handle mobile-only" (click)="closeNotes()" aria-label="Закрити нотатки">
-        </button>
-        <header class="notes-header">
-          <h3>{{ i18n.t('chat.notes') }} {{ notes().length ? '(' + notes().length + ')' : '' }}</h3>
-          <span class="hint">Виділи текст у репліці, щоб приколоти нотатку</span>
-        </header>
-
-        <ul class="notes-list">
-          @for (n of notes(); track n.id) {
-            <li class="note">
-              @if (n.anchorText) {
-                <blockquote class="anchor">«{{ n.anchorText }}»</blockquote>
-              }
-              <p class="note-body">{{ n.noteText }}</p>
-              <button class="note-delete" title="Видалити нотатку"
-                      (click)="deleteNote(n.id)">✕</button>
-            </li>
-          }
-          @if (notes().length === 0) {
-            <li class="empty">Поки порожньо.</li>
-          }
-        </ul>
-
-        <form class="note-form" (ngSubmit)="saveNote()">
-          @if (anchorPreview()) {
-            <blockquote class="anchor preview">
-              «{{ anchorPreview() }}»
-              <button type="button" class="anchor-clear" (click)="clearAnchor()" title="Прибрати прив'язку">×</button>
-            </blockquote>
-          }
-          <textarea
-            rows="3"
-            [(ngModel)]="noteDraft"
-            name="noteDraft"
-            [placeholder]="i18n.t('chat.note_placeholder')"
-            (keydown.meta.enter)="saveNote()"
-            (keydown.control.enter)="saveNote()"></textarea>
-          <button type="submit" class="primary"
-                  [disabled]="!noteDraft.trim() || savingNote()">
-            {{ savingNote() ? '…' : i18n.t('chat.notes') }}
-          </button>
-        </form>
-      </aside>
-    </div>
-    }
-
-    @if (mode() === 'video') {
       <div class="video-stage">
         <div class="vtile patient"
              [class.speaking]="voice.speaking()"
@@ -419,17 +179,7 @@ interface SelectionAnchor {
           </div>
         </aside>
       </div>
-    }
 
-    @if (selectionAnchor()) {
-      <button #selBtn class="floating-add-note"
-              [style.top.px]="selectionAnchor()!.rectTop"
-              [style.left.px]="selectionAnchor()!.rectLeft"
-              (mousedown)="$event.preventDefault()"
-              (click)="addAnchorFromSelection()">
-        + Нотатка
-      </button>
-    }
 
     @if (endDialogOpen()) {
       <div class="modal-backdrop" (click)="closeEndDialog()"></div>
@@ -1559,13 +1309,6 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   protected recognition = inject(RecognitionService);
   protected prefs = inject(PreferencesService);
   readonly i18n = inject(I18nService);
-  protected sessionMode = inject(SessionModeService);
-
-  /** Stop the mic when the session switches to chat mode (the toggle now
-   *  lives in the global header, which can't reach RecognitionService). */
-  private readonly _stopMicOnChat = effect(() => {
-    if (this.sessionMode.mode() === 'chat') this.recognition.stop();
-  });
 
   @ViewChild('scroll', { static: false })
   private scrollEl?: ElementRef<HTMLElement>;
@@ -1604,12 +1347,9 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   hintsError = signal<string | null>(null);
   hints = signal<HintSuggestion[]>([]);
 
-  // ─── Video-call mode ───────────────────────────────────────────────────
-  // Toggle between the classic chat and a Meet/Zoom-style call. The patient
-  // tile animates with the TTS voice (voice.level()/voice.speaking()). The
-  // mode signal lives in SessionModeService so the global app header can host
-  // the toggle (next to the hamburger) — we just alias it here.
-  mode = this.sessionMode.mode;
+  // ─── Video-call session ────────────────────────────────────────────────
+  // Meet/Zoom-style call — the only session mode. The patient tile animates
+  // with the TTS voice (voice.level()/voice.speaking()).
   captionsOn = signal<boolean>(true);
   videoComposerOpen = signal<boolean>(false);
 
@@ -1686,8 +1426,6 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private shouldScroll = false;
 
   async ngOnInit() {
-    // Surface the chat/video toggle in the global app header for this session.
-    this.sessionMode.active.set(true);
     this.sessionId = Number(this.route.snapshot.paramMap.get('sessionId'));
     let bubbles = this.state.bubbles();
     // Empty bubbles = direct URL hit / refresh / new tab. In that case
@@ -1796,7 +1534,6 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   ngOnDestroy() {
     this.voice.cancel();
     this.recognition.stop();
-    this.sessionMode.active.set(false); // hide the header toggle off-session
     if (this.tickHandle) clearInterval(this.tickHandle);
   }
 
