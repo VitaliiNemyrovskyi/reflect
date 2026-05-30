@@ -104,9 +104,50 @@ interface SelectionAnchor {
           <button class="vbtn" [class.live]="videoComposerOpen()"
                   (click)="videoComposerOpen.set(!videoComposerOpen())"
                   title="Написати текстом" aria-label="Написати текстом"><app-icon name="keyboard" /></button>
+          @if (prefs.hintsEnabled()) {
+            <button class="vbtn" [class.live]="hintsOpen()" (click)="toggleHints()"
+                    [title]="i18n.t('chat.hint_label')"
+                    [attr.aria-label]="i18n.t('chat.hint_label')"><app-icon name="lightbulb" /></button>
+          }
           <button class="vbtn end" (click)="openEndDialog()" title="Завершити"
                   aria-label="Завершити сесію"><app-icon name="phone" /></button>
         </div>
+
+        <!-- Hint coach — a card centred over the call stage. Reuses the same
+             request pipeline as before; tapping a suggestion drops it into the
+             ⌨ composer (which opens) so the student edits before sending. -->
+        @if (hintsOpen()) {
+          <div class="vhints-backdrop" (click)="hintsOpen.set(false)" aria-hidden="true"></div>
+          <div class="vhints" role="dialog" aria-label="Підказки" (click)="$event.stopPropagation()">
+            <header class="hints-head">
+              <span class="hints-title">💡 Що спитати?</span>
+              <button class="hints-close" type="button" (click)="hintsOpen.set(false)" aria-label="Закрити">×</button>
+            </header>
+            @if (hintsLoading()) {
+              <p class="hints-status">Готую варіанти…</p>
+            } @else if (hintsError()) {
+              <p class="hints-status danger">{{ hintsError() }}</p>
+            } @else if (hints().length) {
+              <ul class="hints-list">
+                @for (s of hints(); track $index) {
+                  <li class="hint-card" (click)="applyHint(s)" tabindex="0"
+                      (keydown.enter)="applyHint(s)">
+                    <span class="hint-kind">{{ hintKindLabel(s.kind) }}</span>
+                    <p class="hint-text">{{ s.text }}</p>
+                    @if (s.rationale) {
+                      <p class="hint-rationale">{{ s.rationale }}</p>
+                    }
+                  </li>
+                }
+              </ul>
+              <p class="hints-foot">
+                Натисни варіант — він підставиться у поле, ти зможеш відредагувати перед надсиланням.
+              </p>
+            } @else {
+              <p class="hints-status">Не вдалось підготувати варіанти. Спробуй ще раз.</p>
+            }
+          </div>
+        }
 
         <!-- Right-side transcript + notes drawer. Opened by the 📝 .vbar
              button or by dragging the patient tile right. Backdrop closes
@@ -1092,12 +1133,42 @@ interface SelectionAnchor {
       font-size: 17px;
     }
 
+    /* Hint coach popover — a focused card centred over the call stage. */
+    .vhints-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 110;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      animation: fadeIn 0.16s ease-out;
+    }
+    .vhints {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 111;
+      width: min(440px, 92vw);
+      max-height: 70vh;
+      overflow-y: auto;
+      background: color-mix(in srgb, var(--accent) 6%, var(--assistant-bg));
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.8);
+      animation: modalIn 0.18s ease-out;
+    }
+
     @media (max-width: 560px) {
       .video-stage { min-height: calc(100dvh - 130px); gap: 14px; padding-top: 8px; }
       /* Phone: a bigger, portrait tile — fills the width and shows the
          face larger, like a real video call on a phone. */
       .vtile { width: 94vw; aspect-ratio: 4 / 5; }
-      .vbtn { width: 44px; height: 44px; font-size: 17px; }
+      /* 7 controls now (hint coach added): tighten the row and allow it to
+         wrap so the pill never overflows a narrow phone. */
+      .vbar { gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 16px); }
+      .vbtn { width: 42px; height: 42px; font-size: 16px; }
     }
 
     /* While the user is dragging the tile, suppress the breathing/zoom
@@ -1681,12 +1752,14 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
     this.draft = text;
     this.hintsOpen.set(false);
-    // Move focus + caret to the end so the student can edit immediately.
+    // Open the ⌨ composer with the suggestion pre-filled so the student can
+    // tweak it before sending (focus + caret at the end).
+    this.videoComposerOpen.set(true);
     queueMicrotask(() => {
-      const ta = document.querySelector<HTMLTextAreaElement>('.composer textarea');
-      if (ta) {
-        ta.focus();
-        ta.setSelectionRange(ta.value.length, ta.value.length);
+      const inp = document.querySelector<HTMLInputElement>('.vcomposer input');
+      if (inp) {
+        inp.focus();
+        inp.setSelectionRange(inp.value.length, inp.value.length);
       }
     });
   }
