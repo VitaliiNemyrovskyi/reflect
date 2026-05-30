@@ -127,6 +127,42 @@ const ICONS: Record<string, string> = {
     '<path d="M9 21 H5 a2 2 0 0 1 -2 -2 V5 a2 2 0 0 1 2 -2 h4"/>' +
     '<polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
 
+  // ── Session / video-call controls ─────────────────────────────────
+  clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/>',
+  message:
+    '<path d="M21 15 a2 2 0 0 1 -2 2 H8 l-4 4 V5 a2 2 0 0 1 2 -2 h13 a2 2 0 0 1 2 2 Z"/>',
+  video:
+    '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10 l6 -3.5 v11 l-6 -3.5 Z"/>',
+  pencil:
+    '<path d="M12 20 H21"/>' +
+    '<path d="M16.5 3.5 a2.1 2.1 0 0 1 3 3 L7 19 l-4 1 1 -4 Z"/>',
+  mic:
+    '<rect x="9" y="2.5" width="6" height="11" rx="3"/>' +
+    '<path d="M6 11 a6 6 0 0 0 12 0"/><line x1="12" y1="17" x2="12" y2="21"/>' +
+    '<line x1="9" y1="21" x2="15" y2="21"/>',
+  square: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+  volume:
+    '<path d="M11 5 L6 9 H2 v6 h4 l5 4 Z"/>' +
+    '<path d="M15.5 8.5 a5 5 0 0 1 0 7"/><path d="M18.5 6 a9 9 0 0 1 0 12"/>',
+  'volume-off':
+    '<path d="M11 5 L6 9 H2 v6 h4 l5 4 Z"/>' +
+    '<line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/>',
+  captions:
+    '<rect x="3" y="6" width="18" height="12" rx="2"/>' +
+    '<path d="M10 10.5 a2.5 2.5 0 1 0 0 3"/><path d="M16.5 10.5 a2.5 2.5 0 1 0 0 3"/>',
+  keyboard:
+    '<rect x="2" y="6" width="20" height="12" rx="2"/>' +
+    '<line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/>' +
+    '<line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/>' +
+    '<line x1="8" y1="14" x2="16" y2="14"/>',
+  clipboard:
+    '<rect x="6" y="4" width="12" height="17" rx="2"/>' +
+    '<rect x="9" y="2.5" width="6" height="3.8" rx="1.2"/>',
+  phone:
+    '<path d="M15.5 21 A13.5 13.5 0 0 1 3 8.5 2 2 0 0 1 5 6.5 h2.2 a1 1 0 0 1 1 0.8 ' +
+    'l0.7 3 a1 1 0 0 1 -0.5 1.1 l-1.5 0.8 a11 11 0 0 0 5 5 l0.8 -1.5 a1 1 0 0 1 1.1 -0.5 ' +
+    'l3 0.7 a1 1 0 0 1 0.8 1 V19 a2 2 0 0 1 -2 2 Z"/>',
+
   diamond: '<path d="M12 3 L21 12 L12 21 L3 12 Z"/>',
 };
 
