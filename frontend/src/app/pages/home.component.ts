@@ -149,6 +149,16 @@ import { IconComponent } from '../icon.component';
         </article>
       }
 
+      <!-- Courses entry point (skill-paths) — discoverable from the dashboard. -->
+      <a routerLink="/courses" class="panel panel-soft courses-entry">
+        <span class="courses-entry-ic"><app-icon name="lightbulb" /></span>
+        <span class="courses-entry-text">
+          <span class="courses-entry-title">{{ i18n.isEn ? 'Courses' : 'Курси' }}</span>
+          <span class="courses-entry-sub dim">{{ i18n.isEn ? 'Skill paths: learn → practise → feedback' : 'Скіл-паси: теорія → практика → фідбек' }}</span>
+        </span>
+        <span class="link-btn">→</span>
+      </a>
+
       <!-- Patient catalog — panel container hosting city-grouped grid.
            Same .panel surface as patient-detail uses, so the home and
            the patient page now share a visual language. -->
@@ -482,6 +492,26 @@ import { IconComponent } from '../icon.component';
        as patient-detail. */
     .patient-panel { margin-bottom: 22px; }
     .stats-panel { margin-bottom: 32px; }
+
+    /* Courses entry — a clickable panel row linking to /courses. */
+    .courses-entry {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 22px; padding: 16px 18px;
+      text-decoration: none; color: inherit;
+      transition: border-color .15s ease, transform .12s ease;
+    }
+    .courses-entry:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .courses-entry-ic {
+      flex: 0 0 auto; width: 42px; height: 42px; border-radius: 11px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 21px; color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+    }
+    .courses-entry-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .courses-entry-title { font-weight: 600; font-size: 16px; }
+    .courses-entry-sub { font-size: 13px; }
+    .courses-entry .link-btn { flex: 0 0 auto; }
 
     /* City block — wraps each per-city patient grid. Light header
        above the cards: pin + city name + count, intentionally quiet

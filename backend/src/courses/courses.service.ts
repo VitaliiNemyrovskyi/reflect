@@ -100,8 +100,8 @@ export class CoursesService implements OnModuleInit {
         kind: s.kind,
         titleUk: s.titleUk,
         titleEn: s.titleEn,
-        bodyUk: s.bodyUk,
-        bodyEn: s.bodyEn,
+        contentUk: this.parseBlocks(s.bodyUk),
+        contentEn: this.parseBlocks(s.bodyEn),
         techniqueKey: s.techniqueKey,
         patient: patient ? { displayName: patient.displayName, avatarUrl: patient.avatarUrl } : null,
         sessionId: c?.sessionId ?? null,
@@ -243,50 +243,73 @@ export class CoursesService implements OnModuleInit {
     }
   }
 
+  /** Parse a step's stored JSON content into typed blocks (empty if none). */
+  private parseBlocks(raw: string | null): LessonBlock[] {
+    if (!raw) return [];
+    try {
+      const v = JSON.parse(raw);
+      return Array.isArray(v) ? (v as LessonBlock[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
   // ─── Seed ───────────────────────────────────────────────────────────────
 
   private async seed(): Promise<void> {
     for (const track of SEED_TRACKS) {
-      const exists = await this.prisma.skillPath.findUnique({
+      // Upsert the path + each step by (pathId, order) so content edits
+      // propagate on deploy while step ids — and the UserStepCompletion links
+      // that reference them — survive.
+      const meta = {
+        titleUk: track.titleUk,
+        titleEn: track.titleEn,
+        descUk: track.descUk,
+        descEn: track.descEn,
+        order: track.order,
+        published: track.published,
+      };
+      const path = await this.prisma.skillPath.upsert({
         where: { key: track.key },
-        select: { id: true },
+        create: { key: track.key, ...meta },
+        update: meta,
       });
-      if (exists) continue;
-      await this.prisma.skillPath.create({
-        data: {
-          key: track.key,
-          titleUk: track.titleUk,
-          titleEn: track.titleEn,
-          descUk: track.descUk,
-          descEn: track.descEn,
-          order: track.order,
-          published: track.published,
-          steps: {
-            create: track.steps.map((s, i) => ({
-              order: i,
-              kind: s.kind,
-              titleUk: s.titleUk,
-              titleEn: s.titleEn,
-              bodyUk: s.bodyUk ?? null,
-              bodyEn: s.bodyEn ?? null,
-              characterRef: s.characterRef ?? null,
-              techniqueKey: s.techniqueKey ?? null,
-              passSignal: s.passSignal ?? null,
-            })),
-          },
-        },
-      });
-      this.logger.log(`course seeded: ${track.key} (${track.steps.length} steps)`);
+      for (let i = 0; i < track.steps.length; i++) {
+        const s = track.steps[i];
+        const data = {
+          kind: s.kind,
+          titleUk: s.titleUk,
+          titleEn: s.titleEn,
+          bodyUk: s.bodyUk ? JSON.stringify(s.bodyUk) : null,
+          bodyEn: s.bodyEn ? JSON.stringify(s.bodyEn) : null,
+          characterRef: s.characterRef ?? null,
+          techniqueKey: s.techniqueKey ?? null,
+          passSignal: s.passSignal ?? null,
+        };
+        await this.prisma.skillPathStep.upsert({
+          where: { pathId_order: { pathId: path.id, order: i } },
+          create: { pathId: path.id, order: i, ...data },
+          update: data,
+        });
+      }
+      this.logger.log(`course seeded/updated: ${track.key} (${track.steps.length} steps)`);
     }
   }
 }
+
+/** Structured lesson content block — rendered natively on the client (no markdown). */
+export type LessonBlock =
+  | { type: 'h'; text: string }
+  | { type: 'p'; text: string }
+  | { type: 'list'; ordered?: boolean; items: { term?: string; text: string }[] }
+  | { type: 'quote'; text: string };
 
 interface SeedStep {
   kind: 'lesson' | 'practice';
   titleUk: string;
   titleEn: string;
-  bodyUk?: string;
-  bodyEn?: string;
+  bodyUk?: LessonBlock[];
+  bodyEn?: LessonBlock[];
   characterRef?: string;
   techniqueKey?: string;
   passSignal?: string;
@@ -317,19 +340,73 @@ const SEED_TRACKS: Array<{
         kind: 'lesson',
         titleUk: 'Рамка першої сесії',
         titleEn: 'Framing the first session',
-        bodyUk:
-          '## Навіщо рамка\nПерша сесія — це не допит і не миттєве втручання. Її завдання — **створити безпеку, зібрати орієнтовну картину й домовитися про роботу**.\n\n## Що варто пройти\n- **Запит** — з чим прийшов клієнт *його словами* («Що привело вас сьогодні?»).\n- **Контекст** — коли почалося, як впливає на життя, що вже пробували.\n- **Ризик** — коротко, але прямо (детальніше в окремому уроці).\n- **Контракт** — тривалість, конфіденційність, чого очікувати.\n\n## Орієнтир\nБіопсихосоціальна модель: біологічне (сон, апетит) · психологічне (думки, емоції, копінг) · соціальне (стосунки, робота, підтримка).\n\n> Не намагайся «вирішити» все на першій зустрічі. Слухай більше, ніж говориш.',
-        bodyEn:
-          "## Why a frame\nThe first session isn't an interrogation or a rush to intervene. Its job is to **create safety, gather a rough picture, and agree how you'll work**.\n\n## What to cover\n- **Presenting concern** — why now, in the client's *own words* (\"What brings you in today?\").\n- **Context** — when it started, how it affects life, what they've tried.\n- **Risk** — briefly but directly (covered in a later lesson).\n- **Contract** — length, confidentiality, what to expect.\n\n## A map\nThe biopsychosocial model: biological (sleep, appetite) · psychological (thoughts, emotions, coping) · social (relationships, work, support).\n\n> Don't try to 'fix' everything in the first meeting. Listen more than you speak.",
+        bodyUk: [
+          { type: 'h', text: 'Навіщо рамка' },
+          { type: 'p', text: 'Перша сесія — це не допит і не миттєве втручання. Її завдання — створити безпеку, зібрати орієнтовну картину й домовитися про роботу.' },
+          { type: 'h', text: 'Що варто пройти' },
+          { type: 'list', items: [
+            { term: 'Запит', text: 'з чим прийшов клієнт його словами.' },
+            { term: 'Контекст', text: 'коли почалося, як впливає на життя, що вже пробували.' },
+            { term: 'Ризик', text: 'коротко, але прямо (детальніше — окремий урок).' },
+            { term: 'Контракт', text: 'тривалість, конфіденційність, чого очікувати.' },
+          ] },
+          { type: 'h', text: 'Орієнтир' },
+          { type: 'p', text: 'Біопсихосоціальна модель: біологічне (сон, апетит) · психологічне (думки, емоції, копінг) · соціальне (стосунки, робота, підтримка).' },
+          { type: 'quote', text: 'Не намагайся вирішити все на першій зустрічі. Слухай більше, ніж говориш.' },
+        ],
+        bodyEn: [
+          { type: 'h', text: 'Why a frame' },
+          { type: 'p', text: 'The first session is not an interrogation or a rush to intervene. Its job is to create safety, gather a rough picture, and agree how you will work.' },
+          { type: 'h', text: 'What to cover' },
+          { type: 'list', items: [
+            { term: 'Presenting concern', text: 'why now, in the client own words.' },
+            { term: 'Context', text: 'when it started, how it affects life, what they tried.' },
+            { term: 'Risk', text: 'briefly but directly (its own lesson later).' },
+            { term: 'Contract', text: 'length, confidentiality, what to expect.' },
+          ] },
+          { type: 'h', text: 'A map' },
+          { type: 'p', text: 'The biopsychosocial model: biological (sleep, appetite) · psychological (thoughts, emotions, coping) · social (relationships, work, support).' },
+          { type: 'quote', text: 'Do not try to fix everything in the first meeting. Listen more than you speak.' },
+        ],
       },
       {
         kind: 'lesson',
         titleUk: 'Робочий альянс',
         titleEn: 'The working alliance',
-        bodyUk:
-          '## Альянс важливіший за техніку\nНайсильніший предиктор результату терапії — **робочий альянс**, а не конкретний метод.\n\n## Три складові (Бордін)\n- **Звʼязок** — довіра й тепло між вами.\n- **Цілі** — спільне розуміння, куди йдемо.\n- **Завдання** — згода щодо того, *як* туди дійти.\n\n## Ядрові умови (Роджерс)\n- **Емпатія** — точне відчуття світу клієнта.\n- **Безумовне прийняття** — без осуду.\n- **Конгруентність** — щирість, без «маски експерта».\n\n> Рапорт будується не словами «довіртеся мені», а тим, що клієнт почувається почутим.',
-        bodyEn:
-          '## Alliance beats technique\nThe strongest predictor of therapy outcome is the **working alliance**, not the specific method.\n\n## Three parts (Bordin)\n- **Bond** — trust and warmth between you.\n- **Goals** — a shared sense of where you are headed.\n- **Tasks** — agreement on *how* to get there.\n\n## Core conditions (Rogers)\n- **Empathy** — accurately sensing the client’s world.\n- **Unconditional positive regard** — no judgement.\n- **Congruence** — being genuine, no “expert mask”.\n\n> Rapport is built not by saying “trust me” but by the client feeling heard.',
+        bodyUk: [
+          { type: 'h', text: 'Альянс важливіший за техніку' },
+          { type: 'p', text: 'Найсильніший предиктор результату терапії — робочий альянс, а не конкретний метод.' },
+          { type: 'h', text: 'Три складові (Бордін)' },
+          { type: 'list', items: [
+            { term: 'Звʼязок', text: 'довіра й тепло між вами.' },
+            { term: 'Цілі', text: 'спільне розуміння, куди йдемо.' },
+            { term: 'Завдання', text: 'згода щодо того, як туди дійти.' },
+          ] },
+          { type: 'h', text: 'Ядрові умови (Роджерс)' },
+          { type: 'list', items: [
+            { term: 'Емпатія', text: 'точне відчуття світу клієнта.' },
+            { term: 'Безумовне прийняття', text: 'без осуду.' },
+            { term: 'Конгруентність', text: 'щирість, без маски експерта.' },
+          ] },
+          { type: 'quote', text: 'Рапорт будується не словами довіртеся мені, а тим, що клієнт почувається почутим.' },
+        ],
+        bodyEn: [
+          { type: 'h', text: 'Alliance beats technique' },
+          { type: 'p', text: 'The strongest predictor of therapy outcome is the working alliance, not the specific method.' },
+          { type: 'h', text: 'Three parts (Bordin)' },
+          { type: 'list', items: [
+            { term: 'Bond', text: 'trust and warmth between you.' },
+            { term: 'Goals', text: 'a shared sense of where you are headed.' },
+            { term: 'Tasks', text: 'agreement on how to get there.' },
+          ] },
+          { type: 'h', text: 'Core conditions (Rogers)' },
+          { type: 'list', items: [
+            { term: 'Empathy', text: 'accurately sensing the client world.' },
+            { term: 'Unconditional positive regard', text: 'no judgement.' },
+            { term: 'Congruence', text: 'being genuine, no expert mask.' },
+          ] },
+          { type: 'quote', text: 'Rapport is built not by saying trust me but by the client feeling heard.' },
+        ],
       },
       {
         kind: 'practice',
@@ -337,19 +414,47 @@ const SEED_TRACKS: Array<{
         titleEn: 'First contact',
         characterRef: 'Анна',
         techniqueKey: 'rapport',
-        bodyUk:
-          '**Завдання:** проведи перші хвилини першої сесії з Анною. Фокус — рапорт: відкриті питання, віддзеркалення почуттів, без поспіху з порадами. Заверши сесію й отримай фідбек, щоб зарахувати крок.',
-        bodyEn:
-          '**Task:** run the opening minutes of a first session with Anna. Focus on rapport: open questions, reflecting feelings, no rush to advice. End the session and get feedback to complete the step.',
+        bodyUk: [
+          { type: 'p', text: 'Завдання: проведи перші хвилини першої сесії з Анною. Фокус — рапорт: відкриті питання, віддзеркалення почуттів, без поспіху з порадами. Заверши сесію й отримай фідбек, щоб зарахувати крок.' },
+        ],
+        bodyEn: [
+          { type: 'p', text: 'Task: run the opening minutes of a first session with Anna. Focus on rapport: open questions, reflecting feelings, no rush to advice. End the session and get feedback to complete the step.' },
+        ],
       },
       {
         kind: 'lesson',
         titleUk: 'Скринінг ризику — делікатно',
         titleEn: 'Screening risk, gently',
-        bodyUk:
-          '## Питати про ризик — обовʼязково\nУникати теми суїциду небезпечніше, ніж спитати. Пряме питання **не «підштовхує»** — воно дає полегшення й точність.\n\n## Як спитати, не зруйнувавши контакт\n1. **Нормалізуй**: «Коли людям так важко, інколи зʼявляються думки, що не хочеться жити. Чи бувають такі у вас?»\n2. **Уточни** (логіка C-SSRS): думки → план → засоби → намір.\n3. **Залишайся спокійним і теплим** — твоя реакція вчить клієнта, що про це *можна* говорити.\n\n## Чого не робити\n- Не питай «Ви ж не думаєте про щось погане?» (закрите, осудливе).\n- Не міняй тему одразу після відповіді.\n\n> У наступній практиці крок зарахується, коли фідбек покаже сигнал «ризик перевірено».',
-        bodyEn:
-          '## Asking about risk is mandatory\nAvoiding the topic of suicide is riskier than asking. A direct question does **not** “plant the idea” — it brings relief and clarity.\n\n## How to ask without breaking contact\n1. **Normalise**: “When things are this hard, people sometimes have thoughts that they don’t want to be alive. Do you ever have those?”\n2. **Clarify** (C-SSRS logic): thoughts → plan → means → intent.\n3. **Stay calm and warm** — your reaction teaches the client this *can* be talked about.\n\n## What not to do\n- Don’t ask “You’re not thinking of anything bad, are you?” (closed, judgemental).\n- Don’t change the subject right after the answer.\n\n> In the next practice the step passes once the feedback shows the “risk screened” signal.',
+        bodyUk: [
+          { type: 'p', text: 'Уникати теми суїциду небезпечніше, ніж спитати. Пряме питання не підштовхує — воно дає полегшення й точність.' },
+          { type: 'h', text: 'Як спитати, не зруйнувавши контакт' },
+          { type: 'list', ordered: true, items: [
+            { term: 'Нормалізуй', text: 'коли людям так важко, інколи бувають думки, що не хочеться жити — чи є такі у вас?' },
+            { term: 'Уточни', text: 'логіка C-SSRS: думки → план → засоби → намір.' },
+            { term: 'Будь спокійним і теплим', text: 'твоя реакція вчить клієнта, що про це можна говорити.' },
+          ] },
+          { type: 'h', text: 'Чого не робити' },
+          { type: 'list', items: [
+            { text: 'Не питай закрито й осудливо.' },
+            { text: 'Не міняй тему одразу після відповіді.' },
+          ] },
+          { type: 'quote', text: 'У наступній практиці крок зарахується, коли фідбек покаже сигнал ризик перевірено.' },
+        ],
+        bodyEn: [
+          { type: 'p', text: 'Avoiding the topic of suicide is riskier than asking. A direct question does not plant the idea — it brings relief and clarity.' },
+          { type: 'h', text: 'How to ask without breaking contact' },
+          { type: 'list', ordered: true, items: [
+            { term: 'Normalise', text: 'when things are this hard, people sometimes have thoughts that they do not want to be alive — do you ever have those?' },
+            { term: 'Clarify', text: 'C-SSRS logic: thoughts → plan → means → intent.' },
+            { term: 'Stay calm and warm', text: 'your reaction teaches the client this can be talked about.' },
+          ] },
+          { type: 'h', text: 'What not to do' },
+          { type: 'list', items: [
+            { text: 'Do not ask in a closed, judgemental way.' },
+            { text: 'Do not change the subject right after the answer.' },
+          ] },
+          { type: 'quote', text: 'In the next practice the step passes once the feedback shows the risk screened signal.' },
+        ],
       },
       {
         kind: 'practice',
@@ -358,10 +463,12 @@ const SEED_TRACKS: Array<{
         characterRef: 'Олеся',
         techniqueKey: 'risk_screening',
         passSignal: 'riskScreened',
-        bodyUk:
-          '**Завдання:** у розмові з Олесею делікатно, але прямо перевір ризик суїциду (нормалізуй → уточни). Крок зарахується, коли фідбек покаже сигнал «ризик перевірено».',
-        bodyEn:
-          "**Task:** during the session with Olesia, screen for suicide risk gently but directly (normalise → clarify). This step passes when the feedback shows the 'risk screened' signal.",
+        bodyUk: [
+          { type: 'p', text: 'Завдання: у розмові з Олесею делікатно, але прямо перевір ризик суїциду (нормалізуй → уточни). Крок зарахується, коли фідбек покаже сигнал ризик перевірено.' },
+        ],
+        bodyEn: [
+          { type: 'p', text: 'Task: during the session with Olesia, screen for suicide risk gently but directly (normalise then clarify). This step passes when the feedback shows the risk screened signal.' },
+        ],
       },
     ],
   },

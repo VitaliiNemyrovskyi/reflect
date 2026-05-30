@@ -1,8 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { marked } from 'marked';
-import { ApiService, CourseDetail, CourseListItem, CourseStep } from '../api.service';
+import { ApiService, CourseDetail, CourseListItem, CourseStep, LessonBlock } from '../api.service';
 import { I18nService } from '../i18n.service';
 import { IconComponent } from '../icon.component';
 
@@ -57,8 +55,23 @@ import { IconComponent } from '../icon.component';
                   <p class="step-status muted">{{ tr('Відкриється після попереднього кроку', 'Unlocks after the previous step') }}</p>
                 } @else {
                   <!-- Active step content -->
-                  @if (bodyOf(s)) {
-                    <div class="md" [innerHTML]="renderBody(s)"></div>
+                  @if (blocksOf(s).length) {
+                    <div class="lesson">
+                      @for (b of blocksOf(s); track $index) {
+                        @switch (b.type) {
+                          @case ('h') { <h4 class="lb-h">{{ b.text }}</h4> }
+                          @case ('quote') { <p class="lb-quote">{{ b.text }}</p> }
+                          @case ('list') {
+                            <ul class="lb-list">
+                              @for (it of (b.items ?? []); track $index) {
+                                <li>@if (it.term) { <strong>{{ it.term }}</strong> — }{{ it.text }}</li>
+                              }
+                            </ul>
+                          }
+                          @default { <p class="lb-p">{{ b.text }}</p> }
+                        }
+                      }
+                    </div>
                   }
                   @if (s.kind === 'lesson') {
                     <button class="primary" [disabled]="busy() === s.id" (click)="finishLesson(s)">
@@ -159,15 +172,16 @@ import { IconComponent } from '../icon.component';
     .step-status { margin: 0; font-size: 14px; }
     .step-status.ok { color: var(--accent); }
 
-    /* Rendered markdown lesson */
-    .md { font-size: 15px; line-height: 1.6; color: var(--fg); margin: 4px 0 14px;
-      border-left: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border)); padding-left: 16px; }
-    .md h2 { font-size: 16px; font-weight: 600; margin: 14px 0 6px; }
-    .md ul { margin: 6px 0; padding-left: 20px; }
-    .md li { margin: 3px 0; }
-    .md blockquote { margin: 10px 0; padding: 8px 12px; border-left: 2px solid var(--accent);
+    /* Structured lesson content (rendered natively, no markdown) */
+    .lesson { margin: 4px 0 14px; border-left: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border)); padding-left: 16px; }
+    .lb-h { font-size: 15px; font-weight: 600; margin: 14px 0 6px; color: var(--fg); }
+    .lb-h:first-child { margin-top: 0; }
+    .lb-p { font-size: 15px; line-height: 1.6; color: var(--fg); margin: 6px 0; }
+    .lb-list { margin: 6px 0; padding-left: 20px; }
+    .lb-list li { font-size: 15px; line-height: 1.55; color: var(--fg); margin: 4px 0; }
+    .lb-list strong { color: var(--fg); }
+    .lb-quote { margin: 12px 0; padding: 8px 12px; border-left: 2px solid var(--accent);
       background: color-mix(in srgb, var(--accent) 6%, transparent); color: var(--fg-dim); font-style: italic; border-radius: 0 8px 8px 0; }
-    .md strong { color: var(--fg); }
 
     .practice-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 6px; }
     .patient { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--fg); }
@@ -183,7 +197,6 @@ export class CoursesComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  private sanitizer = inject(DomSanitizer);
   readonly i18n = inject(I18nService);
 
   loading = signal(true);
@@ -205,14 +218,8 @@ export class CoursesComponent implements OnInit {
     return c.totalSteps ? Math.round((c.doneSteps / c.totalSteps) * 100) : 0;
   }
 
-  protected bodyOf(s: CourseStep): string | null {
-    return (this.i18n.isEn ? s.bodyEn : s.bodyUk) ?? s.bodyUk ?? null;
-  }
-
-  protected renderBody(s: CourseStep): SafeHtml {
-    const md = this.bodyOf(s) ?? '';
-    const html = marked.parse(md, { async: false }) as string;
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+  protected blocksOf(s: CourseStep): LessonBlock[] {
+    return this.i18n.isEn ? s.contentEn : s.contentUk;
   }
 
   private async loadList(): Promise<void> {
