@@ -24,6 +24,10 @@ export const routes: Routes = [
     // authenticated users are redirected to /dashboard by landingGuard.
     path: '',
     canActivate: [landingGuard],
+    data: {
+      description:
+        'Reflect — симулятор для майбутніх психотерапевтів: реалістичні сесії з AI-клієнтами, фідбек рівня супервізора та відстеження прогресу. 3 безкоштовні сесії.',
+    },
     loadComponent: () =>
       import('./pages/landing.component').then((m) => m.LandingComponent),
   },
@@ -137,6 +141,11 @@ export const routes: Routes = [
     // Public — anyone (signed in or out) should be able to read this.
     // It's the disclaimer + crisis resources page.
     path: 'safety',
+    data: {
+      title: 'Безпека та кризові ресурси',
+      description:
+        'Reflect — навчальний тренажер, а не справжня терапія. Кризові ресурси й контакти невідкладної допомоги.',
+    },
     loadComponent: () =>
       import('./pages/safety.component').then((m) => m.SafetyComponent),
   },
@@ -145,6 +154,11 @@ export const routes: Routes = [
     // anonymous visitors AND as comparison view for logged-in users
     // deciding whether to upgrade.
     path: 'pricing',
+    data: {
+      title: 'Тарифи',
+      description:
+        'Тарифи Reflect — безкоштовний пробний період і плани Lite, Pro, Master для практики психотерапії з AI-фідбеком.',
+    },
     loadComponent: () =>
       import('./pages/pricing.component').then((m) => m.PricingComponent),
   },
@@ -153,6 +167,11 @@ export const routes: Routes = [
     // session. Used as the marketing entry point ("see what the AI
     // actually does before you sign up").
     path: 'demo',
+    data: {
+      title: 'Демо',
+      description:
+        'Подивися реальний розбір тренувальної сесії від AI-супервізора Reflect — перш ніж реєструватися.',
+    },
     loadComponent: () =>
       import('./pages/demo.component').then((m) => m.DemoComponent),
   },
