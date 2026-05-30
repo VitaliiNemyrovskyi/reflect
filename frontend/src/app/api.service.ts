@@ -688,30 +688,50 @@ export interface CourseListItem {
   titleEn: string;
   descUk: string;
   descEn: string;
+  moduleCount: number;
   totalSteps: number;
   doneSteps: number;
 }
 /** A lesson content block (rendered natively — no markdown). Flat shape so
  *  Angular templates can read fields without union narrowing. */
 export interface LessonBlock {
-  type: 'h' | 'p' | 'list' | 'quote';
+  type: 'h' | 'p' | 'list' | 'quote' | 'dialogue';
   text?: string;
   ordered?: boolean;
   items?: { term?: string; text: string }[];
+  lines?: { who: string; text: string }[];
+}
+/** A single multiple-choice question (graded client-side). */
+export interface QuizQuestion {
+  q: string;
+  options: string[];
+  correct: number;
+  explain?: string;
 }
 export interface CourseStep {
   id: number;
   order: number;
-  kind: 'lesson' | 'practice';
+  kind: 'lesson' | 'practice' | 'quiz';
   titleUk: string;
   titleEn: string;
   contentUk: LessonBlock[];
   contentEn: LessonBlock[];
+  quizUk: QuizQuestion[];
+  quizEn: QuizQuestion[];
   techniqueKey: string | null;
   patient: { displayName: string; avatarUrl: string | null } | null;
   sessionId: number | null;
   done: boolean;
   available: boolean;
+}
+export interface CourseModule {
+  id: number;
+  order: number;
+  titleUk: string;
+  titleEn: string;
+  objectivesUk: string[];
+  objectivesEn: string[];
+  steps: CourseStep[];
 }
 export interface CourseDetail {
   key: string;
@@ -720,7 +740,7 @@ export interface CourseDetail {
   descUk: string;
   descEn: string;
   completed: boolean;
-  steps: CourseStep[];
+  modules: CourseModule[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -742,7 +762,7 @@ export class ApiService {
     return firstValueFrom(this.http.get<CourseDetail>(`${this.base}/courses/${key}`));
   }
 
-  completeCourseLesson(stepId: number): Promise<{ ok: boolean }> {
+  completeCourseStep(stepId: number): Promise<{ ok: boolean }> {
     return firstValueFrom(
       this.http.post<{ ok: boolean }>(`${this.base}/courses/steps/${stepId}/complete`, {}),
     );

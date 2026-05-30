@@ -606,54 +606,73 @@ model CohortMember {
 }
 
 /**
- * Skill-path "course" — a short sequence of lesson + practice steps that
- * close the learn → practice → feedback loop. Trilingual title/description
+ * A "course" (skill path): Course → Modules → Steps. Trilingual title/desc
  * (uk primary). `published` gates visibility (false = draft pending clinical
- * review). Seeded create-only on boot by CoursesService.
+ * review). Seeded/upserted on boot by CoursesService.
  */
 model SkillPath {
-  id        Int             @id @default(autoincrement())
-  key       String          @unique
+  id        Int               @id @default(autoincrement())
+  key       String            @unique
   titleUk   String
   titleEn   String
   descUk    String
   descEn    String
-  order     Int             @default(0)
-  published Boolean         @default(false)
-  createdAt DateTime        @default(now())
-  steps     SkillPathStep[]
+  order     Int               @default(0)
+  published Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  modules   SkillPathModule[]
 }
 
 /**
- * One step in a SkillPath. kind='lesson' renders bodyUk/bodyEn (markdown);
- * 'practice' launches a session with the patient named by characterRef
- * (resolved to a Character at serve time, so seeding doesn't depend on
- * character-seed ordering). passSignal (optional) names a feedback signal
- * (e.g. 'riskScreened') the practice session must show for the checkpoint to
- * pass; null = completing a session with feedback is enough.
+ * A module groups several steps under a theme + learning objectives.
+ * objectivesUk/En hold a JSON string[] of bullet objectives.
  */
-model SkillPathStep {
-  id           Int                  @id @default(autoincrement())
-  path         SkillPath            @relation(fields: [pathId], references: [id], onDelete: Cascade)
+model SkillPathModule {
+  id           Int             @id @default(autoincrement())
+  path         SkillPath       @relation(fields: [pathId], references: [id], onDelete: Cascade)
   pathId       Int
   order        Int
-  kind         String
   titleUk      String
   titleEn      String
-  bodyUk       String?
-  bodyEn       String?
-  characterRef String?
-  techniqueKey String?
-  passSignal   String?
-  completions  UserStepCompletion[]
+  objectivesUk String?
+  objectivesEn String?
+  steps        SkillPathStep[]
 
   @@unique([pathId, order])
   @@index([pathId])
 }
 
 /**
- * Per-user completion of a single step. For practice steps sessionId links
- * the launched session; completedAt is set when a lesson is acknowledged or a
+ * One step in a module. kind='lesson' renders bodyUk/bodyEn (JSON LessonBlock[]);
+ * 'quiz' renders quizUk/quizEn (JSON QuizQuestion[]); 'practice' launches a
+ * session with the patient named by characterRef (resolved at serve time).
+ * passSignal (optional) names a feedback signal the practice session must show
+ * for the checkpoint to pass; null = completing a session with feedback suffices.
+ */
+model SkillPathStep {
+  id           Int                  @id @default(autoincrement())
+  module       SkillPathModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId     Int
+  order        Int
+  kind         String
+  titleUk      String
+  titleEn      String
+  bodyUk       String?
+  bodyEn       String?
+  quizUk       String?
+  quizEn       String?
+  characterRef String?
+  techniqueKey String?
+  passSignal   String?
+  completions  UserStepCompletion[]
+
+  @@unique([moduleId, order])
+  @@index([moduleId])
+}
+
+/**
+ * Per-user completion of a single step. For practice steps sessionId links the
+ * launched session; completedAt is set when a lesson/quiz is acknowledged or a
  * practice session's feedback meets the checkpoint. userId/sessionId are plain
  * references (no FK) to avoid touching the core User/Session models.
  */

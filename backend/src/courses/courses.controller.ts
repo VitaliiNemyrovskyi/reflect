@@ -19,7 +19,7 @@ export class CoursesController {
 
   @Post('steps/:stepId/complete')
   complete(@CurrentUser() user: AuthUser, @Param('stepId', ParseIntPipe) stepId: number) {
-    return this.courses.completeLesson(user.id, stepId);
+    return this.courses.completeStep(user.id, stepId);
   }
 
   @Post('steps/:stepId/practice')
