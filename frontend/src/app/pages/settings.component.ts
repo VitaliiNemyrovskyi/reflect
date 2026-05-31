@@ -32,7 +32,7 @@ import { PushClientService, type PushEnableResult } from '../push.service';
         <div class="setting-text">
           <span class="setting-title">Підказки під час сесії</span>
           <span class="setting-desc">
-            Кнопка «💡 Що спитати?» біля поля вводу. Натиснеш —
+            Кнопка «Що спитати?» біля поля вводу. Натиснеш —
             модель запропонує 3 strategic-варіанти наступної репліки
             (open-question, reflection, here-and-now тощо), орієнтуючись
             на транскрипт сесії й профіль клієнтки. Можна вимкнути,

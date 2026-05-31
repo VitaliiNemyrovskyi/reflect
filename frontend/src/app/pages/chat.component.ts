@@ -122,7 +122,7 @@ interface SelectionAnchor {
           <div class="vhints-backdrop" (click)="hintsOpen.set(false)" aria-hidden="true"></div>
           <div class="vhints" role="dialog" aria-label="Підказки" (click)="$event.stopPropagation()">
             <header class="hints-head">
-              <span class="hints-title">💡 Що спитати?</span>
+              <span class="hints-title"><app-icon name="lightbulb" /> Що спитати?</span>
               <button class="hints-close" type="button" (click)="hintsOpen.set(false)" aria-label="Закрити">×</button>
             </header>
             @if (hintsLoading()) {

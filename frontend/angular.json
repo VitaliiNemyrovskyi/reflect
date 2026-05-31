@@ -33,6 +33,7 @@
               "src/manifest.webmanifest"
             ],
             "styles": [
+              "../node_modules/@tabler/icons-webfont/dist/tabler-icons.min.css",
               "src/styles.scss"
             ],
             "scripts": [],
