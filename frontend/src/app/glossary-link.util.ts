@@ -48,7 +48,7 @@ export function buildLinker(terms: GlossaryTerm[], isEn: boolean): Linker {
   let re: RegExp | null = null;
   if (alt) {
     try {
-      re = new RegExp(`(?<![\\p{L}\\p{N}])(${alt})(\\p{L}{0,3})(?![\\p{L}\\p{N}])`, 'giu');
+      re = new RegExp(`(?<![\\p{L}\\p{N}])(${alt})(\\p{L}{0,4})(?![\\p{L}\\p{N}])`, 'giu');
     } catch {
       re = null; // lookbehind unsupported on an old engine → no inline links
     }
