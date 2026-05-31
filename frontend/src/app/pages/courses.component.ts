@@ -212,6 +212,21 @@ import { IconComponent } from '../icon.component';
             </ol>
           </section>
         }
+
+        @if (d.glossary.length) {
+          <section class="glossary-section">
+            <h2>{{ tr('Словник курсу', 'Course glossary') }}</h2>
+            <dl class="g-terms">
+              @for (t of d.glossary; track t.slug) {
+                <div class="g-term">
+                  <dt>{{ i18n.isEn ? t.termEn : t.termUk }}</dt>
+                  <dd>{{ i18n.isEn ? t.defEn : t.defUk }}</dd>
+                </div>
+              }
+            </dl>
+            <a routerLink="/glossary" class="g-all">{{ tr('Повний словник →', 'Full glossary →') }}</a>
+          </section>
+        }
       } @else {
         <!-- ── Catalog ── -->
         <a routerLink="/dashboard" class="back">← {{ tr('На головну', 'Home') }}</a>
@@ -364,6 +379,17 @@ import { IconComponent } from '../icon.component';
     .hint { margin: 4px 0 0; font-size: 12.5px; color: var(--fg-dim); }
 
     button.primary { align-self: flex-start; }
+
+    /* Course glossary section */
+    .glossary-section { display: flex; flex-direction: column; gap: 12px; padding-top: 10px;
+      border-top: 1px solid var(--border); margin-top: 6px; }
+    .glossary-section h2 { margin: 0; font-size: 18px; font-weight: 600; }
+    .g-terms { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .g-term { padding: 12px 14px; border-radius: 12px; background: var(--user-bg); border: 1px solid var(--border); }
+    .g-term dt { font-size: 15px; font-weight: 600; color: var(--fg); margin: 0 0 3px; }
+    .g-term dd { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--fg-dim); }
+    .g-all { align-self: flex-start; color: var(--fg-dim); text-decoration: none; font-size: 14px; }
+    .g-all:hover { color: var(--accent); }
   `],
 })
 export class CoursesComponent implements OnInit {

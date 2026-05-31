@@ -688,3 +688,22 @@ model UserStepCompletion {
   @@unique([userId, stepId])
   @@index([userId])
 }
+
+/**
+ * A glossary term. Surfaces on the global /glossary page and, when tagged via
+ * `courses`, inside the matching course's "Словник" section. `courses` holds a
+ * JSON string[] of SkillPath.key values; null/empty = global only. `category`
+ * groups terms on the global page. Seeded/upserted on boot by GlossaryService.
+ */
+model GlossaryTerm {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  termUk    String
+  termEn    String
+  defUk     String
+  defEn     String
+  category  String?
+  courses   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}

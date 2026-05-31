@@ -146,6 +146,13 @@ export const routes: Routes = [
       import('./pages/courses.component').then((m) => m.CoursesComponent),
   },
   {
+    // Global glossary of clinical terms.
+    path: 'glossary',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/glossary.component').then((m) => m.GlossaryComponent),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard],
     loadComponent: () =>
