@@ -52,6 +52,28 @@ import { IconComponent } from '../icon.component';
           </div>
         </header>
 
+        @if (aboutBlocks().length) {
+          <section class="about">
+            <h2>{{ tr('Про курс', 'About this course') }}</h2>
+            <div class="lesson">
+              @for (b of aboutBlocks(); track $index) {
+                @switch (b.type) {
+                  @case ('h') { <h4 class="lb-h">{{ b.text }}</h4> }
+                  @case ('quote') { <p class="lb-quote">{{ b.text }}</p> }
+                  @case ('list') {
+                    <ul class="lb-list">
+                      @for (it of (b.items ?? []); track $index) {
+                        <li>@if (it.term) { <strong>{{ it.term }}</strong> — }{{ it.text }}</li>
+                      }
+                    </ul>
+                  }
+                  @default { <p class="lb-p">{{ b.text }}</p> }
+                }
+              }
+            </div>
+          </section>
+        }
+
         @for (m of d.modules; track m.id) {
           <section class="module">
             <div class="module-head">
@@ -320,6 +342,12 @@ import { IconComponent } from '../icon.component';
       cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
     .link-btn:hover { color: var(--accent); }
 
+    /* About / course intro */
+    .about { padding: 18px 20px; border-radius: 14px; background: var(--user-bg);
+      border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+    .about > h2 { margin: 0 0 2px; font-size: 18px; font-weight: 600; }
+    .about .lesson { border-left: none; padding-left: 0; margin: 0; }
+
     /* Module */
     .module { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
     .module-head { display: flex; flex-direction: column; gap: 6px; }
@@ -455,6 +483,12 @@ export class CoursesComponent implements OnInit {
 
   protected objectivesOf(m: CourseModule): string[] {
     return this.i18n.isEn ? m.objectivesEn : m.objectivesUk;
+  }
+
+  protected aboutBlocks(): LessonBlock[] {
+    const d = this.detail();
+    if (!d) return [];
+    return this.i18n.isEn ? d.aboutEn : d.aboutUk;
   }
 
   protected blocksOf(s: CourseStep): LessonBlock[] {
