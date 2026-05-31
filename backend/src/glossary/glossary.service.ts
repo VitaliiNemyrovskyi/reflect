@@ -103,36 +103,31 @@ const A = ['anxiety-basics'];
 
 /**
  * Ukrainian invariant stems for inline linkifying. The frontend matches each
- * stem + up to ~3 trailing letters at word boundaries, so inflected forms link
- * too (e.g. "альянс" → "альянсу"). Terms absent here (too generic or
- * collision-prone — e.g. "План безпеки" vs "створити безпеку") aren't
- * auto-linked inline but remain full glossary entries.
+ * stem + up to ~4 trailing letters at word boundaries, so inflected forms link
+ * too (e.g. "альянс" → "альянсу").
+ *
+ * Only SPECIALISED terms are linked — words that are jargon or carry a specific
+ * meaning in psychology (OARS, рефлексія, емпатія, рамка, експозиція…). Everyday
+ * words that merely happen to be glossary entries ("відкрите питання",
+ * "конфіденційність", "запит", "тривога", "уникання"…) are deliberately NOT
+ * auto-linked — they'd be noise. Such terms still exist as full glossary
+ * entries and can surface in the per-lesson terms list.
  */
 const TERM_MATCH: Record<string, string> = {
   rapport: 'рапорт',
   frame: 'рамк',
-  'presenting-concern': 'запит',
-  'therapeutic-contract': 'контракт',
-  confidentiality: 'конфіденційн',
   biopsychosocial: 'біопсихосоціальн',
   'working-alliance': 'альянс',
   empathy: 'емпаті',
-  'positive-regard': 'прийнятт',
   congruence: 'конгруентн',
   oars: 'oars',
-  'open-question': 'відкрит',
-  'closed-question': 'закрит',
   reflection: 'рефлекс',
   validation: 'валідаці',
-  summarizing: 'резюм',
   'motivational-interviewing': 'мотиваційн',
-  'active-listening': 'слухан',
   'risk-screening': 'скринінг',
   'c-ssrs': 'ssrs',
   normalizing: 'нормаліз',
   'suicidal-ideation': 'суїцидальн',
-  anxiety: 'тривог',
-  avoidance: 'уника',
   exposure: 'експозиці',
   suds: 'suds',
   catastrophising: 'катастроф',
