@@ -13,6 +13,7 @@ import {
 import { I18nService } from '../i18n.service';
 import { IconComponent } from '../icon.component';
 import { RichTextComponent } from '../rich-text.component';
+import { CourseFigureComponent } from '../course-figure.component';
 import { buildLinker, Linker } from '../glossary-link.util';
 
 /**
@@ -28,7 +29,7 @@ import { buildLinker, Linker } from '../glossary-link.util';
 @Component({
   selector: 'app-courses',
   standalone: true,
-  imports: [RouterLink, IconComponent, RichTextComponent],
+  imports: [RouterLink, IconComponent, RichTextComponent, CourseFigureComponent],
   template: `
     <section class="wrap">
       @if (loading()) {
@@ -151,6 +152,7 @@ import { buildLinker, Linker } from '../glossary-link.util';
                                     }
                                   </div>
                                 }
+                                @case ('figure') { <app-course-figure [name]="b.figure || ''" [caption]="b.caption" /> }
                                 @default { <p class="lb-p"><app-rich-text [text]="b.text || ''" [linker]="linker()" (term)="openTerm($event)" /></p> }
                               }
                             }
