@@ -490,12 +490,16 @@ export class CoursesComponent implements OnInit {
     return parts.join(' ');
   }
 
-  /** Word-stem match so inflected forms count (e.g. "альянс" in "альянсу"). */
+  /** Word-stem match so inflected forms count (e.g. "альянс" in "альянсу").
+   *  Only distinctive words trigger (≥6 chars) plus a few known acronyms, so
+   *  generic words like "думки"/"план" don't pull in tangential terms. */
+  private static readonly TERM_ACRONYMS = new Set(['oars', 'suds', 'ssrs']);
   private termAppears(term: string, hayLower: string): boolean {
-    const words = term.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4);
+    const words = term.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
     return words.some((w) => {
-      const stem = w.length > 6 ? w.slice(0, w.length - 2) : w;
-      return stem.length >= 4 && hayLower.includes(stem);
+      if (CoursesComponent.TERM_ACRONYMS.has(w)) return hayLower.includes(w);
+      if (w.length < 6) return false;
+      return hayLower.includes(w.slice(0, w.length - 2));
     });
   }
 
