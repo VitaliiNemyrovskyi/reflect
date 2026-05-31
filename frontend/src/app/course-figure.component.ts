@@ -121,6 +121,20 @@ import { I18nService } from './i18n.service';
             <text x="374" y="63" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('альянс', 'alliance') }}</text>
           </svg>
         }
+        @case ('session-arc') {
+          <svg viewBox="0 0 440 92" class="fig" role="img" [attr.aria-label]="tr('Каркас першої сесії в часі', 'Time arc of a first session')">
+            <text x="20" y="18" class="t-mut" font-size="11">0</text>
+            <text x="420" y="18" text-anchor="end" class="t-mut" font-size="11">{{ tr('~50 хв', '~50 min') }}</text>
+            <rect x="20" y="26" width="44" height="22" rx="5" class="stroke-border fill-soft" stroke-width="1.5" />
+            <rect x="64" y="26" width="232" height="22" rx="5" class="stroke-accent fill-accent-soft" stroke-width="1.5" />
+            <rect x="296" y="26" width="44" height="22" rx="5" fill="color-mix(in srgb, #e0a458 22%, transparent)" stroke="#e0a458" stroke-width="1.5" />
+            <rect x="340" y="26" width="80" height="22" rx="5" class="stroke-border fill-soft" stroke-width="1.5" />
+            <text x="42" y="64" text-anchor="middle" class="t-fg" font-size="10.5">{{ tr('Контакт', 'Contact') }}</text>
+            <text x="180" y="64" text-anchor="middle" class="t-accent" font-size="10.5" font-weight="600">{{ tr('Дослідження — слухаєш', 'Exploration — listen') }}</text>
+            <text x="318" y="64" text-anchor="middle" class="t-fg" font-size="10.5">{{ tr('Ризик', 'Risk') }}</text>
+            <text x="380" y="64" text-anchor="middle" class="t-fg" font-size="10.5">{{ tr('Рамка / кінець', 'Frame / close') }}</text>
+          </svg>
+        }
       }
       @if (caption) { <figcaption>{{ caption }}</figcaption> }
     </figure>
