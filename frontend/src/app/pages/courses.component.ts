@@ -308,7 +308,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
     </section>
   `,
   styles: [`
-    .wrap { display: flex; flex-direction: column; gap: 18px; }
+    .wrap { display: flex; flex-direction: column; gap: 18px; position: relative; }
     .back { color: var(--fg-dim); text-decoration: none; font-size: 14px; align-self: flex-start; }
     .back:hover { color: var(--accent); }
     .muted { color: var(--fg-dim); }
@@ -439,7 +439,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
 
     /* Term definition popover */
     .term-pop-backdrop { position: fixed; inset: 0; z-index: 60; }
-    .term-pop { position: fixed; z-index: 61; width: 300px; max-width: calc(100vw - 24px);
+    .term-pop { position: absolute; z-index: 61; width: 300px; max-width: calc(100vw - 24px);
       padding: 14px 16px; border-radius: 12px; background: var(--user-bg);
       border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
       box-shadow: 0 12px 40px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 6px; }
@@ -500,15 +500,20 @@ export class CoursesComponent implements OnInit, OnDestroy {
 
   private activeEl: HTMLElement | null = null;
 
-  /** Re-pin the popover under its anchor word — called on open + on scroll/resize
-   *  so it follows the text (position: fixed + live viewport rect). */
+  /** Pin the popover under its anchor word, in coordinates relative to the
+   *  scrolling .wrap. The popover is an absolutely-positioned child of .wrap, so
+   *  it then scrolls together with the text (the offset is scroll-invariant).
+   *  Recomputed on resize/reflow. */
   private readonly reposition = (): void => {
     const el = this.activeEl;
     if (!el || !this.activeTerm()) return;
-    const r = el.getBoundingClientRect();
-    const w = typeof window !== 'undefined' ? window.innerWidth : 360;
-    this.popX.set(Math.min(Math.max(12, r.left), Math.max(12, w - 312)));
-    this.popY.set(r.bottom + 8);
+    const wrap = el.closest('.wrap') as HTMLElement | null;
+    if (!wrap) return;
+    const er = el.getBoundingClientRect();
+    const wr = wrap.getBoundingClientRect();
+    const maxX = Math.max(4, wrap.clientWidth - 308);
+    this.popX.set(Math.min(Math.max(0, er.left - wr.left), maxX));
+    this.popY.set(er.bottom - wr.top + 6);
   };
 
   protected openTerm(ev: { slug: string; el: HTMLElement }): void {
