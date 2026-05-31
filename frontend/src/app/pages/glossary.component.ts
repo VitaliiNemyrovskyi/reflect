@@ -2,6 +2,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService, GlossaryTerm } from '../api.service';
 import { I18nService } from '../i18n.service';
+import { RichTextComponent } from '../rich-text.component';
+import { buildLinker, Linker } from '../glossary-link.util';
 
 /**
  * Global glossary of clinical terms (/glossary). Searchable, grouped by
@@ -11,7 +13,7 @@ import { I18nService } from '../i18n.service';
 @Component({
   selector: 'app-glossary',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, RichTextComponent],
   template: `
     <section class="wrap">
       <a routerLink="/dashboard" class="back">← {{ tr('На головну', 'Home') }}</a>
@@ -36,9 +38,9 @@ import { I18nService } from '../i18n.service';
             <h2>{{ catLabel(g.cat) }}</h2>
             <dl class="terms">
               @for (t of g.terms; track t.slug) {
-                <div class="term">
+                <div class="term" [id]="t.slug" [class.hl]="highlight() === t.slug">
                   <dt>{{ i18n.isEn ? t.termEn : t.termUk }}</dt>
-                  <dd>{{ i18n.isEn ? t.defEn : t.defUk }}</dd>
+                  <dd><app-rich-text [text]="i18n.isEn ? t.defEn : t.defUk" [linker]="linker()" (term)="goTo($event)" /></dd>
                 </div>
               }
             </dl>
@@ -63,7 +65,8 @@ import { I18nService } from '../i18n.service';
     .cat h2 { margin: 6px 0 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
     .terms { margin: 0; display: flex; flex-direction: column; gap: 12px; }
     .term { padding: 14px 16px; border-radius: 12px; background: var(--panel, var(--user-bg));
-      border: 1px solid var(--border); }
+      border: 1px solid var(--border); scroll-margin-top: 80px; transition: border-color .25s ease, background .25s ease; }
+    .term.hl { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
     dt { font-size: 16px; font-weight: 600; color: var(--fg); margin: 0 0 4px; }
     dd { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--fg-dim); }
   `],
@@ -76,6 +79,17 @@ export class GlossaryComponent implements OnInit {
   error = signal<string | null>(null);
   query = signal('');
   private terms = signal<GlossaryTerm[]>([]);
+  protected highlight = signal<string | null>(null);
+  protected linker = computed<Linker>(() => buildLinker(this.terms(), this.i18n.isEn));
+
+  /** Wiki nav: a term link inside a definition scrolls to that entry. */
+  protected goTo(ev: { slug: string }): void {
+    if (typeof document === 'undefined') return;
+    const el = document.getElementById(ev.slug);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    this.highlight.set(ev.slug);
+  }
 
   private static readonly CAT_ORDER = ['general', 'frame', 'alliance', 'listening', 'risk', 'anxiety'];
 

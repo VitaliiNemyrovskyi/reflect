@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   ApiService,
@@ -12,6 +12,8 @@ import {
 } from '../api.service';
 import { I18nService } from '../i18n.service';
 import { IconComponent } from '../icon.component';
+import { RichTextComponent } from '../rich-text.component';
+import { buildLinker, Linker } from '../glossary-link.util';
 
 /**
  * Skill-path courses. Two views in one component (like /cohorts):
@@ -26,7 +28,7 @@ import { IconComponent } from '../icon.component';
 @Component({
   selector: 'app-courses',
   standalone: true,
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, RichTextComponent],
   template: `
     <section class="wrap">
       @if (loading()) {
@@ -134,22 +136,22 @@ import { IconComponent } from '../icon.component';
                             @for (b of blocksOf(s); track $index) {
                               @switch (b.type) {
                                 @case ('h') { <h4 class="lb-h">{{ b.text }}</h4> }
-                                @case ('quote') { <p class="lb-quote">{{ b.text }}</p> }
+                                @case ('quote') { <p class="lb-quote"><app-rich-text [text]="b.text || ''" [linker]="linker()" (term)="openTerm($event)" /></p> }
                                 @case ('list') {
                                   <ul class="lb-list">
                                     @for (it of (b.items ?? []); track $index) {
-                                      <li>@if (it.term) { <strong>{{ it.term }}</strong> — }{{ it.text }}</li>
+                                      <li>@if (it.term) { <strong>{{ it.term }}</strong> — }<app-rich-text [text]="it.text" [linker]="linker()" (term)="openTerm($event)" /></li>
                                     }
                                   </ul>
                                 }
                                 @case ('dialogue') {
                                   <div class="lb-dialogue">
                                     @for (ln of (b.lines ?? []); track $index) {
-                                      <p class="lb-line"><strong>{{ ln.who }}:</strong> {{ ln.text }}</p>
+                                      <p class="lb-line"><strong>{{ ln.who }}:</strong> <app-rich-text [text]="ln.text" [linker]="linker()" (term)="openTerm($event)" /></p>
                                     }
                                   </div>
                                 }
-                                @default { <p class="lb-p">{{ b.text }}</p> }
+                                @default { <p class="lb-p"><app-rich-text [text]="b.text || ''" [linker]="linker()" (term)="openTerm($event)" /></p> }
                               }
                             }
                           </div>
@@ -292,6 +294,15 @@ import { IconComponent } from '../icon.component';
         }
         }
       }
+
+      @if (activeTerm(); as t) {
+        <div class="term-pop-backdrop" (click)="activeTerm.set(null)"></div>
+        <div class="term-pop" [style.left.px]="popX()" [style.top.px]="popY()" role="dialog">
+          <strong>{{ i18n.isEn ? t.termEn : t.termUk }}</strong>
+          <p>{{ i18n.isEn ? t.defEn : t.defUk }}</p>
+          <a routerLink="/glossary" (click)="activeTerm.set(null)">{{ tr('Відкрити словник →', 'Open glossary →') }}</a>
+        </div>
+      }
     </section>
   `,
   styles: [`
@@ -424,6 +435,17 @@ import { IconComponent } from '../icon.component';
 
     button.primary { align-self: flex-start; }
 
+    /* Term definition popover */
+    .term-pop-backdrop { position: fixed; inset: 0; z-index: 60; }
+    .term-pop { position: fixed; z-index: 61; width: 300px; max-width: calc(100vw - 24px);
+      padding: 14px 16px; border-radius: 12px; background: var(--user-bg);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+      box-shadow: 0 12px 40px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 6px; }
+    .term-pop strong { font-size: 15px; color: var(--fg); }
+    .term-pop p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--fg-dim); }
+    .term-pop a { font-size: 13px; color: var(--accent); text-decoration: none; align-self: flex-start; }
+    .term-pop a:hover { text-decoration: underline; }
+
     /* Course glossary section */
     .glossary-section { display: flex; flex-direction: column; gap: 12px; padding-top: 10px;
       border-top: 1px solid var(--border); margin-top: 6px; }
@@ -467,6 +489,21 @@ export class CoursesComponent implements OnInit {
   private checkedSteps = signal<number[]>([]);
   // Completed steps the user has re-opened to re-read.
   private reviewing = signal<number[]>([]);
+
+  // Inline glossary linking + definition popover.
+  protected linker = computed<Linker>(() => buildLinker(this.detail()?.glossary ?? [], this.i18n.isEn));
+  protected activeTerm = signal<GlossaryTerm | null>(null);
+  protected popX = signal(0);
+  protected popY = signal(0);
+
+  protected openTerm(ev: { slug: string; x: number; y: number }): void {
+    const t = (this.detail()?.glossary ?? []).find((g) => g.slug === ev.slug);
+    if (!t) return;
+    const w = typeof window !== 'undefined' ? window.innerWidth : 360;
+    this.popX.set(Math.min(Math.max(12, ev.x - 140), Math.max(12, w - 312)));
+    this.popY.set(ev.y + 16);
+    this.activeTerm.set(t);
+  }
 
   async ngOnInit(): Promise<void> {
     const key = this.route.snapshot.paramMap.get('key');
