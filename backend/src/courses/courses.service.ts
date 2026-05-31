@@ -342,7 +342,8 @@ type LessonBlock =
   | { type: 'list'; items: { term?: string; text: string }[] }
   | { type: 'dialogue'; lines: { who: string; text: string }[] }
   | { type: 'quote'; text: string }
-  | { type: 'figure'; figure: string; caption?: string };
+  | { type: 'figure'; figure: string; caption?: string }
+  | { type: 'sources'; sources: { label: string; url: string }[] };
 
 interface QuizQuestion {
   q: string;
@@ -477,6 +478,13 @@ const SEED_COURSES: Array<{
               { type: 'p', text: 'Наостанок домовтесь про наступний крок — чи буде друга зустріч і коли. Людина має вийти не з порожнім «і що тепер?», а з відчуттям, що шлях уже почався.' },
               { type: 'p', text: 'Найчастіша помилка новачка — не сказати щось «не те», а перетворити зустріч на допит. Поруч є ще дві. Перша — кидатися «лагодити» проблему вже на першій зустрічі: це передчасно, бо ти ще не бачиш картини, і клієнт відчуває, що його не дослухали. Друга — оминати тему меж і конфіденційності, бо «незручно». Парадокс: саме ясні межі й дають клієнту безпеку говорити відверто.' },
               { type: 'quote', text: 'Перша сесія — це не збір даних. Це момент, коли людина вирішує, чи варто вам довіряти. Усе інше — потім.' },
+              { type: 'sources', sources: [
+                { label: 'Flückiger та ін. (2018). Альянс у дорослій психотерапії: метааналіз. Psychotherapy, 55, 316–340.', url: 'https://doi.org/10.1037/pst0000172' },
+                { label: 'Bordin (1979). Узагальнення психоаналітичного поняття робочого альянсу. Psychotherapy, 16, 252–260.', url: 'https://doi.org/10.1037/h0085885' },
+                { label: 'Rogers (1957). Необхідні й достатні умови терапевтичної зміни. J. of Consulting Psychology, 21, 95–103.', url: 'https://pubmed.ncbi.nlm.nih.gov/13416422/' },
+                { label: 'Engel (1977). Потреба в новій медичній моделі (біопсихосоціальна модель). Science, 196, 129–136.', url: 'https://www.science.org/doi/10.1126/science.847460' },
+                { label: 'Wampold (2015). Наскільки важливі загальні чинники в психотерапії. World Psychiatry, 14, 270–277.', url: 'https://doi.org/10.1002/wps.20238' },
+              ] },
             ],
             bodyEn: [
               { type: 'p', text: "Picture the first meeting from the client's side. They waited half an hour in the corridor, rehearsing where to start — maybe they worked up the courage to come for the first time in their life. They sit down, look at you, and go quiet. And this is exactly where a beginner reaches for the form: \"Tell me when it started, what you take, how you sleep…\". It feels logical — you have to take a history, right? In fact it is the worst possible start." },
@@ -514,6 +522,13 @@ const SEED_COURSES: Array<{
               { type: 'p', text: 'Finally, agree on the next step — whether there will be a second meeting and when. The person should leave not with an empty "now what?" but with a sense that a path has already begun.' },
               { type: 'p', text: "The commonest beginner mistake is not saying the wrong thing — it is turning the meeting into an interrogation. Two more sit beside it. First, rushing to \"fix\" the problem in the first session: it is premature, because you can't yet see the picture, and the client feels unheard. Second, dodging boundaries and confidentiality because it feels awkward. The paradox: it is precisely clear boundaries that give the client the safety to speak openly." },
               { type: 'quote', text: 'A first session is not data collection. It is the moment a person decides whether you are worth trusting. Everything else comes after.' },
+              { type: 'sources', sources: [
+                { label: 'Flückiger et al. (2018). The alliance in adult psychotherapy: a meta-analytic synthesis. Psychotherapy, 55, 316–340.', url: 'https://doi.org/10.1037/pst0000172' },
+                { label: 'Bordin (1979). The generalizability of the psychoanalytic concept of the working alliance. Psychotherapy, 16, 252–260.', url: 'https://doi.org/10.1037/h0085885' },
+                { label: 'Rogers (1957). The necessary and sufficient conditions of therapeutic personality change. J. Consulting Psychology, 21, 95–103.', url: 'https://pubmed.ncbi.nlm.nih.gov/13416422/' },
+                { label: 'Engel (1977). The need for a new medical model (biopsychosocial model). Science, 196, 129–136.', url: 'https://www.science.org/doi/10.1126/science.847460' },
+                { label: 'Wampold (2015). How important are the common factors in psychotherapy? An update. World Psychiatry, 14, 270–277.', url: 'https://doi.org/10.1002/wps.20238' },
+              ] },
             ],
           },
           {
