@@ -39,15 +39,27 @@ import { IconComponent } from '../icon.component';
         <header class="track-head">
           <h1>{{ i18n.isEn ? d.titleEn : d.titleUk }}</h1>
           <p class="muted">{{ i18n.isEn ? d.descEn : d.descUk }}</p>
-          @if (d.completed) {
-            <span class="done-pill"><app-icon name="shield-check" /> {{ tr('Курс пройдено', 'Course complete') }}</span>
-          }
+          <div class="course-progress" [class.complete]="d.completed">
+            <div class="cp-bar"><span [style.width.%]="coursePct()"></span></div>
+            <span class="cp-label">
+              @if (d.completed) {
+                <app-icon name="shield-check" /> {{ tr('Курс пройдено', 'Course complete') }}
+              } @else {
+                {{ tr('Пройдено', 'Done') }} {{ courseDone() }} / {{ courseTotal() }} {{ tr('кроків', 'steps') }}
+              }
+            </span>
+          </div>
         </header>
 
         @for (m of d.modules; track m.id) {
           <section class="module">
             <div class="module-head">
-              <span class="module-eyebrow">{{ tr('Модуль', 'Module') }} {{ m.order + 1 }}</span>
+              <div class="module-eyebrow-row">
+                <span class="module-eyebrow">{{ tr('Модуль', 'Module') }} {{ m.order + 1 }}</span>
+                <span class="module-progress" [class.done]="moduleDone(m) === m.steps.length">
+                  {{ moduleDone(m) }} / {{ m.steps.length }}
+                </span>
+              </div>
               <h2>{{ i18n.isEn ? m.titleEn : m.titleUk }}</h2>
               @if (objectivesOf(m).length) {
                 <div class="objectives">
@@ -74,90 +86,123 @@ import { IconComponent } from '../icon.component';
                       <h3>{{ i18n.isEn ? s.titleEn : s.titleUk }}</h3>
                     </div>
 
-                    @if (s.done) {
-                      <p class="step-status ok">✓ {{ tr('Зараховано', 'Completed') }}</p>
-                    } @else if (!s.available) {
+                    @if (!s.available && !s.done) {
                       <p class="step-status muted">{{ tr('Відкриється після попереднього кроку', 'Unlocks after the previous step') }}</p>
                     } @else {
-                      <!-- Lesson / practice body blocks -->
-                      @if (blocksOf(s).length) {
-                        <div class="lesson">
-                          @for (b of blocksOf(s); track $index) {
-                            @switch (b.type) {
-                              @case ('h') { <h4 class="lb-h">{{ b.text }}</h4> }
-                              @case ('quote') { <p class="lb-quote">{{ b.text }}</p> }
-                              @case ('list') {
-                                <ul class="lb-list">
-                                  @for (it of (b.items ?? []); track $index) {
-                                    <li>@if (it.term) { <strong>{{ it.term }}</strong> — }{{ it.text }}</li>
-                                  }
-                                </ul>
-                              }
-                              @case ('dialogue') {
-                                <div class="lb-dialogue">
-                                  @for (ln of (b.lines ?? []); track $index) {
-                                    <p class="lb-line"><strong>{{ ln.who }}:</strong> {{ ln.text }}</p>
-                                  }
-                                </div>
-                              }
-                              @default { <p class="lb-p">{{ b.text }}</p> }
+                      @if (s.done) {
+                        <div class="done-head">
+                          <span class="step-status ok">✓ {{ tr('Зараховано', 'Completed') }}</span>
+                          @if (s.kind === 'practice') {
+                            @if (s.sessionId) {
+                              <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ tr('Відкрити сесію', 'Open session') }}</a>
                             }
+                          } @else {
+                            <button type="button" class="link-btn" (click)="toggleReview(s.id)">
+                              {{ isReviewing(s.id) ? tr('Згорнути', 'Collapse') : tr('Переглянути', 'Review') }}
+                            </button>
                           }
                         </div>
                       }
 
-                      @switch (s.kind) {
-                        @case ('lesson') {
-                          <button class="primary" [disabled]="busy() === s.id" (click)="finishStep(s)">
-                            {{ busy() === s.id ? '…' : tr('Зрозуміло, далі', 'Got it, next') }}
-                          </button>
+                      @if (showContent(s)) {
+                        <!-- Shared lesson / practice body blocks -->
+                        @if (blocksOf(s).length) {
+                          <div class="lesson">
+                            @for (b of blocksOf(s); track $index) {
+                              @switch (b.type) {
+                                @case ('h') { <h4 class="lb-h">{{ b.text }}</h4> }
+                                @case ('quote') { <p class="lb-quote">{{ b.text }}</p> }
+                                @case ('list') {
+                                  <ul class="lb-list">
+                                    @for (it of (b.items ?? []); track $index) {
+                                      <li>@if (it.term) { <strong>{{ it.term }}</strong> — }{{ it.text }}</li>
+                                    }
+                                  </ul>
+                                }
+                                @case ('dialogue') {
+                                  <div class="lb-dialogue">
+                                    @for (ln of (b.lines ?? []); track $index) {
+                                      <p class="lb-line"><strong>{{ ln.who }}:</strong> {{ ln.text }}</p>
+                                    }
+                                  </div>
+                                }
+                                @default { <p class="lb-p">{{ b.text }}</p> }
+                              }
+                            }
+                          </div>
                         }
-                        @case ('quiz') {
-                          <div class="quiz">
-                            @for (q of quizFor(s); track $index; let qi = $index) {
-                              <div class="quiz-q">
-                                <p class="q-text">{{ qi + 1 }}. {{ q.q }}</p>
-                                <div class="q-opts">
-                                  @for (opt of q.options; track $index; let oi = $index) {
-                                    <button type="button" class="q-opt"
-                                      [class.sel]="selectedAnswer(s.id, qi) === oi"
-                                      [class.correct]="isChecked(s.id) && oi === q.correct"
-                                      [class.wrong]="isChecked(s.id) && selectedAnswer(s.id, qi) === oi && oi !== q.correct"
-                                      [disabled]="isChecked(s.id)"
-                                      (click)="selectQuizOption(s.id, qi, oi)">
-                                      {{ opt }}
-                                    </button>
-                                  }
+
+                        @if (s.kind === 'quiz') {
+                          @if (s.done) {
+                            <!-- Review mode: correct answers + explanations, non-interactive -->
+                            <div class="quiz">
+                              @for (q of quizFor(s); track $index; let qi = $index) {
+                                <div class="quiz-q">
+                                  <p class="q-text">{{ qi + 1 }}. {{ q.q }}</p>
+                                  <div class="q-opts">
+                                    @for (opt of q.options; track $index; let oi = $index) {
+                                      <div class="q-opt static" [class.correct]="oi === q.correct">{{ opt }}</div>
+                                    }
+                                  </div>
+                                  @if (q.explain) { <p class="q-explain">{{ q.explain }}</p> }
                                 </div>
-                                @if (isChecked(s.id) && q.explain) { <p class="q-explain">{{ q.explain }}</p> }
-                              </div>
-                            }
-                            @if (!isChecked(s.id)) {
-                              <button class="primary" [disabled]="!quizComplete(s) || busy() === s.id" (click)="checkQuiz(s)">
-                                {{ tr('Перевірити', 'Check answers') }}
-                              </button>
-                            } @else {
-                              <p class="quiz-score">{{ quizScoreLabel(s) }}</p>
-                              <button class="primary" (click)="retryQuiz(s)">{{ tr('Спробувати ще раз', 'Try again') }}</button>
-                            }
-                          </div>
-                        }
-                        @default {
-                          <div class="practice-row">
-                            @if (s.patient; as p) {
-                              <span class="patient">
-                                @if (p.avatarUrl) { <img [src]="p.avatarUrl" [alt]="p.displayName" /> }
-                                {{ p.displayName }}
-                              </span>
-                            }
-                            <button class="primary" [disabled]="busy() === s.id" (click)="startPractice(s)">
-                              {{ busy() === s.id ? '…' : tr('Почати практику', 'Start practice') }}
+                              }
+                            </div>
+                          } @else {
+                            <!-- Interactive quiz -->
+                            <div class="quiz">
+                              @for (q of quizFor(s); track $index; let qi = $index) {
+                                <div class="quiz-q">
+                                  <p class="q-text">{{ qi + 1 }}. {{ q.q }}</p>
+                                  <div class="q-opts">
+                                    @for (opt of q.options; track $index; let oi = $index) {
+                                      <button type="button" class="q-opt"
+                                        [class.sel]="selectedAnswer(s.id, qi) === oi"
+                                        [class.correct]="isChecked(s.id) && oi === q.correct"
+                                        [class.wrong]="isChecked(s.id) && selectedAnswer(s.id, qi) === oi && oi !== q.correct"
+                                        [disabled]="isChecked(s.id)"
+                                        (click)="selectQuizOption(s.id, qi, oi)">
+                                        {{ opt }}
+                                      </button>
+                                    }
+                                  </div>
+                                  @if (isChecked(s.id) && q.explain) { <p class="q-explain">{{ q.explain }}</p> }
+                                </div>
+                              }
+                              @if (!isChecked(s.id)) {
+                                <button class="primary" [disabled]="!quizComplete(s) || busy() === s.id" (click)="checkQuiz(s)">
+                                  {{ tr('Перевірити', 'Check answers') }}
+                                </button>
+                              } @else {
+                                <p class="quiz-score">{{ quizScoreLabel(s) }}</p>
+                                <button class="primary" (click)="retryQuiz(s)">{{ tr('Спробувати ще раз', 'Try again') }}</button>
+                              }
+                            </div>
+                          }
+                        } @else if (s.kind === 'lesson') {
+                          @if (!s.done) {
+                            <button class="primary" [disabled]="busy() === s.id" (click)="finishStep(s)">
+                              {{ busy() === s.id ? '…' : tr('Зрозуміло, далі', 'Got it, next') }}
                             </button>
-                            @if (s.sessionId) {
-                              <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ tr('Продовжити сесію', 'Resume session') }}</a>
-                            }
-                          </div>
-                          <p class="hint">{{ tr('Крок зараховується після того, як завершиш сесію й отримаєш фідбек.', 'The step is credited once you finish the session and get feedback.') }}</p>
+                          }
+                        } @else {
+                          @if (!s.done) {
+                            <div class="practice-row">
+                              @if (s.patient; as p) {
+                                <span class="patient">
+                                  @if (p.avatarUrl) { <img [src]="p.avatarUrl" [alt]="p.displayName" /> }
+                                  {{ p.displayName }}
+                                </span>
+                              }
+                              <button class="primary" [disabled]="busy() === s.id" (click)="startPractice(s)">
+                                {{ busy() === s.id ? '…' : tr('Почати практику', 'Start practice') }}
+                              </button>
+                              @if (s.sessionId) {
+                                <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ tr('Продовжити сесію', 'Resume session') }}</a>
+                              }
+                            </div>
+                            <p class="hint">{{ tr('Крок зараховується після того, як завершиш сесію й отримаєш фідбек.', 'The step is credited once you finish the session and get feedback.') }}</p>
+                          }
                         }
                       }
                     }
@@ -222,6 +267,28 @@ import { IconComponent } from '../icon.component';
       background: color-mix(in srgb, var(--accent) 12%, transparent);
       border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border)); }
 
+    /* Course progress (header) */
+    .course-progress { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; max-width: 440px; }
+    .cp-bar { height: 8px; border-radius: 999px; background: var(--user-bg); overflow: hidden;
+      border: 1px solid var(--border); }
+    .cp-bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
+    .cp-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg-dim); }
+    .course-progress.complete .cp-bar span { background: #6fae8f; }
+    .course-progress.complete .cp-label { color: var(--accent); }
+
+    /* Per-module progress badge */
+    .module-eyebrow-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .module-progress { font-size: 12px; color: var(--fg-dim); padding: 2px 9px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--user-bg); white-space: nowrap; }
+    .module-progress.done { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+    /* Completed-step header + review toggle */
+    .done-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .link-btn { background: none; border: none; padding: 0; font: inherit; font-size: 13px; color: var(--fg-dim);
+      cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .link-btn:hover { color: var(--accent); }
+
     /* Module */
     .module { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
     .module-head { display: flex; flex-direction: column; gap: 6px; }
@@ -283,6 +350,8 @@ import { IconComponent } from '../icon.component';
     .q-opt.correct { border-color: #6fae8f; background: color-mix(in srgb, #6fae8f 16%, transparent); color: var(--fg); }
     .q-opt.wrong { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
     .q-opt:disabled { cursor: default; }
+    .q-opt.static { cursor: default; }
+    .q-opt.static:not(.correct):hover { border-color: var(--border); }
     .q-explain { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--fg-dim);
       padding-left: 10px; border-left: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
     .quiz-score { margin: 0; font-size: 14px; color: var(--fg); }
@@ -312,6 +381,8 @@ export class CoursesComponent implements OnInit {
   // Quiz interaction state (client-side grading).
   private quizAnswers = signal<Record<string, number>>({});
   private checkedSteps = signal<number[]>([]);
+  // Completed steps the user has re-opened to re-read.
+  private reviewing = signal<number[]>([]);
 
   async ngOnInit(): Promise<void> {
     const key = this.route.snapshot.paramMap.get('key');
@@ -344,6 +415,37 @@ export class CoursesComponent implements OnInit {
       case 'quiz': return this.tr('Квіз', 'Quiz');
       default: return this.tr('Урок', 'Lesson');
     }
+  }
+
+  // ── Progress ──────────────────────────────────────────────────────────────
+  private modules(): CourseModule[] {
+    return this.detail()?.modules ?? [];
+  }
+  protected courseTotal(): number {
+    return this.modules().reduce((n, m) => n + m.steps.length, 0);
+  }
+  protected courseDone(): number {
+    return this.modules().reduce((n, m) => n + m.steps.filter((s) => s.done).length, 0);
+  }
+  protected coursePct(): number {
+    const total = this.courseTotal();
+    return total ? Math.round((this.courseDone() / total) * 100) : 0;
+  }
+  protected moduleDone(m: CourseModule): number {
+    return m.steps.filter((s) => s.done).length;
+  }
+
+  // ── Revisit completed steps ────────────────────────────────────────────────
+  protected isReviewing(stepId: number): boolean {
+    return this.reviewing().includes(stepId);
+  }
+  protected toggleReview(stepId: number): void {
+    this.reviewing.update((ids) => (ids.includes(stepId) ? ids.filter((x) => x !== stepId) : [...ids, stepId]));
+  }
+  /** Show the step's body when it's the active step, or a completed step
+   *  the user has re-opened to review. */
+  protected showContent(s: CourseStep): boolean {
+    return (s.available && !s.done) || (s.done && this.isReviewing(s.id));
   }
 
   // ── Quiz helpers ──────────────────────────────────────────────────────────
