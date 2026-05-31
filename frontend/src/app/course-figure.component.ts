@@ -103,6 +103,24 @@ import { I18nService } from './i18n.service';
             <text x="400" y="76" text-anchor="end" class="t-mut" font-size="11">{{ tr('паніка', 'panic') }}</text>
           </svg>
         }
+        @case ('rupture-repair') {
+          <svg viewBox="0 0 440 96" class="fig" role="img" [attr.aria-label]="tr('Розрив альянсу та відновлення', 'Alliance rupture and repair')">
+            <defs>
+              <marker id="fig-arrow-rr" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" class="fill-accent" />
+              </marker>
+            </defs>
+            <rect x="6" y="30" width="120" height="40" rx="10" class="stroke-border fill-soft" stroke-width="1.5" />
+            <text x="66" y="55" text-anchor="middle" class="t-mut" font-size="13" font-weight="600">{{ tr('Розрив', 'Rupture') }}</text>
+            <line x1="130" y1="50" x2="154" y2="50" class="stroke-accent" stroke-width="1.6" marker-end="url(#fig-arrow-rr)" />
+            <rect x="160" y="30" width="120" height="40" rx="10" class="stroke-accent fill-soft" stroke-width="2" />
+            <text x="220" y="55" text-anchor="middle" class="t-accent" font-size="13" font-weight="600">{{ tr('Відновлення', 'Repair') }}</text>
+            <line x1="284" y1="50" x2="308" y2="50" class="stroke-accent" stroke-width="1.6" marker-end="url(#fig-arrow-rr)" />
+            <rect x="314" y="30" width="120" height="40" rx="10" fill="none" stroke="#6fae8f" stroke-width="2" />
+            <text x="374" y="49" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('Міцніший', 'Stronger') }}</text>
+            <text x="374" y="63" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('альянс', 'alliance') }}</text>
+          </svg>
+        }
       }
       @if (caption) { <figcaption>{{ caption }}</figcaption> }
     </figure>
