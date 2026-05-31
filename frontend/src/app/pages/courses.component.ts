@@ -161,7 +161,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
 
                         @if (lessonTerms(s).length) {
                           <details class="lesson-terms">
-                            <summary>{{ tr('Терміни в цьому уроці', 'Terms in this lesson') }} ({{ lessonTerms(s).length }})</summary>
+                            <summary><app-icon name="book" /> {{ tr('Терміни в цьому уроці', 'Terms in this lesson') }} ({{ lessonTerms(s).length }})</summary>
                             <dl>
                               @for (t of lessonTerms(s); track t.slug) {
                                 <div>
@@ -463,9 +463,8 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
     .lesson-terms { margin: 6px 0 14px; border: 1px solid var(--border); border-radius: 10px;
       background: var(--user-bg); overflow: hidden; }
     .lesson-terms > summary { cursor: pointer; padding: 10px 14px; font-size: 13.5px; color: var(--accent);
-      list-style: none; user-select: none; }
+      list-style: none; user-select: none; display: flex; align-items: center; gap: 7px; }
     .lesson-terms > summary::-webkit-details-marker { display: none; }
-    .lesson-terms > summary::before { content: '📖 '; }
     .lesson-terms[open] > summary { border-bottom: 1px solid var(--border); }
     .lesson-terms dl { margin: 0; padding: 10px 14px; display: flex; flex-direction: column; gap: 10px; }
     .lesson-terms dt { font-size: 14px; font-weight: 600; color: var(--fg); }

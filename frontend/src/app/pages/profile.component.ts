@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
+import { IconComponent } from '../icon.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
   template: `
     <header class="page-header">
       <a routerLink="/" class="back">← На головну</a>
@@ -76,7 +77,7 @@ import { AuthService } from '../auth.service';
 
       <section class="card">
         <header class="card-head">
-          <h2>🔒 Зміна пароля</h2>
+          <h2><app-icon name="lock" /> Зміна пароля</h2>
         </header>
         @if (!u.hasPassword) {
           <p class="hint info">
