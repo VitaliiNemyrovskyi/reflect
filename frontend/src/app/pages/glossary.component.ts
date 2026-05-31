@@ -77,7 +77,7 @@ export class GlossaryComponent implements OnInit {
   query = signal('');
   private terms = signal<GlossaryTerm[]>([]);
 
-  private static readonly CAT_ORDER = ['general', 'frame', 'alliance', 'listening', 'risk'];
+  private static readonly CAT_ORDER = ['general', 'frame', 'alliance', 'listening', 'risk', 'anxiety'];
 
   groups = computed(() => {
     const q = this.query().trim().toLowerCase();
@@ -117,6 +117,7 @@ export class GlossaryComponent implements OnInit {
       case 'alliance': return this.tr('Альянс і ядрові умови', 'Alliance & core conditions');
       case 'listening': return this.tr('Активне слухання (OARS)', 'Active listening (OARS)');
       case 'risk': return this.tr('Ризик і безпека', 'Risk & safety');
+      case 'anxiety': return this.tr('Тривога', 'Anxiety');
       default: return this.tr('Загальне', 'General');
     }
   }

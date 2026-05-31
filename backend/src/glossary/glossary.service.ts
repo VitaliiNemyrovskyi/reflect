@@ -90,11 +90,12 @@ interface SeedTerm {
   termEn: string;
   defUk: string;
   defEn: string;
-  category: 'frame' | 'alliance' | 'listening' | 'risk' | 'general';
+  category: 'frame' | 'alliance' | 'listening' | 'risk' | 'general' | 'anxiety';
   courses?: string[];
 }
 
 const C = ['intake-rapport'];
+const A = ['anxiety-basics'];
 
 const SEED_TERMS: SeedTerm[] = [
   // ── General ──
@@ -317,5 +318,69 @@ const SEED_TERMS: SeedTerm[] = [
     defEn: 'A concrete, collaboratively built plan for a crisis: warning signs, coping skills, who to call, crisis contacts. Steps, not false reassurance.',
     category: 'risk',
     courses: C,
+  },
+  // ── Anxiety ──
+  {
+    slug: 'anxiety',
+    termUk: 'Тривога',
+    termEn: 'Anxiety',
+    defUk: 'Реакція системи сигналізації тіла на сприйняту загрозу (бий–біжи–завмри). Корисна перед реальною небезпекою, виснажлива — при хибних спрацюваннях.',
+    defEn: "The body alarm system's response to perceived threat (fight–flight–freeze). Useful before real danger, exhausting when it false-alarms.",
+    category: 'anxiety',
+    courses: A,
+  },
+  {
+    slug: 'fight-flight-freeze',
+    termUk: 'Бий–біжи–завмри',
+    termEn: 'Fight–flight–freeze',
+    defUk: 'Три давні реакції на загрозу. Пояснюють тілесні симптоми тривоги: серцебиття, напруга, заклякання. Нормалізація цих реакцій знижує «страх страху».',
+    defEn: 'Three ancient threat responses. They explain anxiety\'s bodily symptoms: pounding heart, tension, freezing. Normalising them lowers the "fear of fear".',
+    category: 'anxiety',
+    courses: A,
+  },
+  {
+    slug: 'avoidance',
+    termUk: 'Уникання',
+    termEn: 'Avoidance',
+    defUk: 'Втеча від лякаючої ситуації заради миттєвого полегшення. Парадоксально підтримує тривогу: «вчить» мозок, що ситуація небезпечна.',
+    defEn: 'Escaping a feared situation for instant relief. Paradoxically maintains anxiety: it "teaches" the brain the situation is dangerous.',
+    category: 'anxiety',
+    courses: A,
+  },
+  {
+    slug: 'exposure',
+    termUk: 'Експозиція',
+    termEn: 'Exposure',
+    defUk: 'Поступове, безпечне й повторюване перебування в лякаючій ситуації, доки тривога спаде сама. Золотий стандарт роботи з тривогою.',
+    defEn: 'Gradually, safely and repeatedly staying in a feared situation until anxiety subsides on its own. The gold standard for anxiety.',
+    category: 'anxiety',
+    courses: A,
+  },
+  {
+    slug: 'suds',
+    termUk: 'SUDS',
+    termEn: 'SUDS',
+    defUk: 'Субʼєктивна одиниця дискомфорту (0–100). Допомагає скласти ієрархію експозиції й відстежувати, як спадає тривога.',
+    defEn: 'Subjective Units of Distress (0–100). Helps build an exposure hierarchy and track how anxiety falls.',
+    category: 'anxiety',
+    courses: A,
+  },
+  {
+    slug: 'catastrophising',
+    termUk: 'Катастрофізація',
+    termEn: 'Catastrophising',
+    defUk: 'Пастка мислення: автоматичний перехід до найгіршого сценарію. Працюють не суперечкою, а перевіркою доказів і реалістичної ймовірності.',
+    defEn: 'A thinking trap: automatically jumping to the worst case. Worked with not by arguing but by testing evidence and realistic probability.',
+    category: 'anxiety',
+    courses: A,
+  },
+  {
+    slug: 'grounding',
+    termUk: 'Заземлення',
+    termEn: 'Grounding',
+    defUk: 'Навичка повернути увагу в «тут і зараз» через відчуття (напр. 5-4-3-2-1). Збиває фізіологічну хвилю тривоги, щоб знову запрацювало мислення.',
+    defEn: 'A skill to bring attention into the here-and-now through the senses (e.g. 5-4-3-2-1). Knocks down the physiological wave so thinking can work again.',
+    category: 'anxiety',
+    courses: A,
   },
 ];
