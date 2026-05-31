@@ -896,4 +896,418 @@ const SEED_COURSES: Array<{
       },
     ],
   },
+  {
+    key: 'anxiety-basics',
+    titleUk: 'Робота з тривогою: основи',
+    titleEn: 'Working with anxiety: foundations',
+    descUk:
+      'Як пояснити клієнту тривогу, навчити навичок регуляції й обережно почати експозицію. 3 модулі — психоедукація, навички та наближення до страху, з квізами й практикою.',
+    descEn:
+      'How to explain anxiety to a client, teach regulation skills, and gently begin exposure. 3 modules — psychoeducation, skills, and approaching fear, with quizzes and practice.',
+    order: 2,
+    published: true,
+    modules: [
+      {
+        titleUk: 'Що таке тривога',
+        titleEn: 'What anxiety is',
+        objectivesUk: [
+          'Пояснити тривогу як систему сигналізації, а не ваду.',
+          'Розуміти цикл «тривога → уникання → ще більша тривога».',
+          'Відпрацювати психоедукацію в сесії.',
+        ],
+        objectivesEn: [
+          'Explain anxiety as an alarm system, not a defect.',
+          'Understand the "anxiety → avoidance → more anxiety" loop.',
+          'Practise psychoeducation in a session.',
+        ],
+        steps: [
+          {
+            kind: 'lesson',
+            titleUk: 'Тривога як система сигналізації',
+            titleEn: 'Anxiety as an alarm system',
+            bodyUk: [
+              { type: 'p', text: 'Тривога — не ворог і не поломка. Це давня система сигналізації тіла, що готує до загрози (бий–біжи–завмри). Проблема не в тривозі, а в хибних спрацюваннях, коли реальної небезпеки немає.' },
+              { type: 'h', text: 'Що відбувається в тілі' },
+              { type: 'list', items: [
+                { text: 'Серце бʼється швидше — більше кисню до мʼязів.' },
+                { text: 'Дихання прискорюється, мʼязи напружені.' },
+                { text: 'Увага звужується на загрозі.' },
+                { text: 'Усе це рятує перед реальною небезпекою — і виснажує, коли її немає.' },
+              ] },
+              { type: 'h', text: 'Чому це важливо сказати клієнту' },
+              { type: 'p', text: 'Психоедукація знижує «страх страху». Коли людина розуміє, що калатання серця — це адреналін, а не інфаркт, паніка втрачає частину сили.' },
+              { type: 'dialogue', lines: [
+                { who: 'Клієнт', text: 'Мені здається, я божеволію, коли це накочує.' },
+                { who: 'Терапевт', text: 'Те, що ви описуєте, дуже схоже на роботу системи тривоги — неприємно, але безпечно. Розповісти, що відбувається в тілі?' },
+              ] },
+              { type: 'quote', text: 'Мета не «прибрати тривогу», а змінити стосунки з нею.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'Anxiety is not an enemy or a malfunction. It is the body\'s ancient alarm system preparing for threat (fight–flight–freeze). The problem is not anxiety itself but false alarms, when there is no real danger.' },
+              { type: 'h', text: 'What happens in the body' },
+              { type: 'list', items: [
+                { text: 'The heart beats faster — more oxygen to the muscles.' },
+                { text: 'Breathing speeds up, muscles tense.' },
+                { text: 'Attention narrows onto the threat.' },
+                { text: 'All life-saving before real danger — and exhausting when there is none.' },
+              ] },
+              { type: 'h', text: 'Why it matters to tell the client' },
+              { type: 'p', text: 'Psychoeducation lowers the "fear of fear". When a person understands that a pounding heart is adrenaline, not a heart attack, panic loses some of its grip.' },
+              { type: 'dialogue', lines: [
+                { who: 'Client', text: 'I feel like I\'m going crazy when it hits.' },
+                { who: 'Therapist', text: 'What you describe sounds a lot like the alarm system firing — unpleasant, but safe. Shall I explain what happens in the body?' },
+              ] },
+              { type: 'quote', text: 'The goal is not to "remove" anxiety but to change your relationship with it.' },
+            ],
+          },
+          {
+            kind: 'lesson',
+            titleUk: 'Цикл тривоги й уникання',
+            titleEn: 'The anxiety–avoidance loop',
+            bodyUk: [
+              { type: 'p', text: 'Уникання дає миттєве полегшення — і саме тому підтримує тривогу. Кожне уникання «вчить» мозок, що ситуація справді небезпечна.' },
+              { type: 'h', text: 'Як працює цикл' },
+              { type: 'list', items: [
+                { text: 'Тригер → тривога росте → уникання чи втеча → миттєве полегшення.' },
+                { text: 'Мозок робить висновок: «небезпечно, добре що втік».' },
+                { text: 'Наступного разу тривога ще сильніша — цикл закручується.' },
+              ] },
+              { type: 'h', text: 'Що з цим робити' },
+              { type: 'p', text: 'Розірвати цикл — означає поступово лишатися в ситуації досить довго, щоб тривога спала сама (а вона завжди спадає). Це основа експозиції, до якої дійдемо в третьому модулі.' },
+              { type: 'dialogue', lines: [
+                { who: 'Клієнт', text: 'Я просто не ходжу у великі супермаркети, так спокійніше.' },
+                { who: 'Терапевт', text: 'І це справді знімає тривогу тут і зараз. Подивимось разом, що стається з тривогою наступного разу?' },
+              ] },
+              { type: 'quote', text: 'Уникання — це знеболювальне, яке підживлює хворобу.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'Avoidance brings instant relief — and that is exactly why it maintains anxiety. Each avoidance "teaches" the brain the situation really is dangerous.' },
+              { type: 'h', text: 'How the loop works' },
+              { type: 'list', items: [
+                { text: 'Trigger → anxiety rises → avoid or escape → instant relief.' },
+                { text: 'The brain concludes: "dangerous, good thing I fled".' },
+                { text: 'Next time anxiety is even stronger — the loop tightens.' },
+              ] },
+              { type: 'h', text: 'What to do about it' },
+              { type: 'p', text: 'Breaking the loop means gradually staying in the situation long enough for anxiety to fall on its own (it always does). That is the basis of exposure, covered in module 3.' },
+              { type: 'dialogue', lines: [
+                { who: 'Client', text: 'I just don\'t go to big supermarkets, it\'s calmer that way.' },
+                { who: 'Therapist', text: 'And that really does ease the anxiety right now. Shall we look together at what happens to it next time?' },
+              ] },
+              { type: 'quote', text: 'Avoidance is a painkiller that feeds the illness.' },
+            ],
+          },
+          {
+            kind: 'quiz',
+            titleUk: 'Перевірка: природа тривоги',
+            titleEn: 'Check: the nature of anxiety',
+            quizUk: [
+              {
+                q: 'Як найкраще описати тривогу клієнту?',
+                options: ['Поломка психіки', 'Система сигналізації тіла, що іноді хибно спрацьовує', 'Завжди ознака хвороби', 'Те, що треба негайно прибрати'],
+                correct: 1,
+                explain: 'Психоедукація подає тривогу як нормальну систему з хибними спрацюваннями.',
+              },
+              {
+                q: 'Чому уникання підтримує тривогу?',
+                options: ['Бо забирає полегшення', 'Бо «вчить» мозок, що ситуація небезпечна, і наступного разу тривога сильніша', 'Бо не діє взагалі', 'Бо викликає сором'],
+                correct: 1,
+                explain: 'Миттєве полегшення підкріплює уникання й закручує цикл.',
+              },
+            ],
+            quizEn: [
+              {
+                q: 'How is anxiety best described to a client?',
+                options: ['A broken psyche', 'A body alarm system that sometimes false-alarms', 'Always a sign of illness', 'Something to remove immediately'],
+                correct: 1,
+                explain: 'Psychoeducation frames anxiety as a normal system with false alarms.',
+              },
+              {
+                q: 'Why does avoidance maintain anxiety?',
+                options: ['It removes relief', 'It "teaches" the brain the situation is dangerous, so next time anxiety is stronger', 'It does nothing at all', 'It causes shame'],
+                correct: 1,
+                explain: 'Instant relief reinforces avoidance and tightens the loop.',
+              },
+            ],
+          },
+          {
+            kind: 'practice',
+            titleUk: 'Практика: психоедукація тривоги',
+            titleEn: 'Practice: anxiety psychoeducation',
+            characterRef: 'Анна',
+            techniqueKey: 'psychoeducation',
+            bodyUk: [
+              { type: 'p', text: 'Завдання: поясни Анні простими словами, що таке тривога й цикл уникання — нормалізуй, без жаргону. Заверши сесію й отримай фідбек, щоб зарахувати крок.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'Task: explain anxiety and the avoidance loop to Anna in plain words — normalise, no jargon. End the session and get feedback to complete the step.' },
+            ],
+          },
+        ],
+      },
+      {
+        titleUk: 'Навички регуляції',
+        titleEn: 'Regulation skills',
+        objectivesUk: [
+          'Навчити клієнта дихальній навичці й заземленню.',
+          'Розпізнавати й перевіряти тривожні думки.',
+          'Відпрацювати навчання навички в сесії.',
+        ],
+        objectivesEn: [
+          'Teach the client a breathing skill and grounding.',
+          'Spot and test anxious thoughts.',
+          'Practise teaching a skill in a session.',
+        ],
+        steps: [
+          {
+            kind: 'lesson',
+            titleUk: 'Дихання й заземлення',
+            titleEn: 'Breathing and grounding',
+            bodyUk: [
+              { type: 'p', text: 'Коли тривога висока, мислення майже не працює — спершу треба збити фізіологічну хвилю. Дві прості навички: сповільнене дихання й заземлення.' },
+              { type: 'h', text: 'Сповільнене дихання' },
+              { type: 'p', text: 'Видих, довший за вдих, заспокоює нервову систему. Орієнтир: вдих на 4, видих на 6, кілька хвилин. Важливо не глибоко, а повільно.' },
+              { type: 'h', text: 'Заземлення 5-4-3-2-1' },
+              { type: 'list', items: [
+                { text: '5 речей, які бачиш; 4 — які чуєш; 3 — яких торкаєшся; 2 — які відчуваєш на запах; 1 — смак.' },
+                { text: 'Повертає увагу з «голови» в «тут і зараз».' },
+              ] },
+              { type: 'h', text: 'Як навчати навички в сесії' },
+              { type: 'list', items: [
+                { text: 'Спершу поясни навіщо.' },
+                { text: 'Покажи і зроби разом тут.' },
+                { text: 'Дай спробувати клієнту самому.' },
+                { text: 'Домовся про практику між сесіями.' },
+              ] },
+              { type: 'quote', text: 'Навичка, яку не відпрацювали в кабінеті, рідко спрацьовує вдома.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'When anxiety is high, thinking barely works — first knock down the physiological wave. Two simple skills: slowed breathing and grounding.' },
+              { type: 'h', text: 'Slowed breathing' },
+              { type: 'p', text: 'An exhale longer than the inhale calms the nervous system. A guide: in for 4, out for 6, for a few minutes. Slow matters more than deep.' },
+              { type: 'h', text: 'Grounding 5-4-3-2-1' },
+              { type: 'list', items: [
+                { text: '5 things you see; 4 you hear; 3 you touch; 2 you smell; 1 you taste.' },
+                { text: 'Pulls attention out of "the head" and into the here and now.' },
+              ] },
+              { type: 'h', text: 'How to teach a skill in session' },
+              { type: 'list', items: [
+                { text: 'Explain the rationale first.' },
+                { text: 'Demonstrate and do it together here.' },
+                { text: 'Let the client try it themselves.' },
+                { text: 'Agree on practice between sessions.' },
+              ] },
+              { type: 'quote', text: 'A skill not rehearsed in the room rarely works at home.' },
+            ],
+          },
+          {
+            kind: 'lesson',
+            titleUk: 'Робота з тривожними думками',
+            titleEn: 'Working with anxious thoughts',
+            bodyUk: [
+              { type: 'p', text: 'Тривога живиться думками-передбаченнями катастрофи: «я зганьблюся», «станеться найгірше». З ними працюють не суперечкою, а перевіркою.' },
+              { type: 'h', text: 'Типові пастки мислення' },
+              { type: 'list', items: [
+                { term: 'Катастрофізація', text: 'одразу найгірший сценарій.' },
+                { term: 'Читання думок', text: '«усі думають, що я нікчема».' },
+                { term: 'Чорно-біле мислення', text: 'або ідеально, або провал.' },
+                { term: 'Переоцінка ймовірності', text: 'малоймовірне здається неминучим.' },
+              ] },
+              { type: 'h', text: 'Перевірка думки' },
+              { type: 'list', items: [
+                { text: 'Яка саме думка лякає?' },
+                { text: 'Які докази за і проти?' },
+                { text: 'Що найімовірніше станеться насправді?' },
+                { text: 'Що б я сказав другові з такою думкою?' },
+              ] },
+              { type: 'dialogue', lines: [
+                { who: 'Клієнт', text: 'Якщо я помилюся на зустрічі, всі вирішать, що я нікчема.' },
+                { who: 'Терапевт', text: 'Це звучить лякаюче. А якби колега помилився — ви б вирішили, що він нікчема?' },
+              ] },
+              { type: 'quote', text: 'Ми не сперечаємося з думкою — ми робимо її перевіряною.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'Anxiety feeds on catastrophe-predicting thoughts: "I\'ll humiliate myself", "the worst will happen". You work with them not by arguing but by testing.' },
+              { type: 'h', text: 'Common thinking traps' },
+              { type: 'list', items: [
+                { term: 'Catastrophising', text: 'jumping straight to the worst case.' },
+                { term: 'Mind-reading', text: '"everyone thinks I\'m worthless".' },
+                { term: 'Black-and-white thinking', text: 'either perfect or a failure.' },
+                { term: 'Overestimating probability', text: 'the unlikely feels inevitable.' },
+              ] },
+              { type: 'h', text: 'Testing a thought' },
+              { type: 'list', items: [
+                { text: 'What exactly is the frightening thought?' },
+                { text: 'What is the evidence for and against?' },
+                { text: 'What will most likely actually happen?' },
+                { text: 'What would I tell a friend with this thought?' },
+              ] },
+              { type: 'dialogue', lines: [
+                { who: 'Client', text: 'If I slip up in the meeting, everyone will decide I\'m worthless.' },
+                { who: 'Therapist', text: 'That sounds frightening. And if a colleague slipped up — would you decide they were worthless?' },
+              ] },
+              { type: 'quote', text: 'We don\'t argue with a thought — we make it testable.' },
+            ],
+          },
+          {
+            kind: 'quiz',
+            titleUk: 'Перевірка: навички',
+            titleEn: 'Check: skills',
+            quizUk: [
+              {
+                q: 'Яке співвідношення дихання заспокоює нервову систему?',
+                options: ['Вдих довший за видих', 'Видих довший за вдих', 'Затримка дихання', 'Швидке поверхневе дихання'],
+                correct: 1,
+                explain: 'Подовжений видих активує парасимпатичну («гальмівну») систему.',
+              },
+              {
+                q: 'Що таке «перевірка думки»?',
+                options: ['Переконати клієнта, що він неправий', 'Разом подивитися на докази за і проти й оцінити реалістичність', 'Ігнорувати думку', 'Замінити її позитивною афірмацією'],
+                correct: 1,
+                explain: 'Мета — зробити думку перевіряною, а не виграти суперечку.',
+              },
+            ],
+            quizEn: [
+              {
+                q: 'Which breathing ratio calms the nervous system?',
+                options: ['Inhale longer than exhale', 'Exhale longer than inhale', 'Breath-holding', 'Fast shallow breathing'],
+                correct: 1,
+                explain: 'A longer exhale engages the parasympathetic ("brake") system.',
+              },
+              {
+                q: 'What is "testing a thought"?',
+                options: ['Convincing the client they are wrong', 'Looking together at evidence for and against and rating how realistic it is', 'Ignoring the thought', 'Replacing it with a positive affirmation'],
+                correct: 1,
+                explain: 'The aim is to make the thought testable, not to win an argument.',
+              },
+            ],
+          },
+          {
+            kind: 'practice',
+            titleUk: 'Практика: навчити навички',
+            titleEn: 'Practice: teach a skill',
+            characterRef: 'Максим',
+            techniqueKey: 'grounding',
+            bodyUk: [
+              { type: 'p', text: 'Завдання: навчи Максима однієї навички регуляції (дихання чи заземлення) — поясни навіщо, зробіть разом, дай спробувати. Заверши сесію й отримай фідбек.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'Task: teach Maksym one regulation skill (breathing or grounding) — explain why, do it together, let him try. End the session and get feedback.' },
+            ],
+          },
+        ],
+      },
+      {
+        titleUk: 'Експозиція (основи)',
+        titleEn: 'Exposure (basics)',
+        objectivesUk: [
+          'Пояснити сенс поступового наближення до страху.',
+          'Скласти просту ієрархію експозиції зі шкалою SUDS.',
+          'Відпрацювати планування експозиції в сесії.',
+        ],
+        objectivesEn: [
+          'Explain the rationale for gradually approaching fear.',
+          'Build a simple exposure hierarchy with a SUDS scale.',
+          'Practise planning exposure in a session.',
+        ],
+        steps: [
+          {
+            kind: 'lesson',
+            titleUk: 'Навіщо й як наближатися до страху',
+            titleEn: 'Why and how to approach fear',
+            bodyUk: [
+              { type: 'p', text: 'Експозиція — золотий стандарт роботи з тривогою. Ідея: поступово й безпечно лишатися в ситуації, що лякає, доки тривога спаде сама. Так мозок переписує висновок «це небезпечно».' },
+              { type: 'h', text: 'Ключові принципи' },
+              { type: 'list', items: [
+                { term: 'Поступовість', text: 'від легшого до важчого.' },
+                { term: 'Тривалість', text: 'лишатися, доки тривога спаде, а не тікати на піку.' },
+                { term: 'Повторюваність', text: 'регулярно, а не один раз.' },
+                { term: 'Без «рятувальних» ритуалів', text: 'вони знецінюють досвід.' },
+              ] },
+              { type: 'h', text: 'Шкала SUDS і ієрархія' },
+              { type: 'p', text: 'SUDS — субʼєктивна одиниця дискомфорту, 0–100. Разом із клієнтом складають «драбину» ситуацій від ~30 до ~90 і піднімаються поступово, крок за кроком.' },
+              { type: 'dialogue', lines: [
+                { who: 'Клієнт', text: 'Я ніколи не зможу виступати перед людьми.' },
+                { who: 'Терапевт', text: 'Почнімо не з виступу. Що було б на 30 зі 100 — наприклад, поставити одне запитання на нараді?' },
+              ] },
+              { type: 'h', text: 'Чого не робити' },
+              { type: 'list', items: [
+                { text: 'Не штовхати в найстрашніше одразу.' },
+                { text: 'Не дозволяти «рятувальну поведінку», що знецінює досвід.' },
+              ] },
+              { type: 'quote', text: 'Сміливість — це не відсутність тривоги, а дія поряд із нею.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'Exposure is the gold standard for anxiety. The idea: gradually and safely stay in the feared situation until anxiety subsides on its own. This is how the brain rewrites the "it\'s dangerous" conclusion.' },
+              { type: 'h', text: 'Key principles' },
+              { type: 'list', items: [
+                { term: 'Gradual', text: 'from easier to harder.' },
+                { term: 'Duration', text: 'stay until anxiety falls, don\'t flee at the peak.' },
+                { term: 'Repeated', text: 'regularly, not once.' },
+                { term: 'No "safety" rituals', text: 'they undermine the experience.' },
+              ] },
+              { type: 'h', text: 'The SUDS scale and a hierarchy' },
+              { type: 'p', text: 'SUDS is a subjective unit of distress, 0–100. With the client you build a "ladder" of situations from ~30 to ~90 and climb it step by step.' },
+              { type: 'dialogue', lines: [
+                { who: 'Client', text: 'I\'ll never be able to speak in front of people.' },
+                { who: 'Therapist', text: 'Let\'s not start with a speech. What would be a 30 out of 100 — say, asking one question in a meeting?' },
+              ] },
+              { type: 'h', text: 'What not to do' },
+              { type: 'list', items: [
+                { text: 'Don\'t push into the scariest thing at once.' },
+                { text: 'Don\'t allow "safety behaviours" that undermine the experience.' },
+              ] },
+              { type: 'quote', text: 'Courage is not the absence of anxiety but action alongside it.' },
+            ],
+          },
+          {
+            kind: 'quiz',
+            titleUk: 'Перевірка: експозиція',
+            titleEn: 'Check: exposure',
+            quizUk: [
+              {
+                q: 'У чому головна ідея експозиції?',
+                options: ['Відволікти клієнта від страху', 'Поступово лишатися в лякаючій ситуації, доки тривога спаде сама', 'Прибрати всі тригери', 'Переконати, що страху немає'],
+                correct: 1,
+                explain: 'Залишаючись, клієнт дає тривозі спасти й переписує висновок «небезпечно».',
+              },
+              {
+                q: 'Що таке SUDS?',
+                options: ['Тип ліків', 'Субʼєктивна шкала дискомфорту 0–100', 'Дихальна вправа', 'Діагноз'],
+                correct: 1,
+                explain: 'SUDS допомагає будувати ієрархію й відстежувати прогрес.',
+              },
+            ],
+            quizEn: [
+              {
+                q: 'What is the core idea of exposure?',
+                options: ['Distract the client from fear', 'Gradually stay in the feared situation until anxiety subsides on its own', 'Remove all triggers', 'Convince them there is no fear'],
+                correct: 1,
+                explain: 'By staying, the client lets anxiety fall and rewrites the "dangerous" conclusion.',
+              },
+              {
+                q: 'What is SUDS?',
+                options: ['A type of medication', 'A subjective distress scale, 0–100', 'A breathing exercise', 'A diagnosis'],
+                correct: 1,
+                explain: 'SUDS helps build the hierarchy and track progress.',
+              },
+            ],
+          },
+          {
+            kind: 'practice',
+            titleUk: 'Практика: спланувати експозицію',
+            titleEn: 'Practice: plan an exposure',
+            characterRef: 'Анна',
+            techniqueKey: 'exposure',
+            bodyUk: [
+              { type: 'p', text: 'Завдання: разом з Анною оберіть один страх і складіть перший крок ієрархії (щось на ~30 за SUDS). Поясни принцип «лишатися, доки спаде». Заверши сесію й отримай фідбек.' },
+            ],
+            bodyEn: [
+              { type: 'p', text: 'Task: with Anna, pick one fear and build the first step of a hierarchy (something around 30 on SUDS). Explain the "stay until it subsides" principle. End the session and get feedback.' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];
