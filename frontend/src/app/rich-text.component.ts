@@ -12,9 +12,13 @@ import { Linker, TextSegment, linkify } from './glossary-link.util';
   template: `@for (seg of segments(); track $index) {@if (seg.slug) {<button type="button" class="term-link" (click)="pick(seg.slug!, $event)">{{ seg.text }}</button>} @else {{{ seg.text }}}}`,
   styles: [`
     :host { display: inline; }
-    .term-link { font: inherit; color: var(--accent); background: none; border: none; padding: 0; margin: 0;
-      cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
-    .term-link:hover { text-decoration-style: solid; }
+    /* "Term with a definition" affordance: inherits text colour (readable),
+       a subtle dotted underline + help cursor signal there's more info. */
+    .term-link { font: inherit; color: inherit; background: none; border: none; padding: 0; margin: 0;
+      cursor: help; text-decoration: underline dotted;
+      text-decoration-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+      text-underline-offset: 3px; }
+    .term-link:hover { text-decoration-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
   `],
 })
 export class RichTextComponent {
@@ -27,12 +31,12 @@ export class RichTextComponent {
   @Input() set linker(v: Linker | null) {
     this.linkerSig.set(v);
   }
-  @Output() term = new EventEmitter<{ slug: string; x: number; y: number }>();
+  @Output() term = new EventEmitter<{ slug: string; el: HTMLElement }>();
 
   segments = computed<TextSegment[]>(() => linkify(this.textSig(), this.linkerSig()));
 
   pick(slug: string, ev: MouseEvent): void {
     ev.stopPropagation();
-    this.term.emit({ slug, x: ev.clientX, y: ev.clientY });
+    this.term.emit({ slug, el: ev.currentTarget as HTMLElement });
   }
 }

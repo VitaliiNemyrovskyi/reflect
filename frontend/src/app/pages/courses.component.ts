@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   ApiService,
@@ -14,7 +14,7 @@ import { I18nService } from '../i18n.service';
 import { IconComponent } from '../icon.component';
 import { RichTextComponent } from '../rich-text.component';
 import { CourseFigureComponent } from '../course-figure.component';
-import { buildLinker, Linker } from '../glossary-link.util';
+import { buildLinker, linkify, Linker } from '../glossary-link.util';
 
 /**
  * Skill-path courses. Two views in one component (like /cohorts):
@@ -298,11 +298,11 @@ import { buildLinker, Linker } from '../glossary-link.util';
       }
 
       @if (activeTerm(); as t) {
-        <div class="term-pop-backdrop" (click)="activeTerm.set(null)"></div>
+        <div class="term-pop-backdrop" (click)="closeTerm()"></div>
         <div class="term-pop" [style.left.px]="popX()" [style.top.px]="popY()" role="dialog">
           <strong>{{ i18n.isEn ? t.termEn : t.termUk }}</strong>
           <p>{{ i18n.isEn ? t.defEn : t.defUk }}</p>
-          <a routerLink="/glossary" (click)="activeTerm.set(null)">{{ tr('Відкрити словник →', 'Open glossary →') }}</a>
+          <a routerLink="/glossary" (click)="closeTerm()">{{ tr('Відкрити словник →', 'Open glossary →') }}</a>
         </div>
       }
     </section>
@@ -474,7 +474,7 @@ import { buildLinker, Linker } from '../glossary-link.util';
     .lt-all:hover { color: var(--accent); }
   `],
 })
-export class CoursesComponent implements OnInit {
+export class CoursesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -498,18 +498,46 @@ export class CoursesComponent implements OnInit {
   protected popX = signal(0);
   protected popY = signal(0);
 
-  protected openTerm(ev: { slug: string; x: number; y: number }): void {
+  private activeEl: HTMLElement | null = null;
+
+  /** Re-pin the popover under its anchor word — called on open + on scroll/resize
+   *  so it follows the text (position: fixed + live viewport rect). */
+  private readonly reposition = (): void => {
+    const el = this.activeEl;
+    if (!el || !this.activeTerm()) return;
+    const r = el.getBoundingClientRect();
+    const w = typeof window !== 'undefined' ? window.innerWidth : 360;
+    this.popX.set(Math.min(Math.max(12, r.left), Math.max(12, w - 312)));
+    this.popY.set(r.bottom + 8);
+  };
+
+  protected openTerm(ev: { slug: string; el: HTMLElement }): void {
     const t = (this.detail()?.glossary ?? []).find((g) => g.slug === ev.slug);
     if (!t) return;
-    const w = typeof window !== 'undefined' ? window.innerWidth : 360;
-    this.popX.set(Math.min(Math.max(12, ev.x - 140), Math.max(12, w - 312)));
-    this.popY.set(ev.y + 16);
+    this.activeEl = ev.el;
     this.activeTerm.set(t);
+    this.reposition();
+  }
+
+  protected closeTerm(): void {
+    this.activeTerm.set(null);
+    this.activeEl = null;
   }
 
   async ngOnInit(): Promise<void> {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('scroll', this.reposition, true);
+      window.addEventListener('resize', this.reposition);
+    }
     const key = this.route.snapshot.paramMap.get('key');
     await (key ? this.loadDetail(key) : this.loadList());
+  }
+
+  ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('scroll', this.reposition, true);
+      window.removeEventListener('resize', this.reposition);
+    }
   }
 
   protected tr(uk: string, en: string): string {
@@ -538,16 +566,16 @@ export class CoursesComponent implements OnInit {
     return this.i18n.isEn ? s.quizEn : s.quizUk;
   }
 
-  /** Glossary terms from this course whose word-stems appear in the step's
-   *  text — surfaced inline so the reader needn't hunt for definitions. */
+  /** The specialised terms actually linked in this step — same detection as
+   *  the inline links, so the expander and the in-text links always agree
+   *  (and it works in both languages). */
   protected lessonTerms(s: CourseStep): GlossaryTerm[] {
-    const gloss = this.detail()?.glossary ?? [];
-    if (!gloss.length) return [];
     const blocks = this.blocksOf(s);
     if (!blocks.length) return [];
-    const en = this.i18n.isEn;
-    const hay = this.blockText(blocks).toLowerCase();
-    return gloss.filter((t) => this.termAppears(en ? t.termEn : t.termUk, hay)).slice(0, 10);
+    const l = this.linker();
+    const slugs = new Set<string>();
+    for (const seg of linkify(this.blockText(blocks), l)) if (seg.slug) slugs.add(seg.slug);
+    return [...slugs].map((sl) => l.bySlug.get(sl)).filter((t): t is GlossaryTerm => !!t).slice(0, 12);
   }
 
   private blockText(blocks: LessonBlock[]): string {
@@ -561,19 +589,6 @@ export class CoursesComponent implements OnInit {
       for (const ln of b.lines ?? []) parts.push(ln.text);
     }
     return parts.join(' ');
-  }
-
-  /** Word-stem match so inflected forms count (e.g. "альянс" in "альянсу").
-   *  Only distinctive words trigger (≥6 chars) plus a few known acronyms, so
-   *  generic words like "думки"/"план" don't pull in tangential terms. */
-  private static readonly TERM_ACRONYMS = new Set(['oars', 'suds', 'ssrs']);
-  private termAppears(term: string, hayLower: string): boolean {
-    const words = term.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-    return words.some((w) => {
-      if (CoursesComponent.TERM_ACRONYMS.has(w)) return hayLower.includes(w);
-      if (w.length < 6) return false;
-      return hayLower.includes(w.slice(0, w.length - 2));
-    });
   }
 
   protected kindLabel(s: CourseStep): string {
