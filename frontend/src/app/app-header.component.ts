@@ -73,6 +73,9 @@ import { IconComponent } from './icon.component';
             <a routerLink="/courses" class="mm-item" (click)="menuOpen.set(false)">
               <app-icon name="lightbulb" /><span>{{ i18n.isEn ? 'Courses' : 'Курси' }}</span>
             </a>
+            <a routerLink="/glossary" class="mm-item" (click)="menuOpen.set(false)">
+              <app-icon name="clipboard" /><span>{{ i18n.isEn ? 'Glossary' : 'Словник' }}</span>
+            </a>
             <a routerLink="/network" class="mm-item" (click)="menuOpen.set(false)">
               <app-icon name="network" /><span>{{ i18n.t('nav.network') }}</span>
             </a>

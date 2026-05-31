@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SessionsService } from '../sessions/sessions.service';
+import { GlossaryService } from '../glossary/glossary.service';
 
 /**
  * Skill-path "courses": Course → Modules → Steps, closing the
@@ -27,6 +28,7 @@ export class CoursesService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sessions: SessionsService,
+    private readonly glossary: GlossaryService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -146,6 +148,7 @@ export class CoursesService implements OnModuleInit {
       descEn: path.descEn,
       completed: completedAll && allStepIds.length > 0,
       modules,
+      glossary: await this.glossary.listForCourse(path.key),
     };
   }
 

@@ -733,6 +733,14 @@ export interface CourseModule {
   objectivesEn: string[];
   steps: CourseStep[];
 }
+export interface GlossaryTerm {
+  slug: string;
+  termUk: string;
+  termEn: string;
+  defUk: string;
+  defEn: string;
+  category: string | null;
+}
 export interface CourseDetail {
   key: string;
   titleUk: string;
@@ -741,6 +749,7 @@ export interface CourseDetail {
   descEn: string;
   completed: boolean;
   modules: CourseModule[];
+  glossary: GlossaryTerm[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -772,6 +781,10 @@ export class ApiService {
     return firstValueFrom(
       this.http.post<{ sessionId: number }>(`${this.base}/courses/steps/${stepId}/practice`, {}),
     );
+  }
+
+  listGlossary(): Promise<GlossaryTerm[]> {
+    return firstValueFrom(this.http.get<GlossaryTerm[]>(`${this.base}/glossary`));
   }
 
   // ---------------------------------------------------------------
