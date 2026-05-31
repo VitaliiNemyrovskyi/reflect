@@ -9,6 +9,7 @@ import {
   DraftFieldName,
   ModalityInfo,
 } from '../api.service';
+import { IconComponent } from '../icon.component';
 
 type Mode = 'create' | 'edit';
 
@@ -27,7 +28,7 @@ const THEME_OPTIONS = [
 @Component({
   selector: 'app-patient-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, DatePipe],
+  imports: [CommonModule, FormsModule, RouterLink, DatePipe, IconComponent],
   template: `
     <header class="page-header">
       <a routerLink="/" class="back">← На головну</a>
@@ -165,7 +166,7 @@ const THEME_OPTIONS = [
                     [class.active]="form.modality === m.key"
                     [title]="m.description"
                     (click)="form.modality = m.key">
-              <span class="modality-icon" aria-hidden="true">{{ m.icon }}</span>
+              <span class="modality-icon" aria-hidden="true"><app-icon [name]="m.icon" /></span>
               <span class="modality-label">{{ m.label }}</span>
             </button>
           }

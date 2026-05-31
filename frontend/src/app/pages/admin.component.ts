@@ -46,7 +46,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
           @if (users().length) { <span class="count">{{ users().length }}</span> }
         </button>
         <button [class.active]="tab() === 'sessions'" (click)="setTab('sessions')">
-          💬 Сесії
+          <app-icon name="message" /> Сесії
           @if (sessions().length) { <span class="count">{{ sessions().length }}</span> }
         </button>
         <button [class.active]="tab() === 'errors'" (click)="setTab('errors')">
