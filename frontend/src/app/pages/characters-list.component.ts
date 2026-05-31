@@ -6,11 +6,12 @@ import { AuthService } from '../auth.service';
 import { I18nService, Lang, SUPPORTED_LANGS } from '../i18n.service';
 import { LogoComponent } from '../logo.component';
 import { WelcomeModalComponent } from '../welcome-modal.component';
+import { IconComponent } from '../icon.component';
 
 @Component({
   selector: 'app-characters-list',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink, LogoComponent, WelcomeModalComponent],
+  imports: [CommonModule, DatePipe, RouterLink, LogoComponent, WelcomeModalComponent, IconComponent],
   template: `
     @if (showWelcome()) {
       <app-welcome-modal (dismissed)="dismissWelcome()" />
@@ -44,7 +45,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
                 [class.active]="modalityFilter() === m.key"
                 [title]="m.description"
                 (click)="toggleModality(m.key)">
-                <span class="modality-icon">{{ m.icon }}</span>
+                <span class="modality-icon"><app-icon [name]="m.icon" /></span>
                 {{ i18n.t('modality.' + m.key) }} ({{ countByModality(m.key) }})
               </button>
             }
@@ -173,7 +174,7 @@ import { WelcomeModalComponent } from '../welcome-modal.component';
                         <span class="modality-badge"
                               [class]="'modality-' + m.key"
                               [title]="m.description">
-                          <span class="modality-badge-icon">{{ m.icon }}</span>
+                          <span class="modality-badge-icon"><app-icon [name]="m.icon" /></span>
                           <span class="modality-badge-label">{{ m.label }}</span>
                         </span>
                       }

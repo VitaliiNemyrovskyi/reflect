@@ -4,6 +4,7 @@ import { Component, OnInit, computed, effect, inject, signal } from '@angular/co
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, CharacterMemoryEntry, CharacterShare, ModalityInfo, PatientCard, ProgressBadge } from '../api.service';
 import { I18nService } from '../i18n.service';
+import { IconComponent } from '../icon.component';
 
 /**
  * One section of the patient profile, extracted from `## N. Title` headings.
@@ -27,14 +28,14 @@ type TabKey = 'overview' | 'profile' | 'sessions' | 'memory' | 'notes' | 'progre
  * lowercase + Cyrillic-aware. Order matters — first match wins.
  */
 const SECTION_ICONS: { test: RegExp; icon: string }[] = [
-  { test: /базов[іиое]|відомост/i, icon: '👤' },
-  { test: /біографі/i, icon: '📜' },
-  { test: /поточн|ситуаці/i, icon: '⏱' },
-  { test: /приве|запит|сесі/i, icon: '🎯' },
-  { test: /говорит|мов|афект|голос/i, icon: '💬' },
-  { test: /прихова|hidden|під[\s-]поверх/i, icon: '🔒' },
-  { test: /поведет|першій сесі|першої сесі/i, icon: '🎬' },
-  { test: /не робит|чого уник|що.*не/i, icon: '🚫' },
+  { test: /базов[іиое]|відомост/i, icon: 'user' },
+  { test: /біографі/i, icon: 'scroll' },
+  { test: /поточн|ситуаці/i, icon: 'stopwatch' },
+  { test: /приве|запит|сесі/i, icon: 'target' },
+  { test: /говорит|мов|афект|голос/i, icon: 'message' },
+  { test: /прихова|hidden|під[\s-]поверх/i, icon: 'lock' },
+  { test: /поведет|першій сесі|першої сесі/i, icon: 'movie' },
+  { test: /не робит|чого уник|що.*не/i, icon: 'ban' },
 ];
 
 const SPOILER_PATTERNS: RegExp[] = [
@@ -47,7 +48,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 @Component({
   selector: 'app-patient-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, DatePipe, FormsModule],
+  imports: [CommonModule, RouterLink, DatePipe, FormsModule, IconComponent],
   template: `
     @if (loading()) {
       <p class="hint">Завантаження…</p>
@@ -84,7 +85,7 @@ const SPOILER_PATTERNS: RegExp[] = [
               <span class="hero-modality-badge"
                     [class]="'modality-' + m.key"
                     [title]="m.description">
-                <span class="hero-modality-icon">{{ m.icon }}</span>
+                <span class="hero-modality-icon"><app-icon [name]="m.icon" /></span>
                 <span class="hero-modality-label">{{ m.label }}</span>
               </span>
             }
@@ -325,14 +326,14 @@ const SPOILER_PATTERNS: RegExp[] = [
                          [class.spoiler]="s.isSpoiler"
                          [class.collapsed]="!isOpen(i, s.isSpoiler)">
                   <header class="section-head" (click)="toggle(i)">
-                    <span class="section-icon" aria-hidden="true">{{ s.icon }}</span>
+                    <span class="section-icon" aria-hidden="true"><app-icon [name]="s.icon" /></span>
                     <h3 class="section-title">
                       @if (s.number) { <span class="section-number">{{ s.number }}.</span> }
                       {{ s.title }}
                     </h3>
                     @if (s.isSpoiler) {
                       <span class="spoiler-tag" title="Це — клінічна підказка / відповідь. Дивись після того, як спробуєш кейс самостійно.">
-                        🔒 Підказка
+                        <app-icon name="lock" /> Підказка
                       </span>
                     }
                     <span class="section-toggle" aria-hidden="true">
@@ -435,7 +436,7 @@ const SPOILER_PATTERNS: RegExp[] = [
             @for (g of memoriesGrouped(); track g.kind) {
               <section class="memory-group">
                 <header class="memory-group-head">
-                  <span class="memory-kind-icon">{{ memoryKindIcon(g.kind) }}</span>
+                  <span class="memory-kind-icon"><app-icon [name]="memoryKindIcon(g.kind)" /></span>
                   <h3>{{ i18n.t('memory.kind.' + g.kind) }}</h3>
                   <span class="dim">· {{ g.items.length }}</span>
                 </header>
@@ -2437,12 +2438,12 @@ export class PatientDetailComponent implements OnInit {
    *  group headers. Keep these stable so the user learns them quickly. */
   memoryKindIcon(kind: CharacterMemoryEntry['kind']): string {
     switch (kind) {
-      case 'session': return '💬';
-      case 'diary': return '📖';
-      case 'social': return '👥';
-      case 'world': return '🗞';
-      case 'seed': return '🌱';
-      default: return '•';
+      case 'session': return 'message';
+      case 'diary': return 'book';
+      case 'social': return 'users';
+      case 'world': return 'news';
+      case 'seed': return 'sprout';
+      default: return 'point';
     }
   }
 
@@ -3079,7 +3080,7 @@ function parseSections(md: string): ProfileSection[] {
 
     const bodyText = s.lines.join('\n').trim();
     const isSpoiler = SPOILER_PATTERNS.some((p) => p.test(cleanTitle));
-    const icon = SECTION_ICONS.find((e) => e.test.test(cleanTitle))?.icon ?? '·';
+    const icon = SECTION_ICONS.find((e) => e.test.test(cleanTitle))?.icon ?? 'point';
 
     return {
       number,

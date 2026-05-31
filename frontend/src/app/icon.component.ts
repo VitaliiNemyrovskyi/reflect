@@ -73,6 +73,11 @@ const NAME_MAP: Record<string, string> = {
   scroll: 'script',
   movie: 'movie',
   stopwatch: 'stopwatch',
+  ban: 'ban',
+  point: 'point',
+  school: 'school',
+  'users-group': 'users-group',
+  'alert-triangle': 'alert-triangle',
   // fallback
   diamond: 'diamond',
 };

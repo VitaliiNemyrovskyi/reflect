@@ -19,7 +19,7 @@ export const MODALITIES = [
     key: 'individual',
     label: 'Індивідуальна',
     short: 'individual',
-    icon: '👤',
+    icon: 'user',
     description:
       "Класична робота 1-на-1. Клієнт у кабінеті, терапевт допомагає опрацювати запит. Базова модальність — більшість профілів сюди.",
   },
@@ -27,7 +27,7 @@ export const MODALITIES = [
     key: 'couples',
     label: 'Парна',
     short: 'couples',
-    icon: '👥',
+    icon: 'users',
     description:
       "Двоє партнерів у кабінеті. Терапевт працює з парою як з системою: не бере чий-небудь бік, керує emotional flooding, тримає alliance з обома.",
   },
@@ -35,7 +35,7 @@ export const MODALITIES = [
     key: 'family',
     label: 'Сімейна',
     short: 'family',
-    icon: '👨‍👩‍👧',
+    icon: 'users-group',
     description:
       "Кілька членів родини (батьки-діти, сиблінги, multi-generation). Системна перспектива: тригуляція, патерни взаємодії, role enactment.",
   },
@@ -43,7 +43,7 @@ export const MODALITIES = [
     key: 'adolescent',
     label: 'Підліткова',
     short: 'adolescent',
-    icon: '🧑‍🎓',
+    icon: 'school',
     description:
       "Робота з підлітком 12-18 років. Інша мова, питання конфіденційності, інтегрування шкільного контексту та батьків.",
   },
@@ -51,7 +51,7 @@ export const MODALITIES = [
     key: 'crisis',
     label: 'Кризова',
     short: 'crisis',
-    icon: '⚠',
+    icon: 'alert-triangle',
     description:
       "Гостра кризова інтервенція: суїцидальні наміри, флешбек, ПА, дисоціація. Темп інший — мета стабілізувати, не «копати».",
   },
