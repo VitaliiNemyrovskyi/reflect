@@ -341,7 +341,8 @@ type LessonBlock =
   | { type: 'p'; text: string }
   | { type: 'list'; items: { term?: string; text: string }[] }
   | { type: 'dialogue'; lines: { who: string; text: string }[] }
-  | { type: 'quote'; text: string };
+  | { type: 'quote'; text: string }
+  | { type: 'figure'; figure: string; caption?: string };
 
 interface QuizQuestion {
   q: string;
@@ -448,6 +449,7 @@ const SEED_COURSES: Array<{
                 { term: 'Контракт', text: 'тривалість, конфіденційність та її межі, чого очікувати від терапії.' },
               ] },
               { type: 'h', text: 'Орієнтир: біопсихосоціальна модель' },
+              { type: 'figure', figure: 'biopsychosocial' },
               { type: 'p', text: 'Тримайте в голові три рівні: біологічне (сон, апетит, здоровʼя, речовини), психологічне (думки, емоції, копінг, переконання) і соціальне (стосунки, робота, підтримка, культура).' },
               { type: 'h', text: 'Типові помилки новачка' },
               { type: 'list', items: [
@@ -467,6 +469,7 @@ const SEED_COURSES: Array<{
                 { term: 'Contract', text: 'length, confidentiality and its limits, what to expect from therapy.' },
               ] },
               { type: 'h', text: 'A map: the biopsychosocial model' },
+              { type: 'figure', figure: 'biopsychosocial' },
               { type: 'p', text: 'Hold three levels in mind: biological (sleep, appetite, health, substances), psychological (thoughts, emotions, coping, beliefs), and social (relationships, work, support, culture).' },
               { type: 'h', text: 'Common beginner mistakes' },
               { type: 'list', items: [
@@ -484,6 +487,7 @@ const SEED_COURSES: Array<{
             bodyUk: [
               { type: 'p', text: 'Найсильніший предиктор результату терапії — це робочий альянс, а не конкретний метод. Якщо альянсу немає, найкраща техніка не спрацює.' },
               { type: 'h', text: 'Три складові (Бордін)' },
+              { type: 'figure', figure: 'alliance-triangle' },
               { type: 'list', items: [
                 { term: 'Звʼязок', text: 'довіра й тепло між вами.' },
                 { term: 'Цілі', text: 'спільне розуміння, куди ви рухаєтесь.' },
@@ -505,6 +509,7 @@ const SEED_COURSES: Array<{
             bodyEn: [
               { type: 'p', text: 'The strongest predictor of therapy outcome is the working alliance, not the specific method. Without an alliance, even the best technique falls flat.' },
               { type: 'h', text: 'Three parts (Bordin)' },
+              { type: 'figure', figure: 'alliance-triangle' },
               { type: 'list', items: [
                 { term: 'Bond', text: 'trust and warmth between you.' },
                 { term: 'Goals', text: 'a shared sense of where you are heading.' },
@@ -648,6 +653,7 @@ const SEED_COURSES: Array<{
             bodyUk: [
               { type: 'p', text: 'OARS — чотири базові навички слухання з мотиваційного інтервʼю: Open questions (відкриті питання), Affirmations (підтримки), Reflections (рефлексії), Summaries (резюме). Цей урок — про перші дві найпотужніші.' },
               { type: 'h', text: 'Відкриті vs закриті' },
+              { type: 'figure', figure: 'oars' },
               { type: 'list', items: [
                 { term: 'Закрите', text: '«Ви спите погано?» — відповідь «так/ні», розмова глухне.' },
                 { term: 'Відкрите', text: '«Розкажіть, як виглядають ваші ночі?» — клієнт розгортає історію.' },
@@ -668,6 +674,7 @@ const SEED_COURSES: Array<{
             bodyEn: [
               { type: 'p', text: 'OARS are the four core listening skills from motivational interviewing: Open questions, Affirmations, Reflections, Summaries. This lesson covers the two most powerful.' },
               { type: 'h', text: 'Open vs closed' },
+              { type: 'figure', figure: 'oars' },
               { type: 'list', items: [
                 { term: 'Closed', text: '"Do you sleep badly?" — a yes/no, the conversation stalls.' },
                 { term: 'Open', text: '"Tell me what your nights look like?" — the client unfolds a story.' },
@@ -802,6 +809,7 @@ const SEED_COURSES: Array<{
             bodyUk: [
               { type: 'p', text: 'Уникати теми суїциду небезпечніше, ніж спитати. Пряме питання не «підштовхує» — воно дає полегшення й точність. Більшість клієнтів відчувають полегшення, що про це нарешті можна сказати вголос.' },
               { type: 'h', text: 'Як спитати, не зруйнувавши контакт' },
+              { type: 'figure', figure: 'risk-ladder' },
               { type: 'list', items: [
                 { term: 'Нормалізуй', text: 'коли людям так важко, інколи бувають думки, що не хочеться жити — чи є такі у вас?' },
                 { term: 'Уточни (логіка C-SSRS)', text: 'думки → план → засоби → намір. Кожен наступний рівень підвищує гостроту.' },
@@ -818,6 +826,7 @@ const SEED_COURSES: Array<{
             bodyEn: [
               { type: 'p', text: 'Avoiding the topic of suicide is more dangerous than asking. A direct question does not "plant the idea" — it brings relief and clarity. Most clients feel relieved it can finally be said out loud.' },
               { type: 'h', text: 'How to ask without breaking contact' },
+              { type: 'figure', figure: 'risk-ladder' },
               { type: 'list', items: [
                 { term: 'Normalise', text: 'when things are this hard, people sometimes have thoughts that they do not want to be alive — do you ever have those?' },
                 { term: 'Clarify (C-SSRS logic)', text: 'thoughts → plan → means → intent. Each level raises the acuity.' },
@@ -1025,6 +1034,7 @@ const SEED_COURSES: Array<{
             bodyUk: [
               { type: 'p', text: 'Уникання дає миттєве полегшення — і саме тому підтримує тривогу. Кожне уникання «вчить» мозок, що ситуація справді небезпечна.' },
               { type: 'h', text: 'Як працює цикл' },
+              { type: 'figure', figure: 'anxiety-loop' },
               { type: 'list', items: [
                 { text: 'Тригер → тривога росте → уникання чи втеча → миттєве полегшення.' },
                 { text: 'Мозок робить висновок: «небезпечно, добре що втік».' },
@@ -1041,6 +1051,7 @@ const SEED_COURSES: Array<{
             bodyEn: [
               { type: 'p', text: 'Avoidance brings instant relief — and that is exactly why it maintains anxiety. Each avoidance "teaches" the brain the situation really is dangerous.' },
               { type: 'h', text: 'How the loop works' },
+              { type: 'figure', figure: 'anxiety-loop' },
               { type: 'list', items: [
                 { text: 'Trigger → anxiety rises → avoid or escape → instant relief.' },
                 { text: 'The brain concludes: "dangerous, good thing I fled".' },
@@ -1126,6 +1137,7 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'Сповільнене дихання' },
               { type: 'p', text: 'Видих, довший за вдих, заспокоює нервову систему. Орієнтир: вдих на 4, видих на 6, кілька хвилин. Важливо не глибоко, а повільно.' },
               { type: 'h', text: 'Заземлення 5-4-3-2-1' },
+              { type: 'figure', figure: 'grounding' },
               { type: 'list', items: [
                 { text: '5 речей, які бачиш; 4 — які чуєш; 3 — яких торкаєшся; 2 — які відчуваєш на запах; 1 — смак.' },
                 { text: 'Повертає увагу з «голови» в «тут і зараз».' },
@@ -1144,6 +1156,7 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'Slowed breathing' },
               { type: 'p', text: 'An exhale longer than the inhale calms the nervous system. A guide: in for 4, out for 6, for a few minutes. Slow matters more than deep.' },
               { type: 'h', text: 'Grounding 5-4-3-2-1' },
+              { type: 'figure', figure: 'grounding' },
               { type: 'list', items: [
                 { text: '5 things you see; 4 you hear; 3 you touch; 2 you smell; 1 you taste.' },
                 { text: 'Pulls attention out of "the head" and into the here and now.' },
@@ -1283,6 +1296,7 @@ const SEED_COURSES: Array<{
                 { term: 'Без «рятувальних» ритуалів', text: 'вони знецінюють досвід.' },
               ] },
               { type: 'h', text: 'Шкала SUDS і ієрархія' },
+              { type: 'figure', figure: 'suds' },
               { type: 'p', text: 'SUDS — субʼєктивна одиниця дискомфорту, 0–100. Разом із клієнтом складають «драбину» ситуацій від ~30 до ~90 і піднімаються поступово, крок за кроком.' },
               { type: 'dialogue', lines: [
                 { who: 'Клієнт', text: 'Я ніколи не зможу виступати перед людьми.' },
@@ -1305,6 +1319,7 @@ const SEED_COURSES: Array<{
                 { term: 'No "safety" rituals', text: 'they undermine the experience.' },
               ] },
               { type: 'h', text: 'The SUDS scale and a hierarchy' },
+              { type: 'figure', figure: 'suds' },
               { type: 'p', text: 'SUDS is a subjective unit of distress, 0–100. With the client you build a "ladder" of situations from ~30 to ~90 and climb it step by step.' },
               { type: 'dialogue', lines: [
                 { who: 'Client', text: 'I\'ll never be able to speak in front of people.' },
