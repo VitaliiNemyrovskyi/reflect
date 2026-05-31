@@ -57,6 +57,10 @@ export class GlossaryService implements OnModuleInit {
       defUk: t.defUk,
       defEn: t.defEn,
       category: t.category,
+      // Ukrainian invariant stem for inline linkifying (+ up to ~3 inflectional
+      // letters on the frontend). null = not auto-linked inline (too generic /
+      // collision-prone), but still a glossary entry.
+      match: TERM_MATCH[t.slug] ?? null,
     };
   }
 
@@ -96,6 +100,44 @@ interface SeedTerm {
 
 const C = ['intake-rapport'];
 const A = ['anxiety-basics'];
+
+/**
+ * Ukrainian invariant stems for inline linkifying. The frontend matches each
+ * stem + up to ~3 trailing letters at word boundaries, so inflected forms link
+ * too (e.g. "альянс" → "альянсу"). Terms absent here (too generic or
+ * collision-prone — e.g. "План безпеки" vs "створити безпеку") aren't
+ * auto-linked inline but remain full glossary entries.
+ */
+const TERM_MATCH: Record<string, string> = {
+  rapport: 'рапорт',
+  frame: 'рамк',
+  'presenting-concern': 'запит',
+  'therapeutic-contract': 'контракт',
+  confidentiality: 'конфіденційн',
+  biopsychosocial: 'біопсихосоціальн',
+  'working-alliance': 'альянс',
+  empathy: 'емпаті',
+  'positive-regard': 'прийнятт',
+  congruence: 'конгруентн',
+  oars: 'oars',
+  'open-question': 'відкрит',
+  'closed-question': 'закрит',
+  reflection: 'рефлекс',
+  validation: 'валідаці',
+  summarizing: 'резюм',
+  'motivational-interviewing': 'мотиваційн',
+  'active-listening': 'слухан',
+  'risk-screening': 'скринінг',
+  'c-ssrs': 'ssrs',
+  normalizing: 'нормаліз',
+  'suicidal-ideation': 'суїцидальн',
+  anxiety: 'тривог',
+  avoidance: 'уника',
+  exposure: 'експозиці',
+  suds: 'suds',
+  catastrophising: 'катастроф',
+  grounding: 'заземл',
+};
 
 const SEED_TERMS: SeedTerm[] = [
   // ── General ──

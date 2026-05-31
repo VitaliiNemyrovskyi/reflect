@@ -740,6 +740,8 @@ export interface GlossaryTerm {
   defUk: string;
   defEn: string;
   category: string | null;
+  /** UK invariant stem for inline linkifying; null = not auto-linked. */
+  match?: string | null;
 }
 export interface CourseDetail {
   key: string;
