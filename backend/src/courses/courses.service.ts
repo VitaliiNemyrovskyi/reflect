@@ -146,6 +146,8 @@ export class CoursesService implements OnModuleInit {
       titleEn: path.titleEn,
       descUk: path.descUk,
       descEn: path.descEn,
+      aboutUk: this.parseJson(path.aboutUk),
+      aboutEn: this.parseJson(path.aboutEn),
       completed: completedAll && allStepIds.length > 0,
       modules,
       glossary: await this.glossary.listForCourse(path.key),
@@ -285,6 +287,8 @@ export class CoursesService implements OnModuleInit {
         titleEn: course.titleEn,
         descUk: course.descUk,
         descEn: course.descEn,
+        aboutUk: course.aboutUk ? JSON.stringify(course.aboutUk) : null,
+        aboutEn: course.aboutEn ? JSON.stringify(course.aboutEn) : null,
         order: course.order,
         published: course.published,
       };
@@ -373,6 +377,8 @@ const SEED_COURSES: Array<{
   titleEn: string;
   descUk: string;
   descEn: string;
+  aboutUk?: LessonBlock[];
+  aboutEn?: LessonBlock[];
   order: number;
   published: boolean;
   modules: SeedModule[];
@@ -385,6 +391,32 @@ const SEED_COURSES: Array<{
       'Базовий курс: як відкрити першу сесію, побудувати робочий альянс, активно слухати й делікатно перевірити ризик. 3 модулі — теорія, квізи та практика з фідбеком.',
     descEn:
       'The foundation course: opening a first session, building the working alliance, active listening, and gently screening risk. 3 modules — theory, quizzes and practice with feedback.',
+    aboutUk: [
+      { type: 'p', text: '«Інтейк, рапорт і ризик» — базовий курс про те, як провести першу зустріч із клієнтом: від першого «Що вас привело?» до делікатної перевірки ризику й домовленості про спільну роботу.' },
+      { type: 'h', text: 'Чого ти навчишся' },
+      { type: 'list', items: [
+        { text: 'Впевнено відкривати першу сесію й тримати рамку.' },
+        { text: 'Будувати робочий альянс через емпатію, прийняття й щирість.' },
+        { text: 'Активно слухати за моделлю OARS — питання, рефлексії, підтримки, резюме.' },
+        { text: 'Делікатно, але прямо перевіряти суїцидальний ризик і складати план безпеки.' },
+      ] },
+      { type: 'h', text: 'Як влаштовано курс' },
+      { type: 'p', text: '3 модулі. У кожному — кілька коротких уроків (теорія з прикладами-діалогами), квіз на закріплення і практика з AI-пацієнтом, де ти застосовуєш навичку наживо й отримуєш фідбек від AI-супервізора.' },
+      { type: 'p', text: 'Орієнтовно 30–40 хвилин теорії плюс практичні сесії у твоєму темпі. Кроки відкриваються послідовно — від простого до складнішого.' },
+    ],
+    aboutEn: [
+      { type: 'p', text: '"Intake, rapport and risk" is the foundation course on running a first meeting with a client: from the first "What brings you in?" to a gentle risk check and agreeing on working together.' },
+      { type: 'h', text: 'What you will learn' },
+      { type: 'list', items: [
+        { text: 'Open a first session with confidence and hold the frame.' },
+        { text: 'Build the working alliance through empathy, regard and genuineness.' },
+        { text: 'Listen actively with OARS — questions, reflections, affirmations, summaries.' },
+        { text: 'Screen suicide risk gently but directly, and build a safety plan.' },
+      ] },
+      { type: 'h', text: 'How the course works' },
+      { type: 'p', text: '3 modules. Each has a few short lessons (theory with dialogue examples), a quiz to consolidate, and practice with an AI patient where you apply the skill live and get feedback from an AI supervisor.' },
+      { type: 'p', text: 'Roughly 30–40 minutes of theory plus practice sessions at your own pace. Steps unlock in order — from simpler to harder.' },
+    ],
     order: 1,
     published: true,
     modules: [
@@ -904,6 +936,32 @@ const SEED_COURSES: Array<{
       'Як пояснити клієнту тривогу, навчити навичок регуляції й обережно почати експозицію. 3 модулі — психоедукація, навички та наближення до страху, з квізами й практикою.',
     descEn:
       'How to explain anxiety to a client, teach regulation skills, and gently begin exposure. 3 modules — psychoeducation, skills, and approaching fear, with quizzes and practice.',
+    aboutUk: [
+      { type: 'p', text: '«Робота з тривогою: основи» — практичний курс про те, як допомогти клієнту з тривогою: пояснити, що з ним відбувається, дати навички регуляції й обережно почати наближення до страху.' },
+      { type: 'h', text: 'Чого ти навчишся' },
+      { type: 'list', items: [
+        { text: 'Пояснювати клієнту природу тривоги й цикл уникання простими словами.' },
+        { text: 'Навчати навичок регуляції — дихання та заземлення.' },
+        { text: 'Працювати з тривожними думками: перевірка, а не суперечка.' },
+        { text: 'Закладати основи експозиції — ієрархія, шкала SUDS, поступове наближення.' },
+      ] },
+      { type: 'h', text: 'Як влаштовано курс' },
+      { type: 'p', text: '3 модулі: психоедукація → навички регуляції → експозиція. У кожному — уроки з прикладами, квіз і практика з AI-пацієнтом із фідбеком.' },
+      { type: 'p', text: 'Базований на відкритих КПТ-рамках. Контент навчальний — не заміна супервізії чи терапії.' },
+    ],
+    aboutEn: [
+      { type: 'p', text: '"Working with anxiety: foundations" is a practical course on helping an anxious client: explaining what is happening to them, teaching regulation skills, and gently beginning to approach fear.' },
+      { type: 'h', text: 'What you will learn' },
+      { type: 'list', items: [
+        { text: "Explain the nature of anxiety and the avoidance loop in plain words." },
+        { text: 'Teach regulation skills — breathing and grounding.' },
+        { text: 'Work with anxious thoughts: testing, not arguing.' },
+        { text: 'Lay the basics of exposure — a hierarchy, the SUDS scale, gradual approach.' },
+      ] },
+      { type: 'h', text: 'How the course works' },
+      { type: 'p', text: '3 modules: psychoeducation → regulation skills → exposure. Each has lessons with examples, a quiz, and practice with an AI patient with feedback.' },
+      { type: 'p', text: 'Based on public CBT frameworks. The content is educational — not a substitute for supervision or therapy.' },
+    ],
     order: 2,
     published: true,
     modules: [

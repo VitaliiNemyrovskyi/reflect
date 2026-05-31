@@ -617,6 +617,10 @@ model SkillPath {
   titleEn   String
   descUk    String
   descEn    String
+  // Course intro/orientation — JSON LessonBlock[] (what you'll learn, outcomes,
+  // how it's structured). Shown above the modules. Nullable; additive.
+  aboutUk   String?
+  aboutEn   String?
   order     Int               @default(0)
   published Boolean           @default(false)
   createdAt DateTime          @default(now())

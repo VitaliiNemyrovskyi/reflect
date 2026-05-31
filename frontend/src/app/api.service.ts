@@ -747,6 +747,8 @@ export interface CourseDetail {
   titleEn: string;
   descUk: string;
   descEn: string;
+  aboutUk: LessonBlock[];
+  aboutEn: LessonBlock[];
   completed: boolean;
   modules: CourseModule[];
   glossary: GlossaryTerm[];
