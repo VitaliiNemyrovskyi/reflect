@@ -6,6 +6,7 @@ import {
   CourseListItem,
   CourseModule,
   CourseStep,
+  GlossaryTerm,
   LessonBlock,
   QuizQuestion,
 } from '../api.service';
@@ -130,6 +131,21 @@ import { IconComponent } from '../icon.component';
                               }
                             }
                           </div>
+                        }
+
+                        @if (lessonTerms(s).length) {
+                          <details class="lesson-terms">
+                            <summary>{{ tr('Терміни в цьому уроці', 'Terms in this lesson') }} ({{ lessonTerms(s).length }})</summary>
+                            <dl>
+                              @for (t of lessonTerms(s); track t.slug) {
+                                <div>
+                                  <dt>{{ i18n.isEn ? t.termEn : t.termUk }}</dt>
+                                  <dd>{{ i18n.isEn ? t.defEn : t.defUk }}</dd>
+                                </div>
+                              }
+                            </dl>
+                            <a routerLink="/glossary" class="lt-all">{{ tr('Повний словник →', 'Full glossary →') }}</a>
+                          </details>
                         }
 
                         @if (s.kind === 'quiz') {
@@ -390,6 +406,20 @@ import { IconComponent } from '../icon.component';
     .g-term dd { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--fg-dim); }
     .g-all { align-self: flex-start; color: var(--fg-dim); text-decoration: none; font-size: 14px; }
     .g-all:hover { color: var(--accent); }
+
+    /* Inline "terms in this lesson" expander */
+    .lesson-terms { margin: 6px 0 14px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--user-bg); overflow: hidden; }
+    .lesson-terms > summary { cursor: pointer; padding: 10px 14px; font-size: 13.5px; color: var(--accent);
+      list-style: none; user-select: none; }
+    .lesson-terms > summary::-webkit-details-marker { display: none; }
+    .lesson-terms > summary::before { content: '📖 '; }
+    .lesson-terms[open] > summary { border-bottom: 1px solid var(--border); }
+    .lesson-terms dl { margin: 0; padding: 10px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .lesson-terms dt { font-size: 14px; font-weight: 600; color: var(--fg); }
+    .lesson-terms dd { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--fg-dim); }
+    .lt-all { display: inline-block; margin: 0 14px 12px; font-size: 13px; color: var(--fg-dim); text-decoration: none; }
+    .lt-all:hover { color: var(--accent); }
   `],
 })
 export class CoursesComponent implements OnInit {
@@ -433,6 +463,40 @@ export class CoursesComponent implements OnInit {
 
   protected quizFor(s: CourseStep): QuizQuestion[] {
     return this.i18n.isEn ? s.quizEn : s.quizUk;
+  }
+
+  /** Glossary terms from this course whose word-stems appear in the step's
+   *  text — surfaced inline so the reader needn't hunt for definitions. */
+  protected lessonTerms(s: CourseStep): GlossaryTerm[] {
+    const gloss = this.detail()?.glossary ?? [];
+    if (!gloss.length) return [];
+    const blocks = this.blocksOf(s);
+    if (!blocks.length) return [];
+    const en = this.i18n.isEn;
+    const hay = this.blockText(blocks).toLowerCase();
+    return gloss.filter((t) => this.termAppears(en ? t.termEn : t.termUk, hay)).slice(0, 10);
+  }
+
+  private blockText(blocks: LessonBlock[]): string {
+    const parts: string[] = [];
+    for (const b of blocks) {
+      if (b.text) parts.push(b.text);
+      for (const it of b.items ?? []) {
+        if (it.term) parts.push(it.term);
+        parts.push(it.text);
+      }
+      for (const ln of b.lines ?? []) parts.push(ln.text);
+    }
+    return parts.join(' ');
+  }
+
+  /** Word-stem match so inflected forms count (e.g. "альянс" in "альянсу"). */
+  private termAppears(term: string, hayLower: string): boolean {
+    const words = term.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4);
+    return words.some((w) => {
+      const stem = w.length > 6 ? w.slice(0, w.length - 2) : w;
+      return stem.length >= 4 && hayLower.includes(stem);
+    });
   }
 
   protected kindLabel(s: CourseStep): string {
