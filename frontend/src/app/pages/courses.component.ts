@@ -156,6 +156,16 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                                   </div>
                                 }
                                 @case ('figure') { <app-course-figure [name]="b.figure || ''" [caption]="b.caption" /> }
+                                @case ('sources') {
+                                  <div class="lesson-sources">
+                                    <span class="ls-title">{{ tr('Джерела', 'Sources') }}</span>
+                                    <ul>
+                                      @for (src of (b.sources ?? []); track $index) {
+                                        <li><a [href]="src.url" target="_blank" rel="noopener noreferrer">{{ src.label }}</a></li>
+                                      }
+                                    </ul>
+                                  </div>
+                                }
                                 @default { <p class="lb-p"><app-rich-text [text]="b.text || ''" [linker]="linker()" (term)="openTerm($event)" /></p> }
                               }
                             }
@@ -412,6 +422,14 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
     .lb-dialogue { margin: 10px 0; padding: 10px 14px; border-radius: 10px; background: var(--user-bg); }
     .lb-line { font-size: 14.5px; line-height: 1.55; color: var(--fg); margin: 4px 0; }
     .lb-line strong { color: var(--accent); }
+    /* Per-lesson primary sources */
+    .lesson-sources { margin: 16px 0 4px; padding: 12px 14px; border-radius: 10px; background: var(--user-bg);
+      border: 1px solid var(--border); }
+    .lesson-sources .ls-title { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-dim); }
+    .lesson-sources ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+    .lesson-sources li { font-size: 12.5px; line-height: 1.45; }
+    .lesson-sources a { color: var(--fg-dim); text-decoration: underline; text-underline-offset: 2px; }
+    .lesson-sources a:hover { color: var(--accent); }
 
     /* Quiz */
     .quiz { display: flex; flex-direction: column; gap: 16px; margin: 4px 0 6px; }

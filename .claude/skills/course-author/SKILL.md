@@ -60,6 +60,11 @@ A lesson is a `LessonBlock[]`. Aim for **~8–14 blocks / ~5–8 min read**, cov
    (a loop, a hierarchy, a triangle, a scale). See the figure library below.
 7. **Do / Don't** (`list` with `term`) and **Common mistakes** (`list`).
 8. **Takeaway** (`quote`) — one memorable line.
+9. **Sources** (`sources`) — **every lesson ends with a `sources` block** linking
+   the primary sources (DOI / PubMed / publisher) for its claims. This is shown
+   to the learner, not just kept in the PR, and it visibly grounds the lesson.
+   Cite the actual papers/books (e.g. Bordin 1979, Rogers 1957, the relevant
+   meta-analysis), not blogs. If you assert it, you cite it.
 
 Write in plain Ukrainian (primary) + English mirror. Be concrete and
 example-led; prefer a vivid dialogue over an abstract sentence. Define jargon
@@ -89,6 +94,7 @@ migration). The matching frontend types are in `frontend/src/app/api.service.ts`
 { type: 'dialogue'; lines: { who; text }[] }      // mini-transcript example
 { type: 'quote'; text }                           // callout / takeaway
 { type: 'figure'; figure: '<key>'; caption? }     // inline SVG infographic
+{ type: 'sources'; sources: { label; url }[] }    // primary-source list, ends every lesson
 ```
 
 ### Quiz step (`quizUk/quizEn`)

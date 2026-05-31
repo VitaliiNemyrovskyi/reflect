@@ -695,7 +695,7 @@ export interface CourseListItem {
 /** A lesson content block (rendered natively — no markdown). Flat shape so
  *  Angular templates can read fields without union narrowing. */
 export interface LessonBlock {
-  type: 'h' | 'p' | 'list' | 'quote' | 'dialogue' | 'figure';
+  type: 'h' | 'p' | 'list' | 'quote' | 'dialogue' | 'figure' | 'sources';
   text?: string;
   ordered?: boolean;
   items?: { term?: string; text: string }[];
@@ -703,6 +703,8 @@ export interface LessonBlock {
   /** For type 'figure': a key into the course-figure diagram library. */
   figure?: string;
   caption?: string;
+  /** For type 'sources': primary-source references shown under the lesson. */
+  sources?: { label: string; url: string }[];
 }
 /** A single multiple-choice question (graded client-side). */
 export interface QuizQuestion {
