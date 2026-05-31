@@ -517,6 +517,16 @@ const SEED_COURSES: Array<{
                 { who: 'Клієнт', text: 'Не знаю, чи це взагалі варте вашого часу…' },
                 { who: 'Терапевт', text: 'Схоже, трохи незручно про це говорити — і ви все одно прийшли. Те, що важливо для вас, варте часу. З чого вам легше почати?' },
               ] },
+              { type: 'h', text: 'Приклад: згода щодо завдання' },
+              { type: 'dialogue', lines: [
+                { who: 'Терапевт', text: 'Пропоную наступні 10 хвилин виписати думки, що крутяться вночі. Ідея — побачити патерн, а не лишати їх кашею в голові. Як вам такий план?' },
+                { who: 'Клієнт', text: 'Окей, спробуймо.' },
+              ] },
+              { type: 'h', text: 'Слабко → сильно' },
+              { type: 'list', items: [
+                { term: '❌ Слабко', text: '«Не варто так думати, давайте раціональніше» — знецінює й тисне.' },
+                { term: '✅ Сильно', text: '«Схоже, ця думка справді лякає. Розкажете про неї докладніше?» — валідує й відкриває.' },
+              ] },
               { type: 'h', text: 'Чого не робити' },
               { type: 'list', items: [
                 { text: 'Не «продавай» довіру словами «довіртеся мені» — її дає досвід, що тебе почули.' },
@@ -555,6 +565,16 @@ const SEED_COURSES: Array<{
               { type: 'dialogue', lines: [
                 { who: 'Client', text: 'I am not sure this is even worth your time…' },
                 { who: 'Therapist', text: "It sounds a little uncomfortable to bring up — and you came anyway. What matters to you is worth the time. Where is it easiest to start?" },
+              ] },
+              { type: 'h', text: 'Example: agreeing on the task' },
+              { type: 'dialogue', lines: [
+                { who: 'Therapist', text: "I suggest we spend the next 10 minutes writing down the thoughts that spin at night. The idea is to see the pattern, not leave it as mush in your head. How does that plan sound?" },
+                { who: 'Client', text: "Okay, let's try." },
+              ] },
+              { type: 'h', text: 'Weak → strong' },
+              { type: 'list', items: [
+                { term: '❌ Weak', text: '"You shouldn\'t think like that, let\'s be rational" — dismisses and pushes.' },
+                { term: '✅ Strong', text: '"It sounds like that thought really frightens you. Tell me more about it?" — validates and opens.' },
               ] },
               { type: 'h', text: 'What not to do' },
               { type: 'list', items: [
@@ -649,6 +669,12 @@ const SEED_COURSES: Array<{
                 { who: 'Клієнт', text: 'Ви весь час питаєте про дитинство, а мені треба вирішити тут і зараз.' },
                 { who: 'Терапевт', text: 'Дякую, що сказали прямо. Схоже, я пішов не туди, куди вам потрібно. Повернімось до того, що горить зараз — з чого почнемо?' },
               ] },
+              { type: 'h', text: 'Те саме при відстороненні' },
+              { type: 'dialogue', lines: [
+                { who: 'Терапевт', text: 'Ви сьогодні небагатослівні — і це нормально. Я помітив, що після питання про маму ви наче відсторонились.' },
+                { who: 'Клієнт', text: 'Та ні, все гаразд… просто втомився.' },
+                { who: 'Терапевт', text: 'Можливо. А може, я зачепив щось болюче. Скажіть, якщо так — і ми сповільнимось.' },
+              ] },
               { type: 'h', text: 'Чого не робити' },
               { type: 'list', items: [
                 { text: 'Не захищатися й не доводити свою правоту.' },
@@ -681,6 +707,12 @@ const SEED_COURSES: Array<{
               { type: 'dialogue', lines: [
                 { who: 'Client', text: 'You keep asking about my childhood, but I need to sort out the here and now.' },
                 { who: 'Therapist', text: "Thank you for saying it straight. It sounds like I went somewhere you didn't need. Let's go back to what's urgent now — where shall we start?" },
+              ] },
+              { type: 'h', text: 'The same with withdrawal' },
+              { type: 'dialogue', lines: [
+                { who: 'Therapist', text: "You're quiet today — and that's okay. I noticed that after my question about your mother you seemed to pull back." },
+                { who: 'Client', text: "No, it's fine… just tired." },
+                { who: 'Therapist', text: "Maybe. Or maybe I touched something tender. Tell me if so — and we'll slow down." },
               ] },
               { type: 'h', text: 'What not to do' },
               { type: 'list', items: [
