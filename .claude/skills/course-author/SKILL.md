@@ -63,8 +63,16 @@ A lesson is a `LessonBlock[]`. Aim for **~8–14 blocks / ~5–8 min read**, cov
 9. **Sources** (`sources`) — **every lesson ends with a `sources` block** linking
    the primary sources (DOI / PubMed / publisher) for its claims. This is shown
    to the learner, not just kept in the PR, and it visibly grounds the lesson.
-   Cite the actual papers/books (e.g. Bordin 1979, Rogers 1957, the relevant
-   meta-analysis), not blogs. If you assert it, you cite it.
+   Cite the actual papers/books, not blogs. If you assert it, you cite it.
+   **Prefer the NEWEST authoritative evidence.** Before finalising, run a fresh
+   `WebSearch` for the latest meta-analysis / systematic review / clinical
+   guideline / textbook edition on the topic (e.g. the current Norcross &
+   Lambert *Psychotherapy Relationships That Work* edition, the most recent
+   Cochrane/NICE update). Lead the list with the newest synthesis, then pair it
+   with the originating primary source labelled "першоджерело / original
+   source" so the lesson shows both the current consensus and its lineage.
+   **Order the list newest-first.** Classics earn their place as origins, not as
+   the only citation.
 
 Write in plain Ukrainian (primary) + English mirror. Be concrete and
 example-led; prefer a vivid dialogue over an abstract sentence. Define jargon
@@ -149,6 +157,10 @@ stem makes the term auto-link inline in lesson text.
 ## Sourcing & safety (non-negotiable)
 - Teach **public frameworks in our own words, with citations**. Never paste
   copyrighted text; no long quotes; summaries must be substantially original.
+- **Find the newest authoritative sources.** Don't stop at the classics you
+  remember — search for the latest edition / meta-analysis / guideline and lead
+  with it; keep the founding primary source as the labelled origin. Evidence
+  ages; the visible sources block should reflect the current state of the field.
 - Keep a short **sources list** per lesson (URLs / refs) in the PR description so
   the clinician can verify — even though learners don't see it.
 - **Mandatory human clinical review before `published: true`.** AI-drafted
