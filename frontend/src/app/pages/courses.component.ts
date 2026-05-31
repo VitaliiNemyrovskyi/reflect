@@ -53,6 +53,9 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
               }
             </span>
           </div>
+          <button type="button" class="link-btn expand-all" (click)="expandAll.set(!expandAll())">
+            {{ expandAll() ? tr('Згорнути всі уроки', 'Collapse all lessons') : tr('Розгорнути всі уроки', 'Expand all lessons') }}
+          </button>
         </header>
 
         @if (aboutBlocks().length) {
@@ -317,6 +320,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
 
     /* Catalog */
     .cat-head, .track-head { display: flex; flex-direction: column; gap: 8px; }
+    .expand-all { align-self: flex-start; margin-top: 2px; }
     .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
     .card { display: flex; flex-direction: column; gap: 8px; padding: 20px; text-decoration: none; color: inherit;
       transition: border-color .15s ease, transform .12s ease; }
@@ -490,6 +494,9 @@ export class CoursesComponent implements OnInit, OnDestroy {
   private checkedSteps = signal<number[]>([]);
   // Completed steps the user has re-opened to re-read.
   private reviewing = signal<number[]>([]);
+  // "Expand all lessons" — opens every completed lesson/quiz for review at once
+  // (e.g. to read deepened/added content after finishing a module).
+  protected expandAll = signal(false);
 
   // Inline glossary linking + definition popover.
   protected linker = computed<Linker>(() => buildLinker(this.detail()?.glossary ?? [], this.i18n.isEn));
@@ -631,7 +638,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
   /** Show the step's body when it's the active step, or a completed step
    *  the user has re-opened to review. */
   protected showContent(s: CourseStep): boolean {
-    return (s.available && !s.done) || (s.done && this.isReviewing(s.id));
+    return (s.available && !s.done) || (s.done && (this.isReviewing(s.id) || this.expandAll()));
   }
 
   // ── Quiz helpers ──────────────────────────────────────────────────────────
