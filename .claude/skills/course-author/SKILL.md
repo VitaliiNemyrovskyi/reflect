@@ -125,7 +125,7 @@ Inline, theme-aware, bilingual SVGs in
 **`frontend/src/app/course-figure.component.ts`**. Reference by key:
 `alliance-triangle`, `oars`, `biopsychosocial`, `risk-ladder`, `anxiety-loop`,
 `grounding`, `suds`, `rupture-repair`, `session-arc`, `safety-plan`,
-`depression-cycle`, `cognitive-triad`.
+`depression-cycle`, `cognitive-triad`, `belief-levels`, `three-circles`.
 **Need a new diagram?** Add a `@case ('<key>')` with an
 SVG (use the existing `.t-fg/.t-accent/.stroke-accent` classes + `tr()` labels),
 then reference it as a `figure` block. Prefer a code-drawn diagram over raster art.
