@@ -31,6 +31,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
   selector: 'app-admin',
   standalone: true,
   imports: [CommonModule, DatePipe, FormsModule, RouterLink, IconComponent],
+  host: { '(document:keydown.escape)': 'onEscape()' },
   template: `
     <header class="admin-header">
       <a routerLink="/" class="back">← На головну</a>
@@ -400,15 +401,15 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
             </div>
           </div>
           <h3 class="recent-head">За моделлю (7 днів)</h3>
-          <table>
+          <table class="data-table compact">
             <thead><tr><th>Модель</th><th>Виклики</th><th>Токени</th><th>Вартість</th></tr></thead>
             <tbody>
               @for (m of u.byModel; track m.model) {
                 <tr>
                   <td>{{ m.model }}</td>
-                  <td>{{ m.calls }}</td>
-                  <td>{{ m.tokens }}</td>
-                  <td>{{ fmtUsd(m.costUsd) }}</td>
+                  <td class="num">{{ m.calls }}</td>
+                  <td class="num">{{ m.tokens }}</td>
+                  <td class="num">{{ fmtUsd(m.costUsd) }}</td>
                 </tr>
               }
               @if (u.byModel.length === 0) {
@@ -987,6 +988,42 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
       margin-top: 8px;
     }
     .modal-actions button { padding: 8px 18px; font-size: 14px; }
+
+    /* ── Responsive & touch ──────────────────────────────────────────────
+       This dashboard is desktop-first (the operator is usually on a laptop),
+       but it must not break on a phone. Data tables already scroll
+       horizontally (.data-table is display:block; overflow-x:auto); below we
+       trim chrome at narrow widths and—critically—grow the row-action
+       tap targets on touch input, where the 12px mouse-scanning links are
+       far below the 44px guideline (skill §2). */
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      .subtitle { font-size: 12px; }
+      .data-table th, .data-table td { padding: 7px 10px; }
+      .row-actions { width: auto; justify-content: flex-start; column-gap: 16px; }
+      .cost-figure { font-size: 24px; }
+      .session-detail { padding: 14px; }
+      .funnel-steps li { padding: 12px 14px; gap: 12px; }
+      .step-meta strong { font-size: 19px; }
+    }
+    /* Touch input (phone/tablet): the row-action text-links are intentionally
+       12px for mouse scanning; on touch they must clear the 44px target and
+       sit ≥8px apart (WCAG / Apple HIG / Material). */
+    @media (pointer: coarse) {
+      .link-btn, button.small {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .row-actions { row-gap: 8px; column-gap: 18px; }
+      .tabs button { min-height: 44px; }
+    }
+    /* Remove the 300ms tap delay on the dashboard's interactive controls. */
+    .tabs button,
+    .link-btn,
+    button.small,
+    .modal-actions button,
+    .data-table tbody tr { touch-action: manipulation; }
   `],
 })
 export class AdminComponent implements OnInit {
@@ -1232,6 +1269,13 @@ export class AdminComponent implements OnInit {
   closeGrantPlan() {
     if (this.grantBusy()) return;  // don't lose in-flight context on backdrop click
     this.grantDialog.set(null);
+  }
+
+  /** Escape closes the grant-plan modal (a11y: every modal needs a keyboard
+   *  escape route). Guarded by closeGrantPlan() so an in-flight grant isn't
+   *  abandoned mid-request. No-op when no modal is open. */
+  onEscape() {
+    if (this.grantDialog()) this.closeGrantPlan();
   }
 
   /**
