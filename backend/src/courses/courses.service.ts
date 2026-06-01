@@ -2444,11 +2444,7 @@ const SEED_COURSES: Array<{
               { type: 'figure', figure: 'belief-levels' },
               { type: 'p', text: 'Сучасна КПТ (J. Beck, 2021) розрізняє три рівні: автоматичні думки — швидкі, ситуативні («я провалюся»); проміжні переконання — правила й припущення («якщо я не ідеальний, мене відкинуть»); глибинні переконання — абсолютні твердження про себе, сформовані рано в житті.' },
               { type: 'h', text: 'Три типові глибинні переконання' },
-              { type: 'list', items: [
-                { term: 'Я нелюбимий', text: '«мене не можна любити», «я нікому не потрібен».' },
-                { term: 'Я нікчемний / неспроможний', text: '«я невдаха», «я нічого не вартий».' },
-                { term: 'Я безпорадний', text: '«я не впораюся», «світ небезпечний, а я слабкий».' },
-              ] },
+              { type: 'p', text: 'Хоч у кожного свої слова, дослідники помітили, що глибинні переконання зазвичай крутяться навколо трьох тем. Перша — «я нелюбимий»: «мене не можна любити», «я нікому не потрібен». Друга — «я нікчемний» чи «неспроможний»: «я невдаха», «я нічого не вартий». Третя — «я безпорадний»: «я не впораюся», «світ небезпечний, а я слабкий». Майже будь-яка важка автоматична думка, якщо йти за нею вниз, зрештою впирається в одну з цих трьох.' },
               { type: 'h', text: 'Техніка «стріла вниз»' },
               { type: 'p', text: 'Щоб дістатися переконання, не сперечайся з поверхневою думкою, а йди вглиб питанням: «Припустимо, це правда — і що це означає / чим це погано для вас?» Повторюй, доки не впрешся в абсолютне твердження про себе.' },
               { type: 'dialogue', lines: [
@@ -2460,10 +2456,7 @@ const SEED_COURSES: Array<{
               ] },
               { type: 'p', text: 'Ось воно — глибинне переконання («я нездара»). Тепер видно, з чим насправді працювати.' },
               { type: 'h', text: 'Обережно' },
-              { type: 'list', items: [
-                { text: 'Не «бури» надто швидко — «стріла вниз» торкається болючого; йди в темпі клієнта.' },
-                { text: 'Дійшовши до переконання, не лишай людину в ньому — познач, що це переконання, а не факт, і що далі працюватимете разом.' },
-              ] },
+              { type: 'p', text: 'Два застереження. По-перше, не «бури» надто швидко: «стріла вниз» торкається болючого, тож іди в темпі клієнта, а не свого азарту. По-друге, дійшовши до переконання, не лишай людину наодинці з ним — обовʼязково познач, що це переконання, сформоване колись давно, а не факт про неї, і що далі ви працюватимете з ним разом.' },
               { type: 'quote', text: 'Поверхнева думка — це симптом. Глибинне переконання — корінь. Лікувати корінь надійніше.' },
               { type: 'sources', sources: [
                 { label: 'Beck J. (2021). Cognitive Behavior Therapy: Basics and Beyond, 3-тє вид. — рівні думок і техніка «стріла вниз».', url: 'https://www.guilford.com/books/Cognitive-Behavior-Therapy/Judith-Beck/9781462544196' },
@@ -2477,11 +2470,7 @@ const SEED_COURSES: Array<{
               { type: 'figure', figure: 'belief-levels' },
               { type: 'p', text: 'Modern CBT (J. Beck, 2021) distinguishes three levels: automatic thoughts — fast, situational ("I\'ll fail"); intermediate beliefs — rules and assumptions ("if I\'m not perfect, I\'ll be rejected"); core beliefs — absolute statements about the self, formed early in life.' },
               { type: 'h', text: 'Three typical core beliefs' },
-              { type: 'list', items: [
-                { term: 'I am unlovable', text: '"I can\'t be loved", "nobody needs me".' },
-                { term: 'I am worthless / incompetent', text: '"I\'m a failure", "I\'m worth nothing".' },
-                { term: 'I am helpless', text: '"I can\'t cope", "the world is dangerous and I\'m weak".' },
-              ] },
+              { type: 'p', text: 'Although everyone has their own words, researchers noticed that core beliefs usually circle three themes. The first is "I am unlovable": "I can\'t be loved", "nobody needs me". The second is "I am worthless" or "incompetent": "I\'m a failure", "I\'m worth nothing". The third is "I am helpless": "I can\'t cope", "the world is dangerous and I\'m weak". Almost any heavy automatic thought, followed down, lands on one of these three.' },
               { type: 'h', text: 'The downward-arrow technique' },
               { type: 'p', text: 'To reach the belief, do not argue with the surface thought; go down with a question: "Suppose it\'s true — what would that mean / why is that bad for you?" Repeat until you hit an absolute statement about the self.' },
               { type: 'dialogue', lines: [
@@ -2493,10 +2482,7 @@ const SEED_COURSES: Array<{
               ] },
               { type: 'p', text: 'There it is — the core belief ("I\'m useless"). Now you can see what you are really working with.' },
               { type: 'h', text: 'Carefully' },
-              { type: 'list', items: [
-                { text: 'Don\'t drill too fast — the downward arrow touches the tender; go at the client\'s pace.' },
-                { text: 'Having reached the belief, don\'t leave the person in it — name it as a belief, not a fact, and that you\'ll work on it together.' },
-              ] },
+              { type: 'p', text: "Two cautions. First, don't drill too fast: the downward arrow touches the tender, so go at the client's pace, not your own eagerness. Second, having reached the belief, don't leave the person alone with it — be sure to name it as a belief formed long ago, not a fact about them, and that you'll work on it together from here." },
               { type: 'quote', text: 'The surface thought is a symptom. The core belief is the root. Treating the root holds better.' },
               { type: 'sources', sources: [
                 { label: 'Beck J. (2021). Cognitive Behavior Therapy: Basics and Beyond, 3rd ed. — levels of cognition and the downward-arrow technique.', url: 'https://www.guilford.com/books/Cognitive-Behavior-Therapy/Judith-Beck/9781462544196' },
@@ -2513,13 +2499,8 @@ const SEED_COURSES: Array<{
               { type: 'p', text: 'Глибинне переконання не спростувати однією розмовою: воно роками «збирало докази» на свою користь і відкидало решту. Тому міняють його не суперечкою, а накопиченням нового досвіду — терпляче, як перепрошивають стару звичку.' },
               { type: 'h', text: 'Чому «просто переконати» не працює' },
               { type: 'p', text: 'У клієнта вже є фільтр: усе, що підтверджує «я нікчема», помічається й запамʼятовується, а успіхи знецінюються («пощастило», «будь-хто б зміг»). Логічний доказ протилежного відскакує від цього фільтра. Працює інше — досвід, який важко відмахнути.' },
-              { type: 'h', text: 'Інструменти зміни' },
-              { type: 'list', items: [
-                { term: 'Журнал нових доказів', text: 'щодня занотовувати дрібниці, що суперечать переконанню («колега подякував» проти «я нікому не потрібен»).' },
-                { term: 'Континуум', text: 'замість «нікчема / ідеал» — шкала 0–100 і питання «де ти насправді, з фактами?».' },
-                { term: 'Історичний огляд', text: 'переглянути життя в пошуках епізодів, що не вписуються в переконання.' },
-                { term: 'Дія всупереч', text: 'поведінковий експеримент — зробити те, чого переконання «забороняє», і подивитися на реальний результат.' },
-              ] },
+              { type: 'h', text: 'Чим міняють переконання' },
+              { type: 'p', text: 'Працюють чотири інструменти, і всі вони про досвід, а не про красномовство. Перший — журнал нових доказів: клієнт щодня занотовує дрібниці, що суперечать переконанню («колега подякував» проти «я нікому не потрібен»). Другий — континуум: замість «нікчема або ідеал» малюють шкалу 0–100 і чесно питають «а де я насправді, якщо дивитися на факти?». Третій — історичний огляд: разом переглядають життя в пошуках епізодів, що в переконання не вписуються. І четвертий, найсильніший, — дія всупереч: поведінковий експеримент, у якому клієнт робить те, що переконання «забороняє», і на власні очі бачить реальний результат.' },
               { type: 'h', text: 'Формулюємо нове, реалістичне переконання' },
               { type: 'p', text: 'Мета — не плакат «я чудовий» (мозок не повірить), а збалансоване й правдоподібне: «я звичайна людина, яка має і сильні сторони, і промахи — як усі». Таке переконання витримує перевірку реальністю.' },
               { type: 'dialogue', lines: [
@@ -2527,12 +2508,8 @@ const SEED_COURSES: Array<{
                 { who: 'Клієнт', text: 'Ну… мабуть, не дуже вписується.' },
                 { who: 'Терапевт', text: 'Саме так. Назбираймо ще таких випадків — і подивимось, наскільки старе переконання точне.' },
               ] },
-              { type: 'h', text: 'Типові помилки' },
-              { type: 'list', items: [
-                { text: 'Намагатися «перемогти» переконання логікою за одну сесію.' },
-                { text: 'Підмінювати реалістичне переконання нещирим позитивом.' },
-                { text: 'Збирати докази лише в кабінеті — головна робота відбувається в житті між сесіями.' },
-              ] },
+              { type: 'h', text: 'Чого уникати' },
+              { type: 'p', text: 'Кілька типових пасток. Не намагайся «перемогти» переконання логікою за одну сесію — у моменті воно сильніше за будь-який аргумент. Не підмінюй реалістичне переконання нещирим позитивом, бо клієнт миттєво відчує фальш. І памʼятай: головна робота відбувається не в кабінеті, а в житті між сесіями — тому докази клієнт збирає там, а не лише на прийомі.' },
               { type: 'quote', text: 'Глибинне переконання міняє не сильніший аргумент, а інший досвід, що накопичується.' },
               { type: 'sources', sources: [
                 { label: 'Beck J. (2021). Cognitive Behavior Therapy: Basics and Beyond, 3-тє вид. — модифікація переконань.', url: 'https://www.guilford.com/books/Cognitive-Behavior-Therapy/Judith-Beck/9781462544196' },
@@ -2543,13 +2520,8 @@ const SEED_COURSES: Array<{
               { type: 'p', text: 'A core belief cannot be refuted in one conversation: for years it "gathered evidence" in its favour and discarded the rest. So you change it not by argument but by accumulating new experience — patiently, the way you re-wire an old habit.' },
               { type: 'h', text: 'Why "just convince them" fails' },
               { type: 'p', text: 'The client already has a filter: everything confirming "I\'m worthless" is noticed and remembered, while successes are discounted ("luck", "anyone could"). A logical proof to the contrary bounces off this filter. What works is different — experience that is hard to wave away.' },
-              { type: 'h', text: 'Tools for change' },
-              { type: 'list', items: [
-                { term: 'Positive-data log', text: 'note daily the small things that contradict the belief ("a colleague thanked me" vs "nobody needs me").' },
-                { term: 'Continuum', text: 'instead of "worthless / ideal" — a 0–100 scale and "where are you really, with the facts?".' },
-                { term: 'Historical review', text: 'scan the life story for episodes that do not fit the belief.' },
-                { term: 'Acting against it', text: 'a behavioural experiment — do what the belief "forbids" and look at the real outcome.' },
-              ] },
+              { type: 'h', text: 'What changes a belief' },
+              { type: 'p', text: 'Four tools work, and all of them are about experience, not eloquence. The first is a positive-data log: the client notes daily the small things that contradict the belief ("a colleague thanked me" vs "nobody needs me"). The second is a continuum: instead of "worthless or ideal" you draw a 0–100 scale and ask honestly, "where am I really, if I look at the facts?". The third is a historical review: together you scan the life story for episodes that do not fit the belief. And the fourth, the strongest, is acting against it: a behavioural experiment in which the client does what the belief "forbids" and sees the real outcome with their own eyes.' },
               { type: 'h', text: 'Craft a new, realistic belief' },
               { type: 'p', text: 'The goal is not a "I\'m wonderful" poster (the brain won\'t buy it) but something balanced and plausible: "I\'m an ordinary person with strengths and slip-ups — like everyone." Such a belief survives contact with reality.' },
               { type: 'dialogue', lines: [
@@ -2557,12 +2529,8 @@ const SEED_COURSES: Array<{
                 { who: 'Client', text: "Well… I suppose it doesn't fit very well." },
                 { who: 'Therapist', text: "Exactly. Let's collect more cases like that — and see how accurate the old belief really is." },
               ] },
-              { type: 'h', text: 'Common mistakes' },
-              { type: 'list', items: [
-                { text: 'Trying to "win" against the belief with logic in a single session.' },
-                { text: 'Replacing a realistic belief with insincere positivity.' },
-                { text: 'Collecting evidence only in the room — the main work happens in life between sessions.' },
-              ] },
+              { type: 'h', text: 'What to avoid' },
+              { type: 'p', text: 'A few common traps. Don\'t try to "win" against the belief with logic in a single session — in the moment it is stronger than any argument. Don\'t replace a realistic belief with insincere positivity, because the client will instantly feel the falseness. And remember: the main work happens not in the room but in life between sessions — so the client gathers the evidence there, not only at the appointment.' },
               { type: 'quote', text: 'A core belief is changed not by a stronger argument but by different experience that accumulates.' },
               { type: 'sources', sources: [
                 { label: 'Beck J. (2021). Cognitive Behavior Therapy: Basics and Beyond, 3rd ed. — modifying beliefs.', url: 'https://www.guilford.com/books/Cognitive-Behavior-Therapy/Judith-Beck/9781462544196' },
@@ -2643,12 +2611,7 @@ const SEED_COURSES: Array<{
               { type: 'p', text: 'РФ-КПТ (Watkins, 2016) показує: справа не в темі думок, а в РЕЖИМІ мислення. Абстрактно-оцінне «чому це зі мною?» крутиться без виходу. Конкретно-дієве «що саме сталося і що я зроблю далі?» — рухає вперед. Та сама проблема, два режими — і лише один корисний.' },
               { type: 'figure', figure: 'depression-cycle', caption: 'Румінація живить низхідну спіраль: забирає час і сили, нічого не вирішуючи.' },
               { type: 'h', text: 'Як зміщувати режим' },
-              { type: 'list', items: [
-                { term: 'Лови ранні ознаки', text: 'разом визначте, де й коли зазвичай починається «жуйка» (ліжко ввечері, дорога).' },
-                { term: 'Питай «як», а не «чому»', text: '«як я можу зробити перший крок?» замість «чому я такий?».' },
-                { term: 'Відкладена румінація', text: 'домовитися «думати про це о 18:00 15 хвилин», а не цілий день.' },
-                { term: 'Дія перебиває жуйку', text: 'конкретна дрібна справа (та сама активація) вириває з абстрактного циклу.' },
-              ] },
+              { type: 'p', text: 'Кілька практичних ходів. По-перше, разом ловіть ранні ознаки — де й коли зазвичай починається «жуйка» (ліжко ввечері, дорога на роботу): помітити її на старті легше, ніж вибиратися з години роздумів. По-друге, замінюйте питання: «як я можу зробити перший крок?» замість «чому я такий?» — «як» веде до дії, «чому» веде по колу. По-третє, відкладена румінація: домовитися «подумаю про це о 18:00 рівно 15 хвилин», а не весь день — це повертає відчуття контролю. І по-четверте, дія перебиває жуйку: конкретна дрібна справа (та сама активація) фізично вириває людину з абстрактного циклу.' },
               { type: 'dialogue', lines: [
                 { who: 'Клієнт', text: 'Я просто не розумію, чому я завжди все псую.' },
                 { who: 'Терапевт', text: '«Чому завжди» — велике питання без дна. Спробуймо інше: який конкретний момент цього тижня вас зачепив — і що ви могли б зробити в схожій ситуації наступного разу?' },
@@ -2668,12 +2631,7 @@ const SEED_COURSES: Array<{
               { type: 'p', text: 'Rumination-focused CBT (Watkins, 2016) shows: it is not the topic of the thoughts that matters but the MODE of thinking. The abstract-evaluative "why is this happening to me?" spins with no exit. The concrete-active "what exactly happened and what will I do next?" moves forward. Same problem, two modes — and only one is useful.' },
               { type: 'figure', figure: 'depression-cycle', caption: 'Rumination feeds the downward spiral: it eats time and energy while resolving nothing.' },
               { type: 'h', text: 'How to shift the mode' },
-              { type: 'list', items: [
-                { term: 'Catch the early signs', text: 'map together where and when the "chewing" usually starts (bed at night, the commute).' },
-                { term: 'Ask "how", not "why"', text: '"how can I take a first step?" instead of "why am I like this?".' },
-                { term: 'Postponed rumination', text: 'agree to "think about it at 6 pm for 15 minutes", not all day.' },
-                { term: 'Action interrupts the loop', text: 'a concrete small task (the same activation) pulls one out of the abstract cycle.' },
-              ] },
+              { type: 'p', text: 'A few practical moves. First, catch the early signs together — where and when the "chewing" usually starts (bed at night, the commute): it is easier to notice it at the outset than to climb out of an hour of brooding. Second, swap the question: "how can I take a first step?" instead of "why am I like this?" — "how" leads to action, "why" leads in circles. Third, postponed rumination: agree to "think about it at 6 pm for exactly 15 minutes", not all day — this restores a sense of control. And fourth, action interrupts the loop: a concrete small task (the same activation) physically pulls the person out of the abstract cycle.' },
               { type: 'dialogue', lines: [
                 { who: 'Client', text: "I just don't understand why I always ruin everything." },
                 { who: 'Therapist', text: '"Why always" is a big, bottomless question. Let\'s try another: what specific moment this week stung — and what could you do in a similar situation next time?' },
@@ -2698,17 +2656,9 @@ const SEED_COURSES: Array<{
               { type: 'p', text: 'Самокритика тримається на вірі «якщо я перестану себе бичувати — розкисну й нічого не робитиму». Насправді постійна загроза зсередини виснажує. Тут у пригоді терапія, сфокусована на співчутті (Gilbert): вона не «хвалить», а вмикає іншу систему регуляції емоцій.' },
               { type: 'h', text: 'Три системи емоцій' },
               { type: 'figure', figure: 'three-circles' },
-              { type: 'list', items: [
-                { term: 'Загроза', text: 'тривога, сором, самокритика — захищає, але в депресії гіперактивна.' },
-                { term: 'Драйв', text: 'гонитва за результатом; сама собою не заспокоює.' },
-                { term: 'Заспокоєння', text: 'безпека, тепло, звʼязок. У депресії «спить» — її і треба плекати.' },
-              ] },
+              { type: 'p', text: 'Гілберт описує три системи регуляції емоцій (їх видно на малюнку). Система загрози — тривога, сором, самокритика; вона захищає, але в депресії гіперактивна й тримає людину в постійній напрузі. Система драйву — гонитва за результатом і досягненнями; вона рухає вперед, але сама собою не заспокоює. І система заспокоєння — безпека, тепло, звʼязок з іншими; саме вона дає відчуття «зі мною все гаразд». У депресії остання наче «спить» — і завдання терапії не «вимкнути» критику силою, а розбудити заспокоєння.' },
               { type: 'h', text: 'Як вирощувати самоспівчуття' },
-              { type: 'list', items: [
-                { term: 'Тон друга', text: '«що б ви сказали другові в такій ситуації?» — і запропонувати сказати це собі.' },
-                { term: 'Спільність людського', text: 'нагадати: помилятися й страждати — частина людського досвіду, а не лише «моя вада».' },
-                { term: 'Пауза самоспівчуття', text: 'коротка практика: назвати біль, визнати його, побажати собі доброти.' },
-              ] },
+              { type: 'p', text: 'Найпростіший вхід — тон друга: спитати «а що б ви сказали другові в такій самій ситуації?» — і запропонувати звернути ці самі слова до себе. Часто між «до себе» і «до друга» — прірва, і вона добре видно. Другий хід — нагадати про спільність людського: помилятися, втомлюватися й страждати — це частина досвіду кожної людини, а не особиста «вада». І третій — коротка пауза самоспівчуття: назвати біль («зараз мені справді важко»), визнати його без осуду й по-доброму побажати собі того, чого потребуєш.' },
               { type: 'p', text: 'Важливо: самоспівчуття — не самопоблажливість і не порожнє самопідбадьорювання. Це чесно визнати біль і поставитися до себе так, як до того, кого любиш. Метааналіз показав, що такі інтервенції помірно знижують депресію, тривогу й стрес (Ferrari та ін., 2019).' },
               { type: 'dialogue', lines: [
                 { who: 'Клієнт', text: 'Якщо я перестану себе гнобити, то взагалі зупинюся.' },
@@ -2733,11 +2683,7 @@ const SEED_COURSES: Array<{
                 { term: 'Soothing', text: 'safety, warmth, connection. In depression it "sleeps" — this is the one to cultivate.' },
               ] },
               { type: 'h', text: 'How to grow self-compassion' },
-              { type: 'list', items: [
-                { term: 'A friend\'s tone', text: '"what would you say to a friend in this situation?" — then invite them to say it to themselves.' },
-                { term: 'Common humanity', text: 'remind: erring and suffering are part of the human experience, not just "my flaw".' },
-                { term: 'Self-compassion break', text: 'a short practice: name the pain, acknowledge it, wish yourself kindness.' },
-              ] },
+              { type: 'p', text: 'The simplest way in is a friend\'s tone: ask "what would you say to a friend in this very situation?" — then invite the client to turn those same words on themselves. Often there is a gulf between "to myself" and "to a friend", and it is plainly visible. The second move is to remind them of common humanity: erring, tiring and suffering are part of every person\'s experience, not a personal "flaw". And the third is a short self-compassion break: name the pain ("this is really hard right now"), acknowledge it without judgement, and kindly wish yourself what you need.' },
               { type: 'p', text: 'Important: self-compassion is not self-indulgence and not empty self-cheerleading. It is to honestly acknowledge pain and treat yourself as you would someone you love. A meta-analysis found such interventions moderately reduce depression, anxiety and stress (Ferrari et al., 2019).' },
               { type: 'dialogue', lines: [
                 { who: 'Client', text: "If I stop beating myself up, I'll just stop altogether." },
@@ -2825,12 +2771,7 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'Пастка «полагодити»' },
               { type: 'p', text: 'Природний порив — закидати клієнта рішеннями й доводити, що «не все так погано». Але кожне ваше «а ви спробуйте…» наражається на «так, але…», ви вигораєте, а клієнт зайвий раз «доводить», що його випадок безнадійний. Ви мимоволі граєте оптиміста — і змушуєте його грати песиміста.' },
               { type: 'h', text: 'Що працює натомість' },
-              { type: 'list', items: [
-                { term: 'Спершу визнати, не переконувати', text: '«Схоже, звідти, де ви зараз, справді не видно виходу.» Валідація відкриває, сперечання зачиняє.' },
-                { term: 'Не сперечайся з безнадією — досліджуй', text: '«Що мало б статися, щоб зʼявилася хоч крихта надії?»' },
-                { term: 'Надія через дію, не слова', text: 'один крихітний експеримент (активація) дає докази краще за будь-яке переконування.' },
-                { term: 'Тримай ризик у фокусі', text: 'безнадія + «нащо все це» — привід прямо перевірити суїцидальні думки.' },
-              ] },
+              { type: 'p', text: 'Спершу — визнати, а не переконувати: «Схоже, звідти, де ви зараз, справді не видно виходу.» Валідація відкриває розмову, а сперечання її зачиняє. Далі — не сперечайся з безнадією, а досліджуй її: «Що мало б статися, щоб зʼявилася хоч крихта надії?» Це повертає клієнта в позицію спостерігача власного стану. Надію будуй через дію, а не слова: один крихітний експеримент (та сама активація) дає докази переконливіше за будь-яке вмовляння. І весь час тримай ризик у фокусі — безнадія разом із «нащо все це» — прямий привід спокійно перевірити суїцидальні думки.' },
               { type: 'dialogue', lines: [
                 { who: 'Клієнт', text: 'Та що ті ваші вправи. Мені вже нічого не допоможе.' },
                 { who: 'Терапевт', text: 'Можливо, ви маєте рацію — звідси справді важко повірити, що щось зрушить. Я не проситиму вірити. Пропоную крихітний експеримент на тиждень — і нехай результат скаже сам за себе. А якщо не спрацює — це теж корисна інформація для нас.' },
@@ -2852,12 +2793,7 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'The "fix-it" trap' },
               { type: 'p', text: 'The natural urge is to pelt the client with solutions and prove "it\'s not all that bad". But every "well, why don\'t you try…" runs into "yes, but…", you burn out, and the client once more "proves" their case is hopeless. You end up playing the optimist — and casting them as the pessimist.' },
               { type: 'h', text: 'What works instead' },
-              { type: 'list', items: [
-                { term: 'Acknowledge first, don\'t convince', text: '"It sounds like, from where you are, there really is no way out in sight." Validation opens; arguing closes.' },
-                { term: 'Don\'t argue with hopelessness — explore it', text: '"What would have to happen for even a crumb of hope to appear?"' },
-                { term: 'Hope through action, not words', text: 'one tiny experiment (activation) gives evidence better than any persuasion.' },
-                { term: 'Keep risk in focus', text: 'hopelessness + "what\'s the point of any of this" is a cue to screen suicidal thoughts directly.' },
-              ] },
+              { type: 'p', text: 'First, acknowledge rather than convince: "It sounds like, from where you are, there really is no way out in sight." Validation opens the conversation; arguing closes it. Then, don\'t argue with the hopelessness — explore it: "What would have to happen for even a crumb of hope to appear?" That returns the client to the position of an observer of their own state. Build hope through action, not words: one tiny experiment (the same activation) gives evidence more convincingly than any persuasion. And keep risk in focus throughout — hopelessness together with "what\'s the point of any of this" is a direct cue to calmly screen for suicidal thoughts.' },
               { type: 'dialogue', lines: [
                 { who: 'Client', text: "Come on, your exercises. Nothing will help me now." },
                 { who: 'Therapist', text: "You may be right — from here it really is hard to believe anything will shift. I won't ask you to believe. I'm proposing a tiny experiment for one week — and let the result speak for itself. And if it doesn't work, that's useful information for us too." },
