@@ -147,6 +147,34 @@ import { I18nService } from './i18n.service';
             <text x="374" y="14" text-anchor="end" class="t-mut" font-size="11">{{ tr('сам → інші', 'self → others') }}</text>
           </svg>
         }
+        @case ('depression-cycle') {
+          <svg viewBox="0 0 320 230" class="fig" role="img" [attr.aria-label]="tr('Низхідна спіраль депресії', 'The downward spiral of depression')">
+            <defs>
+              <marker id="fig-arrow-dep" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" class="fill-accent" />
+              </marker>
+            </defs>
+            <circle cx="160" cy="115" r="78" fill="none" class="stroke-accent" stroke-width="1.6"
+              stroke-dasharray="44 24" marker-end="url(#fig-arrow-dep)" opacity="0.7" />
+            <text x="160" y="30" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('Низький настрій', 'Low mood') }}</text>
+            <text x="250" y="119" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('Менше дій', 'Less activity') }}</text>
+            <text x="160" y="208" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('Менше радості', 'Fewer rewards') }}</text>
+            <text x="70" y="119" text-anchor="middle" class="t-mut" font-size="12">{{ tr('Самокритика', 'Self-criticism') }}</text>
+          </svg>
+        }
+        @case ('cognitive-triad') {
+          <svg viewBox="0 0 320 210" class="fig" role="img" [attr.aria-label]="tr('Когнітивна тріада: себе, світ, майбутнє', 'Cognitive triad: self, world, future')">
+            <polygon points="160,28 38,184 282,184" class="stroke-accent" fill="none" stroke-width="2" />
+            <text x="160" y="120" text-anchor="middle" class="t-mut" font-size="12">{{ tr('Когнітивна', 'Cognitive') }}</text>
+            <text x="160" y="136" text-anchor="middle" class="t-mut" font-size="12">{{ tr('тріада', 'triad') }}</text>
+            <circle cx="160" cy="28" r="6" class="fill-accent" />
+            <circle cx="38" cy="184" r="6" class="fill-accent" />
+            <circle cx="282" cy="184" r="6" class="fill-accent" />
+            <text x="160" y="16" text-anchor="middle" class="t-fg" font-size="13" font-weight="600">{{ tr('Себе', 'Self') }}</text>
+            <text x="38" y="202" text-anchor="middle" class="t-fg" font-size="13" font-weight="600">{{ tr('Світ', 'World') }}</text>
+            <text x="282" y="202" text-anchor="middle" class="t-fg" font-size="13" font-weight="600">{{ tr('Майбутнє', 'Future') }}</text>
+          </svg>
+        }
       }
       @if (caption) { <figcaption>{{ caption }}</figcaption> }
     </figure>
