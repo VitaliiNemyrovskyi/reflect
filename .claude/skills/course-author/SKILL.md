@@ -48,7 +48,9 @@ sources list per lesson for the clinical reviewer — see Safety).
 
 ## What "deep, not куца" means — the lesson quality bar
 
-A lesson is a `LessonBlock[]`. Aim for **~8–14 blocks / ~5–8 min read**, covering:
+A lesson is a `LessonBlock[]`. Aim for **~14–22 blocks / ~6–9 min read,
+prose-dominant** (~3000–4500 characters of paragraph text across ~8–12 `p`
+blocks), covering:
 
 1. **Hook / why it matters** (`p`) — the clinical stakes in one short paragraph.
 2. **Core concept** (`h` + `p`) — define it precisely; name the framework/author.
@@ -74,9 +76,25 @@ A lesson is a `LessonBlock[]`. Aim for **~8–14 blocks / ~5–8 min read**, cov
    **Order the list newest-first.** Classics earn their place as origins, not as
    the only citation.
 
-Write in plain Ukrainian (primary) + English mirror. Be concrete and
-example-led; prefer a vivid dialogue over an abstract sentence. Define jargon
-on first use and add it to the glossary (below).
+Write in plain Ukrainian (primary) + English mirror. **Write for a complete
+beginner who has never studied psychology** — explain everything from the
+ground up, define every term in plain words on first use (and add it to the
+glossary), and assume no prior knowledge.
+
+**Teach in flowing prose, not a "pretty конспект."** The spine of a lesson is
+explanatory paragraphs that *unfold* an idea (story → why → how), not a stack
+of headings with bullet lists. Bullet `list`s are seasoning — at most one or
+two per lesson, and only for a genuine enumeration (ordered steps, do/don't,
+mistakes). If a lesson is mostly `h` + `list` with thin prose, it *lists*
+points instead of *teaching* them — rewrite it as paragraphs. Be concrete and
+example-led; prefer a vivid dialogue over an abstract sentence.
+
+**An orienting / first lesson must answer a newcomer's real questions,
+narratively, before diving into technique:** where the concept came from (a
+short history / origin), what it actually is and what's going on, *why*
+(mechanism — and debunk common myths), and — up front, not hidden in a later
+module — how it's treated (the map of methods). The learner should never feel
+"dropped mid-run".
 
 ## Reflect's course data model (emit content that drops straight in)
 
@@ -172,6 +190,14 @@ stem makes the term auto-link inline in lesson text.
 
 ## Anti-patterns (what made earlier theory "куца")
 - Writing from memory without researching → generic, thin, sometimes wrong.
+- A **«красивий конспект»**: a stack of headings + bullet lists that *lists*
+  points instead of *teaching* them, with thin prose (~700 chars). Looks tidy,
+  teaches little. The fix is narrative prose; lists are seasoning, not the meal.
+- Diving straight into technique with **no introduction to the concept** (its
+  origin, what it is, why it matters) → the learner feels dropped mid-run.
+- Hiding the **treatment / clinical map** in a later module when a newcomer
+  needs the lay of the land up front.
+- Assuming prior knowledge / using jargon as if the reader already studied psych.
 - 3–4 short paragraphs and done → no steps, no example, no figure, no mistakes.
 - Abstract description with no dialogue → learners can't see the skill in action.
 - Jargon used but never defined / not added to the glossary.
