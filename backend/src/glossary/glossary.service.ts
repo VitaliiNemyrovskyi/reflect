@@ -94,12 +94,13 @@ interface SeedTerm {
   termEn: string;
   defUk: string;
   defEn: string;
-  category: 'frame' | 'alliance' | 'listening' | 'risk' | 'general' | 'anxiety';
+  category: 'frame' | 'alliance' | 'listening' | 'risk' | 'general' | 'anxiety' | 'depression';
   courses?: string[];
 }
 
 const C = ['intake-rapport'];
 const A = ['anxiety-basics'];
+const D = ['depression-basics'];
 
 /**
  * Ukrainian invariant stems for inline linkifying. The frontend matches each
@@ -136,6 +137,9 @@ const TERM_MATCH: Record<string, string> = {
   grounding: 'заземл',
   'inhibitory-learning': 'інгібіторн',
   'safety-behavior': 'рятувальн',
+  anhedonia: 'ангедон',
+  'behavioral-activation': 'поведінков',
+  rumination: 'румінаці',
 };
 
 const SEED_TERMS: SeedTerm[] = [
@@ -486,5 +490,59 @@ const SEED_TERMS: SeedTerm[] = [
     defEn: 'Small "just-in-case" actions (clutching a phone, sitting by the exit, breathing "correctly") that seem to rescue. They prevent testing the prediction, so they quietly maintain anxiety.',
     category: 'anxiety',
     courses: A,
+  },
+  {
+    slug: 'depression',
+    termUk: 'Депресія',
+    termEn: 'Depression',
+    defUk: 'Стійке (≥2 тижнів) зниження настрою та/або втрата інтересу й задоволення разом з іншими ознаками (сон, енергія, думки), що порушує функціонування. Стан, а не слабкість характеру.',
+    defEn: 'A sustained (≥2 weeks) drop in mood and/or loss of interest and pleasure, with other features (sleep, energy, thinking), impairing functioning. A state, not a character weakness.',
+    category: 'depression',
+    courses: D,
+  },
+  {
+    slug: 'anhedonia',
+    termUk: 'Ангедонія',
+    termEn: 'Anhedonia',
+    defUk: 'Втрата здатності відчувати задоволення від того, що раніше тішило. Одна з ядрових ознак депресії.',
+    defEn: 'Loss of the capacity to feel pleasure from what once pleased. A core feature of depression.',
+    category: 'depression',
+    courses: D,
+  },
+  {
+    slug: 'behavioral-activation',
+    termUk: 'Поведінкова активація',
+    termEn: 'Behavioural activation',
+    defUk: 'Доказовий метод при депресії: поступово повертати дії, що дають задоволення, досягнення й звʼязок, не чекаючи мотивації. Дія йде першою — настрій наздоганяє.',
+    defEn: 'An evidence-based method for depression: gradually bringing back activities that give pleasure, achievement and connection, without waiting for motivation. Action comes first — mood catches up.',
+    category: 'depression',
+    courses: D,
+  },
+  {
+    slug: 'rumination',
+    termUk: 'Румінація',
+    termEn: 'Rumination',
+    defUk: 'Нескінченне пережовування думок «чому я такий», «що зі мною не так». Відчувається як самоаналіз, а насправді поглиблює настрій і нічого не вирішує.',
+    defEn: 'Endless chewing over "why am I like this", "what is wrong with me". It feels like self-analysis but deepens mood and resolves nothing.',
+    category: 'depression',
+    courses: D,
+  },
+  {
+    slug: 'cognitive-triad',
+    termUk: 'Когнітивна тріада',
+    termEn: 'Cognitive triad',
+    defUk: 'Опис Бека: депресивний негативний погляд на СЕБЕ, СВІТ і МАЙБУТНЄ, що живлять одне одного. Думки сприймаються як правда, хоча є симптомом.',
+    defEn: "Beck's description: the depressive negative view of the SELF, the WORLD and the FUTURE, feeding one another. The thoughts feel like truth though they are a symptom.",
+    category: 'depression',
+    courses: D,
+  },
+  {
+    slug: 'relapse-prevention',
+    termUk: 'Профілактика рецидиву',
+    termEn: 'Relapse prevention',
+    defUk: 'Підготовка до можливих майбутніх спадів: ранні маркери, що допомагало раніше, і план дій на перші ознаки. При повторних епізодах доказову роль має MBCT.',
+    defEn: 'Preparing for possible future dips: early markers, what helped before, and an action plan for the first signs. For recurrent episodes, MBCT has an evidence-based role.',
+    category: 'depression',
+    courses: D,
   },
 ];
