@@ -41,27 +41,27 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
         Змінна оточення <code>ADMIN_EMAILS</code> лишається як аварійний bootstrap.
       </p>
 
-      <nav class="tabs">
-        <button [class.active]="tab() === 'users'" (click)="setTab('users')">
-          <app-icon name="users" /> Користувачі
+      <nav class="reflect-tabs" role="tablist">
+        <button role="tab" [attr.aria-selected]="tab() === 'users'" [class.active]="tab() === 'users'" (click)="setTab('users')">
+          <app-icon name="users" /> <span>Користувачі</span>
           @if (users().length) { <span class="count">{{ users().length }}</span> }
         </button>
-        <button [class.active]="tab() === 'sessions'" (click)="setTab('sessions')">
-          <app-icon name="message" /> Сесії
+        <button role="tab" [attr.aria-selected]="tab() === 'sessions'" [class.active]="tab() === 'sessions'" (click)="setTab('sessions')">
+          <app-icon name="message" /> <span>Сесії</span>
           @if (sessions().length) { <span class="count">{{ sessions().length }}</span> }
         </button>
-        <button [class.active]="tab() === 'errors'" (click)="setTab('errors')">
-          <app-icon name="bug" /> Помилки
+        <button role="tab" [attr.aria-selected]="tab() === 'errors'" [class.active]="tab() === 'errors'" (click)="setTab('errors')">
+          <app-icon name="bug" /> <span>Помилки</span>
           @if (errors().length) { <span class="count">{{ errors().length }}</span> }
         </button>
-        <button [class.active]="tab() === 'funnel'" (click)="setTab('funnel')">
-          <app-icon name="funnel" /> Funnel
+        <button role="tab" [attr.aria-selected]="tab() === 'funnel'" [class.active]="tab() === 'funnel'" (click)="setTab('funnel')">
+          <app-icon name="funnel" /> <span>Funnel</span>
         </button>
-        <button [class.active]="tab() === 'cost'" (click)="setTab('cost')">
-          <app-icon name="coin" /> Витрати
+        <button role="tab" [attr.aria-selected]="tab() === 'cost'" [class.active]="tab() === 'cost'" (click)="setTab('cost')">
+          <app-icon name="coin" /> <span>Витрати</span>
         </button>
-        <button class="board-tab" [class.active]="tab() === 'board'" (click)="setTab('board')">
-          <app-icon name="trophy" /> Дошка
+        <button role="tab" class="board-tab" [attr.aria-selected]="tab() === 'board'" [class.active]="tab() === 'board'" (click)="setTab('board')">
+          <app-icon name="trophy" /> <span>Дошка</span>
           @if (board().length) { <span class="count">{{ board().length }}</span> }
         </button>
       </nav>
@@ -94,7 +94,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
             @for (u of users(); track u.id) {
               <tr>
                 <td class="num">{{ u.id }}</td>
-                <td class="email-cell">{{ u.email }}</td>
+                <td class="email-cell" [title]="u.email">{{ u.email }}</td>
                 <td>{{ u.displayName || '—' }}</td>
                 <td><code class="provider">{{ u.provider }}</code></td>
                 <td class="num">{{ u.sessionCount }}</td>
@@ -553,33 +553,18 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
     .dim { color: var(--fg-dim); }
     code { background: var(--user-bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
 
-    .tabs {
-      display: flex;
-      gap: 4px;
-      border-bottom: 1px solid var(--border);
+    /* Tab bar = the library's Synapse-pill component (.reflect-tabs), the
+       same look patient-detail uses. The library default is an equal-column
+       grid; with six tabs that crams on mobile, so we size columns to
+       content and let the strip scroll horizontally instead. */
+    .reflect-tabs {
+      grid-auto-columns: minmax(max-content, 1fr);
       overflow-x: auto;
       scrollbar-width: none;
     }
-    .tabs::-webkit-scrollbar { display: none; }
-    .tabs button {
-      background: transparent;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--fg-dim);
-      padding: 10px 14px 12px;
-      font-size: 14px;
-      cursor: pointer;
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .tabs button:hover { color: var(--fg); }
-    .tabs button.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-    .tabs .count {
+    .reflect-tabs::-webkit-scrollbar { display: none; }
+    .reflect-tabs app-icon { font-size: 15px; }
+    .reflect-tabs .count {
       background: var(--user-bg);
       color: var(--fg-dim);
       font-size: 11px;
@@ -633,11 +618,16 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
     .message { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Cap the email column and let long synthetic addresses break, so the
        users table fits its content column without horizontal scroll. */
-    .email-cell { max-width: 180px; overflow-wrap: anywhere; }
+    /* Single-line email with ellipsis; full address on hover (title).
+       Beats letter-by-letter wrapping of long synthetic test addresses. */
+    .email-cell {
+      max-width: 220px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     /* ── Therapist board (§14) ── */
-    .tabs button.board-tab { display: inline-flex; align-items: center; gap: 6px; }
-    .tabs button.board-tab app-icon { font-size: 15px; }
     .board-note {
       max-width: 760px; line-height: 1.5; margin-bottom: 16px;
       padding: 10px 14px; border-radius: 8px;
@@ -1035,10 +1025,10 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
         align-items: center;
       }
       .row-actions { row-gap: 8px; column-gap: 18px; }
-      .tabs button { min-height: 44px; }
+      .reflect-tabs button { min-height: 44px; }
     }
     /* Remove the 300ms tap delay on the dashboard's interactive controls. */
-    .tabs button,
+    .reflect-tabs button,
     .link-btn,
     button.small,
     .modal-actions button,
