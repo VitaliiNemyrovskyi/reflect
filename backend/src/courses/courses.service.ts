@@ -552,21 +552,10 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'Чому це працює' },
               { type: 'p', text: 'Альянс дає дві речі: відчуття безпеки, щоб клієнт ризикнув бути відвертим, і спільну рамку, у якій його зусилля мають сенс. Без цього навіть доказова техніка сприймається як щось, що «роблять над тобою», а не «разом із тобою».' },
               { type: 'h', text: 'Ядрові умови (Роджерс, 1957)' },
-              { type: 'p', text: 'Роджерс описав шість «необхідних і достатніх» умов зміни; три з них — ядро будь-яких стосунків допомоги:' },
-              { type: 'list', items: [
-                { term: 'Емпатія', text: 'точно відчути світ клієнта зсередини — і повернути це словами, щоб він почув, що його зрозуміли.' },
-                { term: 'Безумовне прийняття', text: 'повага без осуду. Приймаєш людину — не обовʼязково схвалюєш кожен вчинок.' },
-                { term: 'Конгруентність', text: 'щирість: те, що показуєш, збігається з тим, що відчуваєш. Без «маски експерта».' },
-              ] },
+              { type: 'p', text: 'Роджерс описав шість «необхідних і достатніх» умов зміни; три з них — ядро будь-яких стосунків допомоги. Перша — емпатія: точно відчути світ клієнта зсередини й повернути це словами, щоб він почув, що його зрозуміли. Друга — безумовне прийняття: повага без осуду; ти приймаєш людину, хоч і не обовʼязково схвалюєш кожен її вчинок. Третя — конгруентність, тобто щирість: те, що показуєш, збігається з тим, що насправді відчуваєш, без «маски експерта».' },
               { type: 'p', text: 'Це не просто гуманістична риторика. Оновлений метааналіз Elliott і колег (2018; 82 вибірки, понад 6000 клієнтів) показав, що сприйнята клієнтом емпатія повʼязана з результатом на рівні r ≈ 0.28 — приблизно стільки ж, скільки дає сам альянс. Ядрові умови — це робочі інгредієнти зміни, а не приємне тло.' },
               { type: 'h', text: 'Як зміцнювати альянс із перших хвилин' },
-              { type: 'list', items: [
-                { text: 'Проговори спільну ціль уголос: «Якщо я правильно розумію, ви хочете…?»' },
-                { text: 'Пояснюй «навіщо» перед технікою — це і є згода щодо завдань.' },
-                { text: 'Періодично звіряйся: «Ми йдемо туди, куди вам потрібно?»' },
-                { text: 'Більше відкритих питань і віддзеркалень почуттів, ніж порад.' },
-                { text: 'Визнавай зусилля клієнта, а не лише результат.' },
-              ] },
+              { type: 'p', text: 'Кілька конкретних кроків, які працюють із перших хвилин. Проговори спільну ціль уголос: «Якщо я правильно розумію, ви хочете…?» Пояснюй «навіщо» перед кожною технікою — це і є згода щодо завдань. Періодично звіряйся: «Ми йдемо туди, куди вам потрібно?» Став більше відкритих питань і віддзеркалень почуттів, ніж порад. І визнавай зусилля клієнта, а не лише результат — саме це живить звʼязок.' },
               { type: 'dialogue', lines: [
                 { who: 'Клієнт', text: 'Не знаю, чи це взагалі варте вашого часу…' },
                 { who: 'Терапевт', text: 'Схоже, трохи незручно про це говорити — і ви все одно прийшли. Те, що важливо для вас, варте часу. З чого вам легше почати?' },
@@ -577,16 +566,9 @@ const SEED_COURSES: Array<{
                 { who: 'Клієнт', text: 'Окей, спробуймо.' },
               ] },
               { type: 'h', text: 'Слабко → сильно' },
-              { type: 'list', items: [
-                { term: '❌ Слабко', text: '«Не варто так думати, давайте раціональніше» — знецінює й тисне.' },
-                { term: '✅ Сильно', text: '«Схоже, ця думка справді лякає. Розкажете про неї докладніше?» — валідує й відкриває.' },
-              ] },
+              { type: 'p', text: 'Порівняй дві відповіді на ту саму репліку клієнта. Слабка: «Не варто так думати, давайте раціональніше» — вона знецінює почуття й тисне. Сильна: «Схоже, ця думка справді лякає. Розкажете про неї докладніше?» — вона валідує переживання й відкриває розмову. Різниця в одному реченні, а ефект для альянсу — протилежний.' },
               { type: 'h', text: 'Чого не робити' },
-              { type: 'list', items: [
-                { text: 'Не «продавай» довіру словами «довіртеся мені» — її дає досвід, що тебе почули.' },
-                { text: 'Не навʼязуй власну ціль замість клієнтової.' },
-                { text: 'Не запускай техніку без згоди щодо завдань — це найчастіша причина «опору».' },
-              ] },
+              { type: 'p', text: 'І чого варто уникати. Не «продавай» довіру словами «довіртеся мені» — її дає лише досвід того, що тебе почули. Не навʼязуй власну ціль замість клієнтової. І не запускай техніку без згоди щодо завдань — це найчастіша прихована причина так званого «опору».' },
               { type: 'quote', text: 'Альянс — це не передумова роботи, це і є робота. Метод лягає на нього, а не навпаки.' },
               { type: 'sources', sources: [
                 { label: 'Norcross & Lambert (ред., 2019). Psychotherapy Relationships That Work, 3-тє вид. — доказовий консенсус щодо терапевтичних стосунків.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
@@ -609,21 +591,10 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'Why it works' },
               { type: 'p', text: 'The alliance gives two things: enough safety for the client to risk being honest, and a shared frame in which their effort makes sense. Without it, even an evidence-based technique feels like something done *to* you rather than *with* you.' },
               { type: 'h', text: 'Core conditions (Rogers, 1957)' },
-              { type: 'p', text: 'Rogers described six "necessary and sufficient" conditions for change; three are the core of any helping relationship:' },
-              { type: 'list', items: [
-                { term: 'Empathy', text: "accurately sensing the client's world from the inside — and reflecting it back so they feel understood." },
-                { term: 'Unconditional positive regard', text: 'respect without judgement. You accept the person — not necessarily every action.' },
-                { term: 'Congruence', text: 'genuineness: what you show matches what you feel. No "expert mask".' },
-              ] },
+              { type: 'p', text: 'Rogers described six "necessary and sufficient" conditions for change; three are the core of any helping relationship. The first is empathy: accurately sensing the client\'s world from the inside and reflecting it back so they feel understood. The second is unconditional positive regard: respect without judgement — you accept the person, though not necessarily every action. The third is congruence, that is genuineness: what you show matches what you actually feel, with no "expert mask".' },
               { type: 'p', text: "This is not just humanistic rhetoric. Elliott and colleagues' updated meta-analysis (2018; 82 samples, 6,000+ clients) found client-perceived empathy relates to outcome at r ≈ 0.28 — about as much as the alliance itself. The core conditions are working ingredients of change, not pleasant background." },
               { type: 'h', text: 'Strengthening the alliance from the first minutes' },
-              { type: 'list', items: [
-                { text: 'Say the shared goal out loud: "If I understand right, you want…?"' },
-                { text: 'Explain the "why" before a technique — that is task agreement.' },
-                { text: 'Check in periodically: "Are we heading where you need to go?"' },
-                { text: 'More open questions and reflections of feeling than advice.' },
-                { text: "Affirm the client's effort, not just the outcome." },
-              ] },
+              { type: 'p', text: 'A few concrete moves that work from the first minutes. Say the shared goal out loud: "If I understand right, you want…?" Explain the "why" before every technique — that is task agreement. Check in periodically: "Are we heading where you need to go?" Use more open questions and reflections of feeling than advice. And affirm the client\'s effort, not just the outcome — that is what feeds the bond.' },
               { type: 'dialogue', lines: [
                 { who: 'Client', text: 'I am not sure this is even worth your time…' },
                 { who: 'Therapist', text: "It sounds a little uncomfortable to bring up — and you came anyway. What matters to you is worth the time. Where is it easiest to start?" },
@@ -634,16 +605,9 @@ const SEED_COURSES: Array<{
                 { who: 'Client', text: "Okay, let's try." },
               ] },
               { type: 'h', text: 'Weak → strong' },
-              { type: 'list', items: [
-                { term: '❌ Weak', text: '"You shouldn\'t think like that, let\'s be rational" — dismisses and pushes.' },
-                { term: '✅ Strong', text: '"It sounds like that thought really frightens you. Tell me more about it?" — validates and opens.' },
-              ] },
+              { type: 'p', text: 'Compare two replies to the same thing a client says. Weak: "You shouldn\'t think like that, let\'s be rational" — it dismisses the feeling and pushes. Strong: "It sounds like that thought really frightens you. Tell me more about it?" — it validates the experience and opens the conversation. A one-sentence difference, with the opposite effect on the alliance.' },
               { type: 'h', text: 'What not to do' },
-              { type: 'list', items: [
-                { text: 'Do not "sell" trust with "trust me" — it comes from the experience of being heard.' },
-                { text: "Do not impose your goal over the client's." },
-                { text: 'Do not launch a technique without task agreement — the commonest cause of "resistance".' },
-              ] },
+              { type: 'p', text: 'And what to avoid. Do not "sell" trust with "trust me" — it comes only from the experience of being heard. Do not impose your goal over the client\'s. And do not launch a technique without task agreement — that is the commonest hidden cause of so-called "resistance".' },
               { type: 'quote', text: 'The alliance is not a precondition for the work — it is the work. The method rests on it, not the other way round.' },
               { type: 'sources', sources: [
                 { label: 'Norcross & Lambert (eds., 2019). Psychotherapy Relationships That Work, 3rd ed. — the evidence-based consensus on the therapy relationship.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
@@ -664,11 +628,7 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'Привітання й коротка рамка' },
               { type: 'p', text: 'Тепло привітайся й одним-двома реченнями познач формат: «У нас близько 50 хвилин. Сьогодні я хочу здебільшого слухати й зрозуміти, що відбувається. Усе сказане лишається між нами, окрім ситуацій загрози життю. Гаразд?»' },
               { type: 'h', text: 'Перше відкрите питання' },
-              { type: 'list', items: [
-                { term: '«Що привело вас сьогодні?»', text: 'найкласичніший, нейтральний старт.' },
-                { term: '«З чого вам хотілося б почати?»', text: 'віддає контроль клієнту.' },
-                { term: 'Уникай «Чим можу допомогти?»', text: 'звучить як сервіс, а не як терапія.' },
-              ] },
+              { type: 'p', text: 'Найкласичніший, нейтральний старт — «Що привело вас сьогодні?». Хороша альтернатива — «З чого вам хотілося б почати?»: вона віддає контроль клієнту. А от питання «Чим можу допомогти?» краще уникати — воно звучить як сервісна стійка, а не як терапія, і непомітно ставить тебе в роль «вирішувача проблем».' },
               { type: 'h', text: 'Тиша — це нормально' },
               { type: 'p', text: 'Після питання витримай паузу. Новачки квапляться заповнити тишу. 3–5 секунд мовчання дають клієнту простір зібратися. Якщо мовчання затягується й людина напружена — мʼяко: «Не поспішайте. Можна з чого завгодно.»' },
               { type: 'dialogue', lines: [
@@ -677,11 +637,7 @@ const SEED_COURSES: Array<{
                 { who: 'Терапевт', text: 'Це нормально — часто найважче саме почати. Що спадає на думку першим?' },
               ] },
               { type: 'h', text: 'Чого не робити' },
-              { type: 'list', items: [
-                { text: 'Не починай з анкети й паперів — спершу контакт.' },
-                { text: 'Не став подумки діагноз у перші хвилини й не кидайся «лагодити».' },
-                { text: 'Не перебивай перший розгорнутий монолог клієнта.' },
-              ] },
+              { type: 'p', text: 'І чого варто уникати в ці перші хвилини. Не починай з анкети й паперів — спершу контакт, потім формальності. Не став подумки діагноз і не кидайся «лагодити» проблему, ще не зрозумівши її. І не перебивай перший розгорнутий монолог клієнта — навіть якщо кортить уточнити: дай йому виговоритися.' },
               { type: 'quote', text: 'Перші пʼять хвилин — це не збір даних, а сигнал клієнту: «тут тебе почують».' },
               { type: 'sources', sources: [
                 { label: 'Norcross & Lambert (ред., 2019). Psychotherapy Relationships That Work, 3-тє вид.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
@@ -695,11 +651,7 @@ const SEED_COURSES: Array<{
               { type: 'h', text: 'Greeting and a brief frame' },
               { type: 'p', text: 'Greet warmly and name the format in a sentence or two: "We have about 50 minutes. Today I mostly want to listen and understand what is going on. What is said stays between us, except where there is a threat to life. Okay?"' },
               { type: 'h', text: 'The first open question' },
-              { type: 'list', items: [
-                { term: '"What brings you in today?"', text: 'the classic, neutral start.' },
-                { term: '"Where would you like to start?"', text: 'hands control to the client.' },
-                { term: 'Avoid "How can I help?"', text: 'sounds like a service desk, not therapy.' },
-              ] },
+              { type: 'p', text: 'The classic, neutral start is "What brings you in today?". A good alternative is "Where would you like to start?", which hands control to the client. The question "How can I help?", by contrast, is best avoided — it sounds like a service desk rather than therapy, and quietly casts you as the problem-solver.' },
               { type: 'h', text: 'Silence is fine' },
               { type: 'p', text: 'Hold a pause after the question. Beginners rush to fill silence. 3–5 seconds gives the client room to gather themselves. If the silence drags and they look tense, gently: "Take your time. Anywhere is fine."' },
               { type: 'dialogue', lines: [
@@ -708,11 +660,7 @@ const SEED_COURSES: Array<{
                 { who: 'Therapist', text: 'That\'s normal — starting is often the hardest part. What comes to mind first?' },
               ] },
               { type: 'h', text: 'What not to do' },
-              { type: 'list', items: [
-                { text: 'Do not open with an intake form — contact first.' },
-                { text: 'Do not silently diagnose in the first minutes or rush to "fix".' },
-                { text: "Do not interrupt the client's first extended monologue." },
-              ] },
+              { type: 'p', text: "And what to avoid in these first minutes. Don't open with an intake form — contact first, paperwork later. Don't silently diagnose or rush to \"fix\" the problem before you understand it. And don't interrupt the client's first extended monologue — even when you itch to clarify: let them speak." },
               { type: 'quote', text: 'The first five minutes are not data collection — they signal to the client: "you will be heard here".' },
             ],
           },
@@ -729,11 +677,7 @@ const SEED_COURSES: Array<{
                 { term: 'Конфронтація', text: 'клієнт іде проти: невдоволення, критика, сумнів у методі чи в тобі.' },
               ] },
               { type: 'h', text: 'Як помітити' },
-              { type: 'list', items: [
-                { text: 'Раптова зміна тону чи темпу; «так, але…»; згода без енергії.' },
-                { text: 'Пропуски, спізнення, «забув» домашнє.' },
-                { text: 'Твоя власна напруга чи бажання захищатися — теж маркер (контрперенесення).' },
-              ] },
+              { type: 'p', text: 'Розриви рідко оголошують себе прямо — їх треба вміти зчитувати. Насторожити має раптова зміна тону чи темпу, «так, але…», згода без енергії. Поведінкові сигнали — пропуски, спізнення, «забуте» домашнє. І, що важливо, твоя власна напруга чи бажання захищатися — це теж маркер (контрперенесення), який часто помічаєш раніше за слова клієнта.' },
               { type: 'h', text: 'Як відновити — 4 кроки' },
               { type: 'list', items: [
                 { term: '1. Пригальмуй і назви', text: 'м’яко познач, що щось змінилось: «Я помітив, що ми наче віддалились».' },
@@ -752,11 +696,7 @@ const SEED_COURSES: Array<{
                 { who: 'Терапевт', text: 'Можливо. А може, я зачепив щось болюче. Скажіть, якщо так — і ми сповільнимось.' },
               ] },
               { type: 'h', text: 'Чого не робити' },
-              { type: 'list', items: [
-                { text: 'Не захищатися й не доводити свою правоту.' },
-                { text: 'Не ігнорувати відсторонення («мовчить — значить думає»).' },
-                { text: 'Не сприймати розрив як особисту образу.' },
-              ] },
+              { type: 'p', text: 'Кілька природних, але шкідливих реакцій. Не захищайся й не доводь свою правоту — це перетворює розрив на суперечку. Не ігноруй відсторонення, переконуючи себе, що «мовчить — значить думає». І не сприймай розрив як особисту образу: це момент стосунків, який можна полагодити, а не вирок тобі як терапевту.' },
               { type: 'quote', text: 'Розрив — не кінець альянсу, а нагода його поглибити. Лікує саме те, як ви лагодите.' },
               { type: 'sources', sources: [
                 { label: 'Eubanks, Muran & Safran (2018). Відновлення розривів альянсу: метааналіз (r≈0.29; 11 досліджень, 1314 клієнтів).', url: 'https://pubmed.ncbi.nlm.nih.gov/30335462/' },
@@ -773,11 +713,7 @@ const SEED_COURSES: Array<{
                 { term: 'Confrontation', text: 'the client moves against: dissatisfaction, criticism, doubting the method or you.' },
               ] },
               { type: 'h', text: 'How to notice' },
-              { type: 'list', items: [
-                { text: 'A sudden change in tone or pace; "yes, but…"; agreement with no energy.' },
-                { text: 'No-shows, lateness, "forgot" the homework.' },
-                { text: 'Your own tension or urge to defend — also a marker (countertransference).' },
-              ] },
+              { type: 'p', text: 'Ruptures rarely announce themselves directly — you have to learn to read them. A sudden change in tone or pace, a "yes, but…", agreement with no energy should all put you on alert. Behavioural signals include no-shows, lateness, a "forgotten" homework. And, importantly, your own tension or urge to defend — that is a marker too (countertransference), one you often notice before the client\'s words.' },
               { type: 'h', text: 'How to repair — 4 steps' },
               { type: 'list', items: [
                 { term: '1. Slow down and name it', text: 'gently flag the shift: "I noticed we seem to have drifted apart".' },
@@ -796,11 +732,7 @@ const SEED_COURSES: Array<{
                 { who: 'Therapist', text: "Maybe. Or maybe I touched something tender. Tell me if so — and we'll slow down." },
               ] },
               { type: 'h', text: 'What not to do' },
-              { type: 'list', items: [
-                { text: 'Don\'t defend or prove you were right.' },
-                { text: 'Don\'t ignore withdrawal ("silence means they\'re thinking").' },
-                { text: 'Don\'t take a rupture as a personal insult.' },
-              ] },
+              { type: 'p', text: 'A few natural but harmful reactions. Don\'t defend or prove you were right — that turns a rupture into an argument. Don\'t ignore withdrawal by telling yourself "silence means they\'re thinking". And don\'t take a rupture as a personal insult: it is a moment in the relationship that can be repaired, not a verdict on you as a therapist.' },
               { type: 'quote', text: 'A rupture is not the end of the alliance but a chance to deepen it. It is the repair itself that heals.' },
               { type: 'sources', sources: [
                 { label: 'Eubanks, Muran & Safran (2018). Alliance rupture repair: a meta-analysis (r≈0.29; 11 studies, 1,314 clients).', url: 'https://pubmed.ncbi.nlm.nih.gov/30335462/' },
