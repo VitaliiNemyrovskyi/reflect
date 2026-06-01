@@ -385,6 +385,15 @@ const SEED_TERMS: SeedTerm[] = [
     category: 'risk',
     courses: C,
   },
+  {
+    slug: 'means-safety',
+    termUk: 'Безпека засобів',
+    termEn: 'Means safety',
+    defUk: 'Спільне зменшення доступу до того, чим людина могла б завдати собі шкоди, на час кризи. Компонент плану безпеки з найсильнішою доказовою базою: криза часто минуща, а доступ до засобу в ці хвилини буває вирішальним.',
+    defEn: 'Collaboratively reducing access to whatever a person could use to harm themselves during a crisis. The safety-plan component with the strongest evidence base: a crisis is often transient, and access to means in those minutes can be decisive.',
+    category: 'risk',
+    courses: C,
+  },
   // ── Anxiety ──
   {
     slug: 'anxiety',

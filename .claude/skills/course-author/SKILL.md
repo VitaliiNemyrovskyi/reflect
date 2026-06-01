@@ -124,7 +124,8 @@ Write plausible distractors and a one-line `explain` for the right answer.
 Inline, theme-aware, bilingual SVGs in
 **`frontend/src/app/course-figure.component.ts`**. Reference by key:
 `alliance-triangle`, `oars`, `biopsychosocial`, `risk-ladder`, `anxiety-loop`,
-`grounding`, `suds`. **Need a new diagram?** Add a `@case ('<key>')` with an
+`grounding`, `suds`, `rupture-repair`, `session-arc`, `safety-plan`.
+**Need a new diagram?** Add a `@case ('<key>')` with an
 SVG (use the existing `.t-fg/.t-accent/.stroke-accent` classes + `tr()` labels),
 then reference it as a `figure` block. Prefer a code-drawn diagram over raster art.
 

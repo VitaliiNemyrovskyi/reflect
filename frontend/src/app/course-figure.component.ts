@@ -135,6 +135,18 @@ import { I18nService } from './i18n.service';
             <text x="380" y="64" text-anchor="middle" class="t-fg" font-size="10.5">{{ tr('Рамка / кінець', 'Frame / close') }}</text>
           </svg>
         }
+        @case ('safety-plan') {
+          <svg viewBox="0 0 380 250" class="fig" role="img" [attr.aria-label]="tr('План безпеки: 6 кроків', 'Safety plan: 6 steps')">
+            @for (s of safetyPlan; track s.uk; let i = $index) {
+              <g [attr.transform]="'translate(' + (i * 10 + 4) + ',' + (i * 38 + 6) + ')'">
+                <circle cx="20" cy="16" r="15" class="fill-accent-soft stroke-accent" stroke-width="1.5" />
+                <text x="20" y="21" text-anchor="middle" class="t-accent" font-size="14" font-weight="700">{{ i + 1 }}</text>
+                <text x="46" y="21" class="t-fg" font-size="13">{{ tr(s.uk, s.en) }}</text>
+              </g>
+            }
+            <text x="374" y="14" text-anchor="end" class="t-mut" font-size="11">{{ tr('сам → інші', 'self → others') }}</text>
+          </svg>
+        }
       }
       @if (caption) { <figcaption>{{ caption }}</figcaption> }
     </figure>
@@ -178,6 +190,14 @@ export class CourseFigureComponent {
     { n: 3, uk: 'дотики', en: 'things you touch' },
     { n: 2, uk: 'запахи', en: 'things you smell' },
     { n: 1, uk: 'смак', en: 'thing you taste' },
+  ];
+  protected safetyPlan = [
+    { uk: 'Сигнали тривоги', en: 'Warning signs' },
+    { uk: 'Самодопомога', en: 'Self-coping' },
+    { uk: 'Люди для відволікання', en: 'People — distraction' },
+    { uk: 'Близькі для допомоги', en: 'People to ask for help' },
+    { uk: 'Фахівці, кризові лінії', en: 'Professionals, crisis lines' },
+    { uk: 'Безпека засобів', en: 'Means safety' },
   ];
 
   protected tr(uk: string, en: string): string {
