@@ -175,6 +175,38 @@ import { I18nService } from './i18n.service';
             <text x="282" y="202" text-anchor="middle" class="t-fg" font-size="13" font-weight="600">{{ tr('Майбутнє', 'Future') }}</text>
           </svg>
         }
+        @case ('belief-levels') {
+          <svg viewBox="0 0 340 200" class="fig" role="img" [attr.aria-label]="tr('Рівні думок: від автоматичних до глибинних переконань', 'Levels of cognition: from automatic thoughts to core beliefs')">
+            <defs>
+              <marker id="fig-arrow-bl" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" class="fill-accent" />
+              </marker>
+            </defs>
+            <rect x="74" y="12" width="252" height="44" rx="8" class="stroke-border fill-soft" stroke-width="1.5" />
+            <text x="200" y="31" text-anchor="middle" class="t-fg" font-size="12.5" font-weight="600">{{ tr('Автоматичні думки', 'Automatic thoughts') }}</text>
+            <text x="200" y="47" text-anchor="middle" class="t-mut" font-size="11">{{ tr('«я провалюся»', '"I\\'ll fail"') }}</text>
+            <rect x="74" y="72" width="252" height="44" rx="8" class="stroke-border fill-soft" stroke-width="1.5" />
+            <text x="200" y="91" text-anchor="middle" class="t-fg" font-size="12.5" font-weight="600">{{ tr('Правила й припущення', 'Rules & assumptions') }}</text>
+            <text x="200" y="107" text-anchor="middle" class="t-mut" font-size="11">{{ tr('«не ідеально — отже ніяк»', '"not perfect = nothing"') }}</text>
+            <rect x="74" y="132" width="252" height="50" rx="8" class="stroke-accent fill-accent-soft" stroke-width="2" />
+            <text x="200" y="153" text-anchor="middle" class="t-fg" font-size="12.5" font-weight="700">{{ tr('Глибинне переконання', 'Core belief') }}</text>
+            <text x="200" y="170" text-anchor="middle" class="t-mut" font-size="11">{{ tr('«я нікчемний»', '"I\\'m worthless"') }}</text>
+            <line x1="34" y1="20" x2="34" y2="176" class="stroke-accent" stroke-width="1.8" marker-end="url(#fig-arrow-bl)" opacity="0.8" />
+          </svg>
+        }
+        @case ('three-circles') {
+          <svg viewBox="0 0 320 210" class="fig" role="img" [attr.aria-label]="tr('Три системи регуляції емоцій', 'Three emotion-regulation systems')">
+            <circle cx="95" cy="72" r="52" fill="none" stroke="#d06b6b" stroke-width="2" opacity="0.85" />
+            <text x="95" y="68" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('Загроза', 'Threat') }}</text>
+            <text x="95" y="84" text-anchor="middle" class="t-mut" font-size="10.5">{{ tr('тривога, сором', 'fear, shame') }}</text>
+            <circle cx="225" cy="72" r="52" fill="none" class="stroke-accent" stroke-width="2" opacity="0.85" />
+            <text x="225" y="68" text-anchor="middle" class="t-fg" font-size="12" font-weight="600">{{ tr('Драйв', 'Drive') }}</text>
+            <text x="225" y="84" text-anchor="middle" class="t-mut" font-size="10.5">{{ tr('гонитва', 'striving') }}</text>
+            <circle cx="160" cy="150" r="54" fill="none" stroke="#6fae8f" stroke-width="2.4" />
+            <text x="160" y="146" text-anchor="middle" class="t-fg" font-size="12.5" font-weight="700">{{ tr('Заспокоєння', 'Soothing') }}</text>
+            <text x="160" y="163" text-anchor="middle" class="t-mut" font-size="10.5">{{ tr('безпека, тепло', 'safety, warmth') }}</text>
+          </svg>
+        }
       }
       @if (caption) { <figcaption>{{ caption }}</figcaption> }
     </figure>

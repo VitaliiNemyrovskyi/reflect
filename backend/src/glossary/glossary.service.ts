@@ -101,6 +101,7 @@ interface SeedTerm {
 const C = ['intake-rapport'];
 const A = ['anxiety-basics'];
 const D = ['depression-basics'];
+const DD = ['depression-deeper'];
 
 /**
  * Ukrainian invariant stems for inline linkifying. The frontend matches each
@@ -140,6 +141,12 @@ const TERM_MATCH: Record<string, string> = {
   anhedonia: 'ангедон',
   'behavioral-activation': 'поведінков',
   rumination: 'румінаці',
+  'core-belief': 'глибинн',
+  'downward-arrow': 'стріла',
+  'behavioral-experiment': 'експеримент',
+  'self-criticism': 'самокритик',
+  'self-compassion': 'самоспівчутт',
+  hopelessness: 'безнаді',
 };
 
 const SEED_TERMS: SeedTerm[] = [
@@ -544,5 +551,59 @@ const SEED_TERMS: SeedTerm[] = [
     defEn: 'Preparing for possible future dips: early markers, what helped before, and an action plan for the first signs. For recurrent episodes, MBCT has an evidence-based role.',
     category: 'depression',
     courses: D,
+  },
+  {
+    slug: 'core-belief',
+    termUk: 'Глибинне переконання',
+    termEn: 'Core belief',
+    defUk: 'Абсолютне твердження про себе, інших чи світ, сформоване рано («я нікчемний», «я нелюбимий», «я безпорадний»). Корінь автоматичних думок; сприймається як факт.',
+    defEn: 'An absolute statement about the self, others or the world, formed early ("I\'m worthless", "I\'m unlovable", "I\'m helpless"). The root of automatic thoughts; experienced as fact.',
+    category: 'depression',
+    courses: DD,
+  },
+  {
+    slug: 'downward-arrow',
+    termUk: 'Техніка «стріла вниз»',
+    termEn: 'Downward arrow',
+    defUk: 'Спосіб дістатися глибинного переконання: послідовно питати «припустимо, це правда — і що це означає / чим це погано?», доки не впрешся в абсолютне твердження про себе.',
+    defEn: 'A way to reach a core belief: repeatedly ask "suppose it\'s true — what would that mean / why is that bad?" until you hit an absolute statement about the self.',
+    category: 'depression',
+    courses: DD,
+  },
+  {
+    slug: 'behavioral-experiment',
+    termUk: 'Поведінковий експеримент',
+    termEn: 'Behavioural experiment',
+    defUk: 'Запланована дія, якою клієнт перевіряє переконання чи передбачення в реальному житті. Досвід переконує сильніше за будь-яку логіку в кабінеті.',
+    defEn: 'A planned action by which the client tests a belief or prediction in real life. Experience convinces more than any in-session logic.',
+    category: 'depression',
+    courses: DD,
+  },
+  {
+    slug: 'self-criticism',
+    termUk: 'Самокритика',
+    termEn: 'Self-criticism',
+    defUk: 'Жорсткий внутрішній голос («ти жалюгідний», «знову все зіпсував»). Здається мотиватором, а насправді виснажує й підтримує депресію.',
+    defEn: 'A harsh inner voice ("you\'re pathetic", "you ruined it again"). It seems like a motivator but actually drains and maintains depression.',
+    category: 'depression',
+    courses: DD,
+  },
+  {
+    slug: 'self-compassion',
+    termUk: 'Самоспівчуття',
+    termEn: 'Self-compassion',
+    defUk: 'Чесно визнати власний біль і поставитися до себе по-доброму, як до того, кого любиш. Не самопоблажливість і не порожня похвала.',
+    defEn: 'Honestly acknowledging your own pain and treating yourself kindly, as you would someone you love. Not self-indulgence and not empty praise.',
+    category: 'depression',
+    courses: DD,
+  },
+  {
+    slug: 'hopelessness',
+    termUk: 'Безнадія',
+    termEn: 'Hopelessness',
+    defUk: 'Переконання «нічого не зміниться, тож нащо й намагатися». Ядро депресії і — за даними — найсильніший чинник суїцидального ризику; тримають у полі зору.',
+    defEn: 'The belief that "nothing will change, so why try". A core of depression and — per the evidence — the strongest factor in suicide risk; kept in view.',
+    category: 'depression',
+    courses: DD,
   },
 ];
