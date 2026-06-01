@@ -29,6 +29,11 @@ const NAME_MAP: Record<string, string> = {
   clipboard: 'clipboard',
   link: 'link',
   search: 'search',
+  bug: 'bug',
+  funnel: 'filter',
+  coin: 'coin',
+  trash: 'trash',
+  x: 'x',
   // ── Badges ──
   sprout: 'seeding',
   heart: 'heart',

@@ -43,7 +43,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
 
       <nav class="tabs">
         <button [class.active]="tab() === 'users'" (click)="setTab('users')">
-          👥 Користувачі
+          <app-icon name="users" /> Користувачі
           @if (users().length) { <span class="count">{{ users().length }}</span> }
         </button>
         <button [class.active]="tab() === 'sessions'" (click)="setTab('sessions')">
@@ -51,14 +51,14 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
           @if (sessions().length) { <span class="count">{{ sessions().length }}</span> }
         </button>
         <button [class.active]="tab() === 'errors'" (click)="setTab('errors')">
-          🐛 Помилки
+          <app-icon name="bug" /> Помилки
           @if (errors().length) { <span class="count">{{ errors().length }}</span> }
         </button>
         <button [class.active]="tab() === 'funnel'" (click)="setTab('funnel')">
-          📊 Funnel
+          <app-icon name="funnel" /> Funnel
         </button>
         <button [class.active]="tab() === 'cost'" (click)="setTab('cost')">
-          💸 Витрати
+          <app-icon name="coin" /> Витрати
         </button>
         <button class="board-tab" [class.active]="tab() === 'board'" (click)="setTab('board')">
           <app-icon name="trophy" /> Дошка
@@ -74,7 +74,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
     } @else {
 
       @if (tab() === 'users') {
-        <table class="data-table">
+        <section class="panel panel-soft frame-bordered">
+          <span class="section-label"><app-icon name="users" /> Список користувачів · {{ users().length }}</span>
+          <table class="data-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -154,7 +156,8 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
               <tr><td colspan="9" class="empty">Ні одного користувача</td></tr>
             }
           </tbody>
-        </table>
+          </table>
+        </section>
       }
 
       @if (tab() === 'sessions') {
@@ -164,7 +167,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
             <button class="link-btn" (click)="clearSessionFilter()">× очистити</button>
           </div>
         }
-        <table class="data-table">
+        <section class="panel panel-soft frame-bordered">
+          <span class="section-label"><app-icon name="message" /> Сесії · {{ sessions().length }}</span>
+          <table class="data-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -212,7 +217,8 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
               <tr><td colspan="7" class="empty">Сесій не знайдено</td></tr>
             }
           </tbody>
-        </table>
+          </table>
+        </section>
 
         @if (selectedSession(); as s) {
           <article class="session-detail">
@@ -266,7 +272,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
       }
 
       @if (tab() === 'errors') {
-        <table class="data-table errors-table">
+        <section class="panel panel-soft frame-bordered">
+          <span class="section-label"><app-icon name="bug" /> Помилки · {{ errors().length }}</span>
+          <table class="data-table errors-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -294,15 +302,18 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
               }
             }
             @if (errors().length === 0) {
-              <tr><td colspan="6" class="empty">Помилок не зареєстровано 👌</td></tr>
+              <tr><td colspan="6" class="empty">Помилок не зареєстровано</td></tr>
             }
           </tbody>
-        </table>
+          </table>
+        </section>
       }
 
       @if (tab() === 'funnel') {
         @if (funnel(); as f) {
           <div class="funnel">
+            <section class="panel panel-soft frame-bordered">
+            <span class="section-label"><app-icon name="funnel" /> Воронка · 7 днів</span>
             <p class="hint">
               Останні 7 днів (з {{ f.since | date: 'd MMM, HH:mm' }}).
               Кожен крок — кількість унікальних користувачів (анонімні — за hash IP+UA).
@@ -360,8 +371,10 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
                 </div>
               </li>
             </ol>
+            </section>
 
-            <h3 class="recent-head">Останні події</h3>
+            <section class="panel panel-soft frame-bordered">
+            <span class="section-label"><app-icon name="clock" /> Останні події</span>
             <table class="data-table compact">
               <thead>
                 <tr><th>Коли</th><th>Тип</th><th>Користувач</th><th>Дані</th></tr>
@@ -380,6 +393,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
                 }
               </tbody>
             </table>
+            </section>
           </div>
         } @else {
           <p class="hint">Завантаження funnel-даних…</p>
@@ -389,18 +403,19 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
       @if (tab() === 'cost') {
         @if (llmUsage(); as u) {
           <div class="cost-cards">
-            <div class="cost-card">
+            <div class="cost-card panel-soft frame-bordered">
               <span class="cost-label">Сьогодні</span>
               <strong class="cost-figure">{{ fmtUsd(u.today.costUsd) }}</strong>
               <span class="cost-sub">{{ u.today.calls }} викликів · {{ u.today.promptTokens + u.today.completionTokens }} токенів</span>
             </div>
-            <div class="cost-card">
+            <div class="cost-card panel-soft frame-bordered">
               <span class="cost-label">Останні 7 днів</span>
               <strong class="cost-figure">{{ fmtUsd(u.last7d.costUsd) }}</strong>
               <span class="cost-sub">{{ u.last7d.calls }} викликів · {{ u.last7d.promptTokens + u.last7d.completionTokens }} токенів</span>
             </div>
           </div>
-          <h3 class="recent-head">За моделлю (7 днів)</h3>
+          <section class="panel panel-soft frame-bordered">
+          <span class="section-label"><app-icon name="coin" /> За моделлю · 7 днів</span>
           <table class="data-table compact">
             <thead><tr><th>Модель</th><th>Виклики</th><th>Токени</th><th>Вартість</th></tr></thead>
             <tbody>
@@ -418,6 +433,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
             </tbody>
           </table>
           <p class="hint">OpenRouter — точна вартість від провайдера; Anthropic — оцінка. Враховано і стрімові, і звичайні виклики.</p>
+          </section>
         } @else {
           <p class="hint">Завантаження даних про витрати…</p>
         }
@@ -430,7 +446,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
           каталогу «обери терапевта»; ачівки тут — тренувальні віхи проти
           AI-пацієнтів, не підтверджена компетентність.
         </p>
-        <table class="data-table board-table">
+        <section class="panel panel-soft frame-bordered">
+          <span class="section-label"><app-icon name="trophy" /> Дошка терапевтів · {{ board().length }}</span>
+          <table class="data-table board-table">
           <thead>
             <tr>
               <th>Терапевт</th>
@@ -469,7 +487,8 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
               <tr><td colspan="7" class="empty">Поки немає терапевтів із завершеними сесіями</td></tr>
             }
           </tbody>
-        </table>
+          </table>
+        </section>
       }
     }
 
@@ -568,16 +587,26 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
       border-radius: 999px;
     }
 
+    /* Tables now live inside .panel cards (the library frame provides the
+       border/background), so the table itself carries no outer border —
+       just the scroll container + row rules. */
     .data-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 16px;
+      margin-top: 4px;
       font-size: 13px;
       display: block;
       overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: 8px;
     }
+    /* Library section header inside an admin panel: icon + uppercase label,
+       on its own line above the content. Mirrors cohorts/patient-detail. */
+    .panel > .section-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+    .section-label app-icon { font-size: 15px; color: var(--accent); }
     .data-table thead { background: var(--user-bg); }
     .data-table th, .data-table td {
       padding: 8px 12px;
@@ -833,8 +862,6 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
       gap: 6px;
       padding: 18px 20px;
       border-radius: 14px;
-      border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
-      background: color-mix(in srgb, var(--accent) 5%, var(--bg));
     }
     .cost-label {
       font-size: 11px;
@@ -906,14 +933,6 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
       margin-left: 6px;
     }
 
-    .recent-head {
-      margin: 32px 0 12px;
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--fg-dim);
-    }
     .data-table.compact th,
     .data-table.compact td {
       padding: 6px 10px;
