@@ -558,6 +558,7 @@ const SEED_COURSES: Array<{
                 { term: 'Безумовне прийняття', text: 'повага без осуду. Приймаєш людину — не обовʼязково схвалюєш кожен вчинок.' },
                 { term: 'Конгруентність', text: 'щирість: те, що показуєш, збігається з тим, що відчуваєш. Без «маски експерта».' },
               ] },
+              { type: 'p', text: 'Це не просто гуманістична риторика. Оновлений метааналіз Elliott і колег (2018; 82 вибірки, понад 6000 клієнтів) показав, що сприйнята клієнтом емпатія повʼязана з результатом на рівні r ≈ 0.28 — приблизно стільки ж, скільки дає сам альянс. Ядрові умови — це робочі інгредієнти зміни, а не приємне тло.' },
               { type: 'h', text: 'Як зміцнювати альянс із перших хвилин' },
               { type: 'list', items: [
                 { text: 'Проговори спільну ціль уголос: «Якщо я правильно розумію, ви хочете…?»' },
@@ -587,6 +588,13 @@ const SEED_COURSES: Array<{
                 { text: 'Не запускай техніку без згоди щодо завдань — це найчастіша причина «опору».' },
               ] },
               { type: 'quote', text: 'Альянс — це не передумова роботи, це і є робота. Метод лягає на нього, а не навпаки.' },
+              { type: 'sources', sources: [
+                { label: 'Norcross & Lambert (ред., 2019). Psychotherapy Relationships That Work, 3-тє вид. — доказовий консенсус щодо терапевтичних стосунків.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
+                { label: 'Flückiger та ін. (2018). Альянс у дорослій психотерапії: метааналіз (r≈0.28; 295 досліджень).', url: 'https://doi.org/10.1037/pst0000172' },
+                { label: 'Elliott та ін. (2018). Емпатія терапевта й результат: оновлений метааналіз (r≈0.28).', url: 'https://pubmed.ncbi.nlm.nih.gov/30335453/' },
+                { label: 'Bordin (1979). Поняття робочого альянсу (звʼязок–цілі–завдання) — першоджерело.', url: 'https://doi.org/10.1037/h0085885' },
+                { label: 'Rogers (1957). Необхідні й достатні умови зміни (ядрові умови) — першоджерело.', url: 'https://pubmed.ncbi.nlm.nih.gov/13416422/' },
+              ] },
             ],
             bodyEn: [
               { type: 'p', text: 'The working alliance is a working bond in which you and the client pull in the same direction. It is the most robust predictor of outcome across every approach: the Flückiger et al. (2018) meta-analysis (295 studies, 30,000+ clients) found an alliance–outcome correlation of r ≈ 0.28 — a larger contribution than the choice of method.' },
@@ -607,6 +615,7 @@ const SEED_COURSES: Array<{
                 { term: 'Unconditional positive regard', text: 'respect without judgement. You accept the person — not necessarily every action.' },
                 { term: 'Congruence', text: 'genuineness: what you show matches what you feel. No "expert mask".' },
               ] },
+              { type: 'p', text: "This is not just humanistic rhetoric. Elliott and colleagues' updated meta-analysis (2018; 82 samples, 6,000+ clients) found client-perceived empathy relates to outcome at r ≈ 0.28 — about as much as the alliance itself. The core conditions are working ingredients of change, not pleasant background." },
               { type: 'h', text: 'Strengthening the alliance from the first minutes' },
               { type: 'list', items: [
                 { text: 'Say the shared goal out loud: "If I understand right, you want…?"' },
@@ -636,6 +645,13 @@ const SEED_COURSES: Array<{
                 { text: 'Do not launch a technique without task agreement — the commonest cause of "resistance".' },
               ] },
               { type: 'quote', text: 'The alliance is not a precondition for the work — it is the work. The method rests on it, not the other way round.' },
+              { type: 'sources', sources: [
+                { label: 'Norcross & Lambert (eds., 2019). Psychotherapy Relationships That Work, 3rd ed. — the evidence-based consensus on the therapy relationship.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
+                { label: 'Flückiger et al. (2018). The alliance in adult psychotherapy: a meta-analysis (r≈0.28; 295 studies).', url: 'https://doi.org/10.1037/pst0000172' },
+                { label: 'Elliott et al. (2018). Therapist empathy and client outcome: an updated meta-analysis (r≈0.28).', url: 'https://pubmed.ncbi.nlm.nih.gov/30335453/' },
+                { label: 'Bordin (1979). The working alliance concept (bond–goals–tasks) — original source.', url: 'https://doi.org/10.1037/h0085885' },
+                { label: 'Rogers (1957). The necessary and sufficient conditions of change (core conditions) — original source.', url: 'https://pubmed.ncbi.nlm.nih.gov/13416422/' },
+              ] },
             ],
           },
           {
@@ -644,6 +660,7 @@ const SEED_COURSES: Array<{
             titleEn: 'The first minutes: opening the conversation',
             bodyUk: [
               { type: 'p', text: 'Перша сесія часто вирішується в перші пʼять хвилин — саме тоді клієнт несвідомо вирішує, чи тут безпечно. Ось як їх провести.' },
+              { type: 'p', text: 'Чому початок важить так багато? Бо те, що відбувається в перші хвилини, задає дві речі, які доказово повʼязані з результатом: ранню згоду щодо цілей і відчуття співпраці (метааналізи Tryon та ін., 2018) та оптимістичні очікування клієнта щодо терапії (Constantino та ін., 2018). Відкриття розмови — це не формальність, а перша інвестиція в робочий альянс.' },
               { type: 'h', text: 'Привітання й коротка рамка' },
               { type: 'p', text: 'Тепло привітайся й одним-двома реченнями познач формат: «У нас близько 50 хвилин. Сьогодні я хочу здебільшого слухати й зрозуміти, що відбувається. Усе сказане лишається між нами, окрім ситуацій загрози життю. Гаразд?»' },
               { type: 'h', text: 'Перше відкрите питання' },
@@ -666,9 +683,15 @@ const SEED_COURSES: Array<{
                 { text: 'Не перебивай перший розгорнутий монолог клієнта.' },
               ] },
               { type: 'quote', text: 'Перші пʼять хвилин — це не збір даних, а сигнал клієнту: «тут тебе почують».' },
+              { type: 'sources', sources: [
+                { label: 'Norcross & Lambert (ред., 2019). Psychotherapy Relationships That Work, 3-тє вид.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
+                { label: 'Tryon та ін. (2018). Згода щодо цілей і співпраця: метааналізи (співпраця r≈0.29).', url: 'https://pubmed.ncbi.nlm.nih.gov/30335451/' },
+                { label: 'Constantino та ін. (2018). Ранні очікування клієнта й результат терапії: метааналіз.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335459/' },
+              ] },
             ],
             bodyEn: [
               { type: 'p', text: 'A first session is often decided in the first five minutes — that is when the client unconsciously decides whether this is safe. Here is how to run them.' },
+              { type: 'p', text: "Why do the first minutes matter so much? Because what happens in them sets two things that are evidentially linked to outcome: early agreement on goals and a sense of collaboration (Tryon et al., 2018, meta-analyses) and the client's optimistic expectations about therapy (Constantino et al., 2018). Opening the conversation is not a formality — it is the first investment in the working alliance." },
               { type: 'h', text: 'Greeting and a brief frame' },
               { type: 'p', text: 'Greet warmly and name the format in a sentence or two: "We have about 50 minutes. Today I mostly want to listen and understand what is going on. What is said stays between us, except where there is a threat to life. Okay?"' },
               { type: 'h', text: 'The first open question' },
@@ -698,7 +721,7 @@ const SEED_COURSES: Array<{
             titleUk: 'Розриви альянсу та відновлення',
             titleEn: 'Alliance ruptures and repair',
             bodyUk: [
-              { type: 'p', text: 'Навіть у добрих стосунках альянс часом рветься: клієнт замовкає, погоджується «для галочки», спізнюється або раптом сперечається. Це не провал. Дослідження Safran і Muran показують протилежне — помічені й відновлені розриви дають кращий результат, ніж терапія, у якій розривів наче не було.' },
+              { type: 'p', text: 'Навіть у добрих стосунках альянс часом рветься: клієнт замовкає, погоджується «для галочки», спізнюється або раптом сперечається. Це не провал. Метааналіз Eubanks, Muran і Safran (2018; 11 досліджень, 1314 клієнтів) показав протилежне: помічені й успішно відновлені розриви повʼязані з кращим результатом (r ≈ 0.29) — інколи кращим, ніж у терапії, де розривів наче й не було.' },
               { type: 'h', text: 'Два типи розривів' },
               { type: 'figure', figure: 'rupture-repair' },
               { type: 'list', items: [
@@ -735,9 +758,14 @@ const SEED_COURSES: Array<{
                 { text: 'Не сприймати розрив як особисту образу.' },
               ] },
               { type: 'quote', text: 'Розрив — не кінець альянсу, а нагода його поглибити. Лікує саме те, як ви лагодите.' },
+              { type: 'sources', sources: [
+                { label: 'Eubanks, Muran & Safran (2018). Відновлення розривів альянсу: метааналіз (r≈0.29; 11 досліджень, 1314 клієнтів).', url: 'https://pubmed.ncbi.nlm.nih.gov/30335462/' },
+                { label: 'Norcross & Lambert (ред., 2019). Psychotherapy Relationships That Work, 3-тє вид.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
+                { label: 'Safran & Muran (2000). Negotiating the Therapeutic Alliance — першоджерело моделі розривів і відновлення.', url: 'https://www.guilford.com/books/Negotiating-the-Therapeutic-Alliance/Safran-Muran/9781572306127' },
+              ] },
             ],
             bodyEn: [
-              { type: 'p', text: 'Even in a good relationship the alliance sometimes tears: the client goes quiet, agrees just to comply, comes late, or suddenly argues. This is not a failure. Safran and Muran\'s research shows the opposite — ruptures that are noticed and repaired yield better outcomes than therapy that appears rupture-free.' },
+              { type: 'p', text: 'Even in a good relationship the alliance sometimes tears: the client goes quiet, agrees just to comply, comes late, or suddenly argues. This is not a failure. The meta-analysis by Eubanks, Muran and Safran (2018; 11 studies, 1,314 clients) shows the opposite: ruptures that are noticed and successfully repaired relate to better outcomes (r ≈ 0.29) — sometimes better than therapy that appears rupture-free.' },
               { type: 'h', text: 'Two kinds of rupture' },
               { type: 'figure', figure: 'rupture-repair' },
               { type: 'list', items: [
@@ -774,6 +802,11 @@ const SEED_COURSES: Array<{
                 { text: 'Don\'t take a rupture as a personal insult.' },
               ] },
               { type: 'quote', text: 'A rupture is not the end of the alliance but a chance to deepen it. It is the repair itself that heals.' },
+              { type: 'sources', sources: [
+                { label: 'Eubanks, Muran & Safran (2018). Alliance rupture repair: a meta-analysis (r≈0.29; 11 studies, 1,314 clients).', url: 'https://pubmed.ncbi.nlm.nih.gov/30335462/' },
+                { label: 'Norcross & Lambert (eds., 2019). Psychotherapy Relationships That Work, 3rd ed.', url: 'https://pubmed.ncbi.nlm.nih.gov/30335448/' },
+                { label: 'Safran & Muran (2000). Negotiating the Therapeutic Alliance — original source of the rupture–repair model.', url: 'https://www.guilford.com/books/Negotiating-the-Therapeutic-Alliance/Safran-Muran/9781572306127' },
+              ] },
             ],
           },
           {
