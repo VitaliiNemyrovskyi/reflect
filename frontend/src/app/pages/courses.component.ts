@@ -713,14 +713,16 @@ export class CoursesComponent implements OnInit, OnDestroy {
     }
   }
 
-  private async loadDetail(key: string): Promise<void> {
-    this.loading.set(true);
+  private async loadDetail(key: string, silent = false): Promise<void> {
+    // `silent` re-fetches without toggling `loading`, so the rendered course
+    // content is not unmounted/remounted (which would reset scroll to the top).
+    if (!silent) this.loading.set(true);
     try {
       this.detail.set(await this.api.courseDetail(key));
     } catch {
       this.error.set(this.tr('Курс не знайдено.', 'Course not found.'));
     } finally {
-      this.loading.set(false);
+      if (!silent) this.loading.set(false);
     }
   }
 
@@ -730,7 +732,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
     this.busy.set(s.id);
     try {
       await this.api.completeCourseStep(s.id);
-      await this.loadDetail(d.key);
+      await this.loadDetail(d.key, true);
     } catch {
       this.error.set(this.tr('Не вдалося зберегти прогрес.', 'Failed to save progress.'));
     } finally {
