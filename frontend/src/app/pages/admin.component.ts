@@ -618,10 +618,13 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
     .message { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Cap the email column and let long synthetic addresses break, so the
        users table fits its content column without horizontal scroll. */
-    /* Single-line email with ellipsis; full address on hover (title).
-       Beats letter-by-letter wrapping of long synthetic test addresses. */
+    /* Email is the table's flexible column: max-width:0 lets it absorb the
+       row's width and ellipsize to the leftover space, so the fixed columns
+       AND the row-actions always stay visible instead of being pushed into
+       horizontal overflow. Full address on hover via title=. */
     .email-cell {
-      max-width: 220px;
+      max-width: 0;
+      width: 40%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
