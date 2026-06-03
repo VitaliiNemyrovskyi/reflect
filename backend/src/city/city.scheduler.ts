@@ -39,21 +39,32 @@ export class CityScheduler implements OnModuleInit {
   }
 
   private async warmStart(): Promise<void> {
+    // Refresh a stale digest FIRST, from news already stored in the DB.
+    // This used to run AFTER `news.ingest()` — but a full ingest is a
+    // multi-minute job (a dozen RSS feeds + a serial LLM summary per new
+    // item). With frequent deploys, each warm start got killed mid-ingest
+    // before ever reaching the regen, so the digest sat stale for days even
+    // though the independent hourly cron kept news fresh. Regenerating first
+    // (a few seconds, off already-ingested news) makes every boot refresh a
+    // stale digest. Only regenerates if missing or >24h old.
     try {
-      this.logger.log('warm start: ingesting news…');
-      const { added, skipped } = await this.news.ingest();
-      this.logger.log(`warm start ingest: +${added} skipped=${skipped}`);
-    } catch (e) {
-      this.logger.warn(`warm start ingest failed: ${(e as Error).message}`);
-    }
-
-    try {
-      // Only regenerate digest if missing or older than 24h. Saves an
-      // LLM call on every container restart.
       await this.regenerateStaleDigests();
     } catch (e) {
       this.logger.warn(`warm start digest failed: ${(e as Error).message}`);
     }
+
+    // Then top up news in the background — fire-and-forget so a slow feed
+    // sweep can never again block app readiness or starve the digest
+    // refresh above. The hourly cron is the steady-state path anyway.
+    this.logger.log('warm start: ingesting news in background…');
+    void this.news
+      .ingest()
+      .then(({ added, skipped }) =>
+        this.logger.log(`warm start ingest: +${added} skipped=${skipped}`),
+      )
+      .catch((e) =>
+        this.logger.warn(`warm start ingest failed: ${(e as Error).message}`),
+      );
   }
 
   private async regenerateStaleDigests(): Promise<void> {
