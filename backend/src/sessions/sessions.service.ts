@@ -9,6 +9,7 @@ import { SubscriptionsService } from '../billing/subscriptions.service';
 import { CityService } from '../city/city.service';
 import { MemoryService } from '../memory/memory.service';
 import { NpcService } from '../npc/npc.service';
+import { PushService } from '../push/push.service';
 import { parseHintResult, type HintResult } from './hint-parse';
 
 function safeParseJson(json: string): unknown {
@@ -41,7 +42,32 @@ export class SessionsService {
     private readonly city: CityService,
     private readonly memory: MemoryService,
     private readonly npcs: NpcService,
+    private readonly push: PushService,
   ) {}
+
+  /** Notify the trainee that supervisor feedback is ready for a session
+   *  (in-app feed + push). Fire-and-forget; localised from the user's lang. */
+  private async notifyFeedbackReady(userId: number | null, sessionId: number): Promise<void> {
+    if (!userId) return;
+    try {
+      const lang = await this.push.resolveLang(userId);
+      const body =
+        lang === 'en'
+          ? 'Supervisor feedback is ready — review your session.'
+          : lang === 'fr'
+            ? 'Le retour du superviseur est prêt — revoyez votre séance.'
+            : 'Фідбек супервізора готовий — переглянь розбір сесії.';
+      await this.push.sendToUser(userId, {
+        title: 'Reflect',
+        body,
+        url: `/session/${sessionId}/view`,
+        tag: `feedback-${sessionId}`,
+        type: 'feedback',
+      });
+    } catch (e) {
+      this.logger.warn(`feedback notify failed: ${(e as Error).message}`);
+    }
+  }
 
   async create(userId: number, characterId?: number) {
     // Billing gate: BEFORE we touch character or DB. Throws 402-ish
@@ -570,6 +596,8 @@ export class SessionsService {
       },
     });
 
+    void this.notifyFeedbackReady(session.userId, sessionId);
+
     // Persist as a granular memory entry too (Phase 2) — same content,
     // but now retrievable alongside diary/world/social memories. The
     // legacy Session.patientMemory above stays as a denormalized
@@ -879,6 +907,8 @@ export class SessionsService {
         patientMemory: json?.patientMemory ?? null,
       },
     });
+
+    void this.notifyFeedbackReady(session.userId, sessionId);
 
     // Mirror to the granular memory store (Phase 2) — same content,
     // but now joinable with future Phase-3/4 memories (NPC, diary).

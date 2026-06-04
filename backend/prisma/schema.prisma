@@ -281,6 +281,7 @@ model User {
   milestones      UserMilestone[]   // earned gamification badges
   pushSubscriptions PushSubscription[] // Web Push endpoints (per device)
   pushReminders   PushReminder[]    // sent-reminder log (throttling)
+  notifications   Notification[]    // in-app notification feed (mirrors pushes + in-app events)
   cohortsOwned    Cohort[]        @relation("CohortOwner") // cohorts this instructor runs
   cohortMemberships CohortMember[]  // cohorts this user is a student in
   // Per-user subscription. Optional only at the schema level — every
@@ -568,6 +569,31 @@ model PushReminder {
 
   @@index([userId, characterId, sentAt])
   @@index([sentAt])
+}
+
+/**
+ * In-app notification feed. Every web-push the app sends is mirrored here
+ * (PushService.sendToUser writes a row), and purely in-app events (feedback
+ * ready, badge earned, admin announcements) create rows too — so the header
+ * bell + /notifications page show a complete history regardless of whether
+ * the device push was delivered or even enabled.
+ *
+ * `readAt` null = unread (drives the bell's unread badge). `type` groups the
+ * source (feedback | badge | reminder | announcement | system) for the icon.
+ */
+model Notification {
+  id        Int       @id @default(autoincrement())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  type      String    @default("system")
+  title     String
+  body      String
+  url       String? // deep-link opened on click
+  readAt    DateTime? // null = unread
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
 
 /**

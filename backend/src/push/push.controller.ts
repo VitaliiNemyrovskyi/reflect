@@ -54,12 +54,12 @@ export class PushController {
           ? 'Notification test — les push fonctionnent.'
           : 'Тестове нагадування — пуш працює.';
     const subscriptions = await this.push.subscriptionCount(user.id);
-    const sent = await this.push.sendToUser(user.id, {
-      title: 'Reflect',
-      body: msg,
-      url: '/',
-      tag: 'reflect-test',
-    });
+    // mirror:false — a diagnostic ping shouldn't pile up in the in-app feed.
+    const sent = await this.push.sendToUser(
+      user.id,
+      { title: 'Reflect', body: msg, url: '/', tag: 'reflect-test', type: 'system' },
+      { mirror: false },
+    );
     // subscriptions vs sent vs enabled pinpoints which layer fails:
     //  enabled=false       → no VAPID on server
     //  subscriptions=0     → this device never registered (permission? iOS tab?)

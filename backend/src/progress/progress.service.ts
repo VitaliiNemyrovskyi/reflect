@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushService } from '../push/push.service';
 import { computeWellbeing, patientStateScore } from '../dashboard/wellbeing';
 
 /**
@@ -136,7 +137,10 @@ interface Assessment {
 @Injectable()
 export class ProgressService {
   private readonly logger = new Logger(ProgressService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
 
   /**
    * Full progress payload for a user. Recomputes badge awards on the way
@@ -491,6 +495,36 @@ export class ProgressService {
     } catch (err: unknown) {
       // P2002 = unique violation from a concurrent award; safe to ignore.
       if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+    }
+    // Notify the trainee that new badge(s) unlocked (in-app feed + push).
+    // Fire-and-forget — awarding must not block on, or fail from, a notify.
+    void this.notifyBadges(userId, fresh);
+  }
+
+  /** Badge-unlocked notification: mirrors to the in-app feed and pushes. */
+  private async notifyBadges(userId: number, keys: string[]): Promise<void> {
+    if (keys.length === 0) return;
+    try {
+      const titles = keys
+        .map((k) => BADGES.find((b) => b.key === k)?.title)
+        .filter((t): t is string => !!t);
+      const list = titles.join(', ');
+      const lang = await this.push.resolveLang(userId);
+      const body =
+        lang === 'en'
+          ? `New milestone unlocked: ${list || 'a new badge'}. See your Progress.`
+          : lang === 'fr'
+            ? `Nouveau jalon débloqué : ${list || 'un badge'}. Voir votre Progression.`
+            : `Нова віха відкрита: ${list || 'новий бейдж'} 🏅 Поглянь у «Прогрес».`;
+      await this.push.sendToUser(userId, {
+        title: 'Reflect',
+        body,
+        url: '/progress',
+        tag: 'badge',
+        type: 'badge',
+      });
+    } catch (e) {
+      this.logger.warn(`badge notify failed: ${(e as Error).message}`);
     }
   }
 
