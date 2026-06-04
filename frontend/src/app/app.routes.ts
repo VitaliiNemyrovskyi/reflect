@@ -116,6 +116,13 @@ export const routes: Routes = [
       import('./pages/progress.component').then((m) => m.ProgressComponent),
   },
   {
+    // Notification centre — full feed behind the header bell.
+    path: 'notifications',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/notifications.component').then((m) => m.NotificationsComponent),
+  },
+  {
     // Teaching cohort mode — instructor creates groups + sees student
     // progress; students join by code. Page self-gates by role.
     path: 'cohorts',

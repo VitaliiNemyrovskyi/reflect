@@ -671,6 +671,17 @@ export interface SpecialisationTrack {
   nextAt: number | null;
 }
 
+/** One in-app notification (the bell feed + /notifications page). */
+export interface AppNotification {
+  id: number;
+  type: string; // feedback | badge | reminder | announcement | system
+  title: string;
+  body: string;
+  url: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface ProgressData {
   /** Progression stage — 'Стажер' | 'Практик' | 'Досвідчений' | 'Майстер'. */
   stage: string;
@@ -898,6 +909,32 @@ export class ApiService {
   pushUnsubscribe(endpoint: string): Promise<{ ok: boolean }> {
     return firstValueFrom(
       this.http.post<{ ok: boolean }>(`${this.base}/push/unsubscribe`, { endpoint }),
+    );
+  }
+
+  // ─── Notifications (in-app feed + bell) ──────────────────────────────────
+  getNotifications(limit = 50): Promise<AppNotification[]> {
+    return firstValueFrom(
+      this.http.get<AppNotification[]>(`${this.base}/notifications`, { params: { limit } }),
+    );
+  }
+
+  getUnreadCount(): Promise<{ count: number }> {
+    return firstValueFrom(this.http.get<{ count: number }>(`${this.base}/notifications/unread-count`));
+  }
+
+  markNotificationRead(id: number): Promise<{ ok: boolean }> {
+    return firstValueFrom(this.http.post<{ ok: boolean }>(`${this.base}/notifications/${id}/read`, {}));
+  }
+
+  markAllNotificationsRead(): Promise<{ ok: boolean }> {
+    return firstValueFrom(this.http.post<{ ok: boolean }>(`${this.base}/notifications/read-all`, {}));
+  }
+
+  /** Admin: broadcast an announcement to every user (in-app + push). */
+  broadcastNotification(title: string, body: string, url?: string): Promise<{ ok: boolean; reached: number }> {
+    return firstValueFrom(
+      this.http.post<{ ok: boolean; reached: number }>(`${this.base}/notifications/broadcast`, { title, body, url }),
     );
   }
 

@@ -1,8 +1,9 @@
-import { CommonModule } from '@angular/common';
-import { Component, HostListener, Input, computed, inject, signal } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, HostListener, Input, OnDestroy, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
 import { I18nService } from './i18n.service';
+import { ApiService, type AppNotification } from './api.service';
 import { LogoComponent } from './logo.component';
 import { IconComponent } from './icon.component';
 
@@ -44,6 +45,18 @@ import { IconComponent } from './icon.component';
           </div>
 
           <div class="header-right">
+            <button type="button"
+                    class="bell-btn"
+                    [class.open]="notifOpen()"
+                    (click)="toggleNotif()"
+                    aria-haspopup="menu"
+                    [attr.aria-expanded]="notifOpen()"
+                    [attr.aria-label]="bellLabel()">
+              <app-icon name="bell" />
+              @if (unread() > 0) {
+                <span class="bell-dot" aria-hidden="true"></span>
+              }
+            </button>
             <button type="button"
                     class="account-btn"
                     [class.open]="menuOpen()"
@@ -95,6 +108,39 @@ import { IconComponent } from './icon.component';
               <app-icon name="log-out" /><span>{{ i18n.t('nav.logout') }}</span>
             </button>
           </nav>
+        }
+
+        @if (notifOpen()) {
+          <div class="menu-backdrop" (click)="notifOpen.set(false)"></div>
+          <div class="notif-panel fx-fade-up" role="menu">
+            <div class="np-head">
+              <strong>{{ i18n.isEn ? 'Notifications' : 'Сповіщення' }}</strong>
+              @if (unread() > 0) {
+                <button type="button" class="np-readall" (click)="markAllRead()">
+                  {{ i18n.isEn ? 'Mark all read' : 'Прочитати всі' }}
+                </button>
+              }
+            </div>
+            <div class="np-list">
+              @if (notifs().length === 0) {
+                <p class="np-empty">{{ i18n.isEn ? 'No notifications yet' : 'Сповіщень ще немає' }}</p>
+              } @else {
+                @for (n of notifs(); track n.id) {
+                  <button type="button" class="np-item" [class.unread]="!n.read" (click)="openNotif(n)">
+                    <app-icon [name]="iconFor(n.type)" class="np-icon" />
+                    <span class="np-text">
+                      <span class="np-body">{{ n.body }}</span>
+                      <span class="np-time">{{ relTime(n.createdAt) }}</span>
+                    </span>
+                    @if (!n.read) { <span class="np-dot" aria-hidden="true"></span> }
+                  </button>
+                }
+              }
+            </div>
+            <a routerLink="/notifications" class="np-all" (click)="notifOpen.set(false)">
+              {{ i18n.isEn ? 'See all notifications' : 'Усі сповіщення' }} →
+            </a>
+          </div>
         }
       </header>
     }
@@ -237,21 +283,193 @@ import { IconComponent } from './icon.component';
     .mm-logout { color: var(--fg-dim); }
     .mm-sep { height: 1px; margin: 4px 6px; background: var(--border); }
 
+    /* ── Notification bell + dropdown ─────────────────────────────────── */
+    .bell-btn {
+      position: relative;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px;
+      min-height: 0; flex: 0 0 auto; padding: 0;
+      border-radius: 50%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--fg-dim);
+      font-size: 18px;
+      cursor: pointer;
+      transition: color .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .bell-btn:hover, .bell-btn.open {
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+    }
+    /* GitHub-style unread indicator — small red dot on the bell. */
+    .bell-dot {
+      position: absolute; top: 5px; right: 5px;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--danger);
+      border: 2px solid var(--bg);
+    }
+
+    .notif-panel {
+      position: absolute; top: 100%; right: 0; margin-top: -4px;
+      z-index: 50;
+      width: 340px; max-width: calc(100vw - 32px);
+      display: flex; flex-direction: column;
+      background: var(--assistant-bg);
+      border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+      border-radius: 14px;
+      box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+    }
+    .np-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+    }
+    .np-head strong { font-size: 13px; letter-spacing: .02em; }
+    .np-readall {
+      background: none; border: none; color: var(--accent);
+      font-size: 12px; cursor: pointer; padding: 0; min-height: 0;
+    }
+    .np-readall:hover { text-decoration: underline; }
+    .np-list { max-height: min(60vh, 420px); overflow-y: auto; }
+    .np-empty { color: var(--fg-dim); font-size: 13px; text-align: center; padding: 28px 16px; margin: 0; }
+    .np-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      width: 100%; text-align: left;
+      padding: 11px 14px;
+      border: none;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      background: transparent; color: var(--fg);
+      cursor: pointer; min-height: 0;
+      transition: background .12s ease;
+    }
+    .np-item:hover { background: rgba(255, 255, 255, 0.03); }
+    .np-item.unread { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+    .np-icon { font-size: 16px; color: var(--accent); margin-top: 1px; flex: 0 0 auto; }
+    .np-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+    .np-body { font-size: 13px; line-height: 1.4; }
+    .np-time { font-size: 11px; color: var(--fg-dim); }
+    .np-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent); flex: 0 0 auto; margin-top: 5px;
+    }
+    .np-all {
+      display: block; text-align: center; padding: 11px;
+      font-size: 13px; color: var(--accent); text-decoration: none;
+      border-top: 1px solid var(--border);
+    }
+    .np-all:hover { background: rgba(255, 255, 255, 0.03); }
+
     @media (max-width: 480px) {
       .subtitle { display: none; }
     }
   `],
 })
-export class AppHeaderComponent {
+export class AppHeaderComponent implements OnDestroy {
   /** Optional page-specific subtitle rendered below the wordmark. */
   @Input() subtitle = '';
 
   protected auth = inject(AuthService);
   protected i18n = inject(I18nService);
   private router = inject(Router);
+  private api = inject(ApiService);
+  private platformId = inject(PLATFORM_ID);
 
   /** Account dropdown open state. */
   protected menuOpen = signal(false);
+  /** Notification dropdown open state. */
+  protected notifOpen = signal(false);
+  /** Unread notification count — drives the bell's red dot. */
+  protected unread = signal(0);
+  /** Recent notifications, loaded when the panel opens. */
+  protected notifs = signal<AppNotification[]>([]);
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    // Poll the cheap unread-count endpoint so the bell indicator stays live.
+    // Browser-only (the header never renders for the logged-out / prerender
+    // case anyway, but guard so SSR/prerender can't start a timer).
+    if (isPlatformBrowser(this.platformId)) {
+      void this.refreshUnread();
+      this.pollTimer = setInterval(() => void this.refreshUnread(), 60_000);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+  }
+
+  protected bellLabel = computed(() => {
+    const base = this.i18n.isEn ? 'Notifications' : 'Сповіщення';
+    const u = this.unread();
+    return u > 0 ? `${base} (${u})` : base;
+  });
+
+  private async refreshUnread(): Promise<void> {
+    if (!this.auth.user()) { this.unread.set(0); return; }
+    try {
+      this.unread.set((await this.api.getUnreadCount()).count);
+    } catch {
+      /* offline / 401 — leave the last known count */
+    }
+  }
+
+  async toggleNotif(): Promise<void> {
+    const open = !this.notifOpen();
+    this.notifOpen.set(open);
+    if (open) {
+      this.menuOpen.set(false);
+      try {
+        this.notifs.set(await this.api.getNotifications(20));
+      } catch {
+        /* noop */
+      }
+    }
+  }
+
+  /** Open a notification: mark it read locally + server-side, then deep-link. */
+  async openNotif(n: AppNotification): Promise<void> {
+    if (!n.read) {
+      this.notifs.update((list) => list.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      this.unread.update((c) => Math.max(0, c - 1));
+      void this.api.markNotificationRead(n.id).catch(() => undefined);
+    }
+    this.notifOpen.set(false);
+    if (n.url) void this.router.navigateByUrl(n.url);
+  }
+
+  async markAllRead(): Promise<void> {
+    this.notifs.update((list) => list.map((x) => ({ ...x, read: true })));
+    this.unread.set(0);
+    try {
+      await this.api.markAllNotificationsRead();
+    } catch {
+      /* noop */
+    }
+  }
+
+  /** type → Tabler glyph for the row icon. */
+  protected iconFor(type: string): string {
+    switch (type) {
+      case 'feedback': return 'message';
+      case 'badge': return 'trophy';
+      case 'reminder': return 'heart-handshake';
+      case 'announcement': return 'bell';
+      default: return 'bell';
+    }
+  }
+
+  /** Compact relative time for a notification row. */
+  protected relTime(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return this.i18n.isEn ? 'just now' : 'щойно';
+    if (m < 60) return `${m}${this.i18n.isEn ? 'm' : ' хв'}`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}${this.i18n.isEn ? 'h' : ' год'}`;
+    const d = Math.floor(h / 24);
+    return `${d}${this.i18n.isEn ? 'd' : ' дн'}`;
+  }
   /** True once the page has scrolled — fades in the header backdrop. */
   protected scrolled = signal(false);
 
@@ -274,6 +492,7 @@ export class AppHeaderComponent {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.menuOpen()) this.menuOpen.set(false);
+    if (this.notifOpen()) this.notifOpen.set(false);
   }
 
   async logout(): Promise<void> {

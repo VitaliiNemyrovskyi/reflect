@@ -109,6 +109,7 @@ export class PushReminderScheduler {
         body: this.copy(lang, best.name, Math.max(1, Math.round(best.weeks))),
         url: `/patient/${best.cid}`,
         tag: `caseload-${best.cid}`,
+        type: 'reminder',
       });
       if (n > 0) {
         await this.prisma.pushReminder.create({ data: { userId, characterId: best.cid } });

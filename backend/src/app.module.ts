@@ -25,6 +25,7 @@ import { DiaryModule } from './diary/diary.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ProgressModule } from './progress/progress.module';
 import { PushModule } from './push/push.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { CohortModule } from './cohort/cohort.module';
 import { CoursesModule } from './courses/courses.module';
 import { GlossaryModule } from './glossary/glossary.module';
@@ -66,6 +67,7 @@ import { GlossaryModule } from './glossary/glossary.module';
     DashboardModule,
     ProgressModule,
     PushModule,
+    NotificationsModule,
     CohortModule,
     CoursesModule,
     GlossaryModule,

@@ -10,6 +10,9 @@ export interface PushPayload {
   url?: string;
   /** Collapses repeat notifications on the device. */
   tag?: string;
+  /** Source category — stored on the mirrored in-app Notification row, drives
+   *  the bell icon. One of feedback | badge | reminder | announcement | system. */
+  type?: string;
 }
 
 /** Browser PushSubscription.toJSON() shape. */
@@ -89,8 +92,54 @@ export class PushService {
     return this.prisma.pushSubscription.count({ where: { userId } });
   }
 
-  /** Send a notification to every device a user has. Returns how many landed. */
-  async sendToUser(userId: number, payload: PushPayload): Promise<number> {
+  /** Resolve a user's preferred language from their most recent push
+   *  subscription (the only per-user lang signal we persist). Falls back to
+   *  Ukrainian. Used by notification triggers to localise copy. */
+  async resolveLang(userId: number): Promise<'uk' | 'en' | 'fr'> {
+    const sub = await this.prisma.pushSubscription.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { lang: true },
+    });
+    const l = sub?.lang;
+    return l === 'en' || l === 'fr' ? l : 'uk';
+  }
+
+  /**
+   * Mirror a notification into the in-app feed (Notification row). Done for
+   * every send so the header bell + /notifications page have a full history
+   * even when web-push is disabled or the device delivery fails. Best-effort:
+   * a failed mirror never blocks the push.
+   */
+  private async mirror(userId: number, payload: PushPayload): Promise<void> {
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId,
+          type: payload.type ?? 'system',
+          title: payload.title,
+          body: payload.body,
+          url: payload.url ?? null,
+        },
+      });
+    } catch (e) {
+      this.logger.warn(`notification mirror failed: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * Send a notification to a user: mirror it into the in-app feed, then push
+   * to every registered device. Returns how many device pushes landed (0 when
+   * web-push is disabled — the in-app row is still written). Pass
+   * `{ mirror: false }` for ephemeral sends (e.g. the settings test) that
+   * shouldn't clutter the feed.
+   */
+  async sendToUser(
+    userId: number,
+    payload: PushPayload,
+    opts: { mirror?: boolean } = {},
+  ): Promise<number> {
+    if (opts.mirror !== false) await this.mirror(userId, payload);
     if (!this.enabled) return 0;
     const subs = await this.prisma.pushSubscription.findMany({ where: { userId } });
     const json = JSON.stringify(payload);

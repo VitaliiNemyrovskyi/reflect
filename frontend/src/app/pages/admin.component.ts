@@ -25,7 +25,7 @@ interface GrantPlanDialog {
   note: string;
 }
 
-type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
+type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broadcast';
 
 @Component({
   selector: 'app-admin',
@@ -63,6 +63,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
         <button role="tab" class="board-tab" [attr.aria-selected]="tab() === 'board'" [class.active]="tab() === 'board'" (click)="setTab('board')">
           <app-icon name="trophy" /> <span>Дошка</span>
           @if (board().length) { <span class="count">{{ board().length }}</span> }
+        </button>
+        <button role="tab" [attr.aria-selected]="tab() === 'broadcast'" [class.active]="tab() === 'broadcast'" (click)="setTab('broadcast')">
+          <app-icon name="bell" /> <span>Розсилка</span>
         </button>
       </nav>
     </header>
@@ -488,6 +491,40 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
             }
           </tbody>
           </table>
+        </section>
+      }
+
+      @if (tab() === 'broadcast') {
+        <section class="panel panel-soft frame-bordered">
+          <span class="section-label"><app-icon name="bell" /> Розсилка-оголошення</span>
+          <p class="hint">
+            Надішле сповіщення <strong>усім</strong> користувачам — зʼявиться у їхньому
+            дзвонику й прилетить пушем (кому ввімкнено). Користуйся обережно.
+          </p>
+          <label class="bc-field">
+            <span>Заголовок</span>
+            <input type="text" maxlength="120"
+                   [ngModel]="bcTitle()" (ngModelChange)="bcTitle.set($event)"
+                   placeholder="напр. Новий курс: Тривога — поглиблено">
+          </label>
+          <label class="bc-field">
+            <span>Текст</span>
+            <textarea rows="3" maxlength="500"
+                      [ngModel]="bcBody()" (ngModelChange)="bcBody.set($event)"
+                      placeholder="Коротке повідомлення для всіх користувачів…"></textarea>
+          </label>
+          <label class="bc-field">
+            <span>Посилання (опційно)</span>
+            <input type="text" [ngModel]="bcUrl()" (ngModelChange)="bcUrl.set($event)" placeholder="/courses">
+          </label>
+          <div class="bc-actions">
+            <button class="primary"
+                    [disabled]="bcBusy() || !bcTitle().trim() || !bcBody().trim()"
+                    (click)="sendBroadcast()">
+              {{ bcBusy() ? '…' : 'Надіслати всім' }}
+            </button>
+            @if (bcResult(); as r) { <span class="bc-result">{{ r }}</span> }
+          </div>
         </section>
       }
     }
@@ -1001,6 +1038,23 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board';
     }
     .modal-actions button { padding: 8px 18px; font-size: 14px; }
 
+    /* Broadcast composer (Розсилка tab). */
+    .bc-field { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; max-width: 560px; }
+    .bc-field > span { font-size: 12px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .04em; }
+    .bc-field input, .bc-field textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .bc-field textarea { resize: vertical; min-height: 64px; }
+    .bc-actions { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+    .bc-result { font-size: 13px; color: var(--success); }
+
     /* ── Responsive & touch ──────────────────────────────────────────────
        This dashboard is desktop-first (the operator is usually on a laptop),
        but it must not break on a phone. Data tables already scroll
@@ -1053,6 +1107,13 @@ export class AdminComponent implements OnInit {
   recentEvents = signal<AdminEvent[]>([]);
   llmUsage = signal<AdminLlmUsage | null>(null);
   board = signal<TherapistBoardRow[]>([]);
+
+  /** Broadcast composer state (the «Розсилка» tab). */
+  bcTitle = signal('');
+  bcBody = signal('');
+  bcUrl = signal('');
+  bcBusy = signal(false);
+  bcResult = signal<string | null>(null);
 
   /** Format a USD cost for display — keeps the `$` out of the backtick
    *  template (where `${` would start a JS interpolation). */
@@ -1288,6 +1349,28 @@ export class AdminComponent implements OnInit {
    *  abandoned mid-request. No-op when no modal is open. */
   onEscape() {
     if (this.grantDialog()) this.closeGrantPlan();
+  }
+
+  /** Send an announcement to every user (in-app + push). Confirms first —
+   *  it fans out to the whole user base. */
+  async sendBroadcast() {
+    const title = this.bcTitle().trim();
+    const body = this.bcBody().trim();
+    if (!title || !body) return;
+    if (!confirm(`Надіслати оголошення ВСІМ користувачам?\n\n«${title}»`)) return;
+    this.bcBusy.set(true);
+    this.bcResult.set(null);
+    try {
+      const r = await this.api.broadcastNotification(title, body, this.bcUrl().trim() || undefined);
+      this.bcResult.set(`Надіслано ${r.reached} користувач(ам) ✓`);
+      this.bcTitle.set('');
+      this.bcBody.set('');
+      this.bcUrl.set('');
+    } catch {
+      this.bcResult.set('Не вдалося надіслати.');
+    } finally {
+      this.bcBusy.set(false);
+    }
   }
 
   /**
