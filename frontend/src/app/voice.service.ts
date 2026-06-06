@@ -44,6 +44,9 @@ export class VoiceService {
    *  on this side any more — single source of truth lives on the
    *  Character schema. */
   private currentGender: Gender | null = null;
+  /** Patient id pinned alongside gender; sent to /api/tts so the backend
+   *  resolves a per-character voice (temperament: speed/pitch/tone). */
+  private currentCharacterId: number | null = null;
 
   constructor() {
     if (this.supported) {
@@ -64,6 +67,12 @@ export class VoiceService {
    */
   setGender(gender: Gender | null) {
     this.currentGender = gender;
+  }
+
+  /** Pin the speaking patient's id (set with gender by chat.component on
+   *  session load). Drives the backend's per-character voice mapping. */
+  setCharacterId(id: number | null) {
+    this.currentCharacterId = id;
   }
 
   speak(text: string) {
@@ -147,6 +156,9 @@ export class VoiceService {
         text,
         voice: this.i18n.lang(),
         gender: this.currentGender,
+        // Omitted when null (JSON.stringify drops undefined) → backend
+        // falls back to a gender-only voice.
+        characterId: this.currentCharacterId ?? undefined,
       }),
     });
     if (!res.ok) {

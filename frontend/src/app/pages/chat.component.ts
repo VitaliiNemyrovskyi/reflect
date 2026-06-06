@@ -1544,12 +1544,13 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           void this.router.navigate(['/session', this.sessionId, 'view']);
           return;
         }
-        this.state.reset(sv.character.displayName, sv.character.gender, sv.character.avatarUrl);
-        // Pin the patient's gender on voice.service so /api/tts gets it
-        // and the sidecar picks the right voice (male → Ostap/Ryan/Henri,
-        // female → Polina/Sonia/Denise). Source of truth = Character.gender
-        // column. Null is acceptable — sidecar defaults to female.
+        this.state.reset(sv.character.displayName, sv.character.gender, sv.character.avatarUrl, sv.character.id);
+        // Pin the patient's gender + id on voice.service so /api/tts gets
+        // them: gender picks the sidecar voice; characterId lets the backend
+        // resolve a per-character OmniVoice (temperament). Source of truth =
+        // Character columns. Null gender is acceptable — defaults to female.
         this.voice.setGender(sv.character.gender);
+        this.voice.setCharacterId(sv.character.id);
         for (const m of sv.messages) {
           this.state.push({ role: m.role as 'user' | 'assistant', content: m.content });
         }
@@ -1568,6 +1569,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       // voice service with the cached gender so the new patient's voice
       // takes over instead of carrying over from the previous session.
       this.voice.setGender(this.state.characterGender());
+      this.voice.setCharacterId(this.state.characterId());
     }
     this.startedAt = Date.now();
     this.tickHandle = window.setInterval(() => this.nowMs.set(Date.now()), 1000);
