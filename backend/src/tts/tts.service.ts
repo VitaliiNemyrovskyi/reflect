@@ -167,8 +167,10 @@ export class TtsService implements OnModuleInit {
     };
   }
 
-  /** Call the OmniVoice backend (OpenAI-compatible) via the tunnel, using
-   *  voice-design (a text description) so no reference clip is needed. */
+  /** Call the OmniVoice backend (OpenAI-compatible) via the tunnel. The voice
+   *  is set by the engine's structured `instruct` tags — NOT `description`,
+   *  which the omnivoice engine ignores (that field is for the VoxCPM2 engine).
+   *  A gender tag locks the speaker so the voice can't drift mid-utterance. */
   private async tryOmnivoice(
     text: string,
     lang: string,
@@ -180,7 +182,7 @@ export class TtsService implements OnModuleInit {
       body: JSON.stringify({
         input: text,
         language: lang,
-        description: this.voiceDesign(gender, lang),
+        instruct: this.voiceInstruct(gender),
         response_format: 'mp3',
       }),
       // Warm synth is ~5s; cap at 12s so a cold/slow call falls back fast.
@@ -192,17 +194,15 @@ export class TtsService implements OnModuleInit {
     return { audio, contentType: res.headers.get('content-type') ?? 'audio/mpeg' };
   }
 
-  /** Gender → a voice-design description. (Per-character distinctiveness +
-   *  emotion-by-patient-state are follow-ups; this is the MVP split.) */
-  private voiceDesign(gender: string | null, lang: string): string {
-    if (lang === 'uk') {
-      if (gender === 'male') return 'чоловік, природний спокійний голос';
-      if (gender === 'female') return 'жінка, природний теплий голос';
-      return 'природний спокійний голос';
-    }
-    if (gender === 'male') return 'a man, natural calm voice';
-    if (gender === 'female') return 'a woman, natural warm voice';
-    return 'a natural calm voice';
+  /** Gender → OmniVoice structured `instruct` tags (the engine's predefined
+   *  voice-design tokens: gender + age; pitch/accent are also valid). Always
+   *  emit a gender tag so the speaker is pinned and can't drift mid-utterance.
+   *  Tags are language-agnostic — the model maps them onto the synthesis
+   *  `language`. Unknown gender → female (rare: most characters carry an
+   *  explicit Character.gender). */
+  private voiceInstruct(gender: string | null): string {
+    if (gender === 'male') return 'male, middle-aged';
+    return 'female, young adult';
   }
 
   /** Health probe + keepalive in one. Every 5 min a tiny synth both keeps the
@@ -225,7 +225,6 @@ export class TtsService implements OnModuleInit {
         body: JSON.stringify({
           input: 'привіт',
           language: 'uk',
-          description: 'нейтральний голос',
           response_format: 'mp3',
         }),
         signal: AbortSignal.timeout(20_000),
