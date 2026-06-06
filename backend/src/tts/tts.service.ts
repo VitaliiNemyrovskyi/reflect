@@ -12,10 +12,13 @@ import { stripStageDirections } from '../common/text';
  * Backend TTS gateway with two engines:
  *
  *   1. OmniVoice (self-hosted, optional PRIMARY) — a GPU box runs the
- *      OmniVoice Studio backend; we reach it over a Cloudflare tunnel
- *      (OMNIVOICE_URL) with a share PIN (OMNIVOICE_PIN). Apache-2.0 model,
- *      ~5s/line, natural Ukrainian + voice-design by description. Enabled
- *      only when both env vars are set.
+ *      OmniVoice Studio backend in server mode (OMNIVOICE_SERVER_MODE=1, no
+ *      rotating share PIN); we reach it over a named Cloudflare tunnel
+ *      (OMNIVOICE_URL) fronted by Cloudflare Access — a STABLE service-token
+ *      pair (OMNIVOICE_CF_ACCESS_CLIENT_ID / _SECRET) checked at Cloudflare's
+ *      edge before the request reaches the box. Apache-2.0 model, ~5s/line,
+ *      natural Ukrainian + voice-design by description. Enabled only when the
+ *      URL + both token halves are set.
  *
  *   2. reflect_tts sidecar (FALLBACK / default) — Google Gemini TTS primary
  *      + Microsoft edge-tts fallback, on the internal docker network.
@@ -49,9 +52,11 @@ export class TtsService implements OnModuleInit {
   readonly enabled: boolean;
   private readonly baseUrl: string;
 
-  /** OmniVoice self-hosted primary (via tunnel). */
+  /** OmniVoice self-hosted primary (named Cloudflare tunnel, fronted by
+   *  Cloudflare Access — a stable service-token pair, not a rotating PIN). */
   private readonly omniUrl: string;
-  private readonly omniPin: string;
+  private readonly cfAccessId: string;
+  private readonly cfAccessSecret: string;
   private readonly omniEnabled: boolean;
   /** Circuit breaker: consecutive failures + skip-until timestamp. */
   private omniFails = 0;
@@ -66,8 +71,9 @@ export class TtsService implements OnModuleInit {
     this.enabled = !!this.baseUrl;
 
     this.omniUrl = (process.env.OMNIVOICE_URL ?? '').trim().replace(/\/+$/, '');
-    this.omniPin = (process.env.OMNIVOICE_PIN ?? '').trim();
-    this.omniEnabled = !!(this.omniUrl && this.omniPin);
+    this.cfAccessId = (process.env.OMNIVOICE_CF_ACCESS_CLIENT_ID ?? '').trim();
+    this.cfAccessSecret = (process.env.OMNIVOICE_CF_ACCESS_CLIENT_SECRET ?? '').trim();
+    this.omniEnabled = !!(this.omniUrl && this.cfAccessId && this.cfAccessSecret);
 
     if (this.omniEnabled) this.logger.log(`TTS: OmniVoice primary at ${this.omniUrl}`);
     if (this.enabled) this.logger.log(`TTS: reflect_tts sidecar at ${this.baseUrl}`);
@@ -150,6 +156,17 @@ export class TtsService implements OnModuleInit {
     return { audio, contentType };
   }
 
+  /** Request headers for the OmniVoice tunnel: JSON + the Cloudflare Access
+   *  service-token pair the edge checks before the request reaches the box.
+   *  Stable — set once, survives every OmniVoice/PC restart (no PIN). */
+  private omniHeaders(): Record<string, string> {
+    return {
+      'content-type': 'application/json',
+      'CF-Access-Client-Id': this.cfAccessId,
+      'CF-Access-Client-Secret': this.cfAccessSecret,
+    };
+  }
+
   /** Call the OmniVoice backend (OpenAI-compatible) via the tunnel, using
    *  voice-design (a text description) so no reference clip is needed. */
   private async tryOmnivoice(
@@ -157,9 +174,9 @@ export class TtsService implements OnModuleInit {
     lang: string,
     gender: string | null,
   ): Promise<{ audio: Buffer; contentType: string }> {
-    const res = await fetch(`${this.omniUrl}/v1/audio/speech?pin=${encodeURIComponent(this.omniPin)}`, {
+    const res = await fetch(`${this.omniUrl}/v1/audio/speech`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: this.omniHeaders(),
       body: JSON.stringify({
         input: text,
         language: lang,
@@ -202,9 +219,9 @@ export class TtsService implements OnModuleInit {
    *  (no redeploy). Never throws. */
   private async probeOmnivoice(): Promise<void> {
     try {
-      const res = await fetch(`${this.omniUrl}/v1/audio/speech?pin=${encodeURIComponent(this.omniPin)}`, {
+      const res = await fetch(`${this.omniUrl}/v1/audio/speech`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: this.omniHeaders(),
         body: JSON.stringify({
           input: 'привіт',
           language: 'uk',
