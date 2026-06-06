@@ -96,8 +96,11 @@ export class IntroComponent implements OnInit {
     this.error.set(null);
     try {
       const data = await this.api.startSession(this.characterId);
-      this.state.reset(data.character.displayName, null, data.character.avatarUrl ?? null);
+      this.state.reset(data.character.displayName, null, data.character.avatarUrl ?? null, this.characterId);
       this.state.push({ role: 'assistant', content: data.firstMessage });
+      // Tag the cached bubbles with their session so chat.component trusts
+      // them (and doesn't refetch) — and so a later session can't show these.
+      this.state.sessionId.set(Number(data.sessionId));
       this.analytics.track('session.created', { characterId: this.characterId }, data.sessionId);
       void this.router.navigate(['/session', data.sessionId]);
     } catch (e: unknown) {
