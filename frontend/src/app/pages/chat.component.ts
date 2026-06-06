@@ -1536,7 +1536,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     // critical for mobile UX, where pull-to-refresh is one swipe away.
     // If session ended, we send the user to the read-only view; if the
     // session doesn't exist or belongs to someone else, we bounce home.
-    if (bubbles.length === 0) {
+    // Hydrate from the API when there are no bubbles (direct hit / refresh /
+    // new tab) OR when the cached bubbles belong to a DIFFERENT session — the
+    // state singleton survives in-app navigation, so without the sessionId
+    // guard, opening session B while A's bubbles linger would render A.
+    if (bubbles.length === 0 || this.state.sessionId() !== this.sessionId) {
       try {
         const sv = await this.api.viewSession(this.sessionId);
         if (sv.endedAt) {
@@ -1545,6 +1549,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           return;
         }
         this.state.reset(sv.character.displayName, sv.character.gender, sv.character.avatarUrl, sv.character.id);
+        this.state.sessionId.set(this.sessionId);
         // Pin the patient's gender + id on voice.service so /api/tts gets
         // them: gender picks the sidecar voice; characterId lets the backend
         // resolve a per-character OmniVoice (temperament). Source of truth =

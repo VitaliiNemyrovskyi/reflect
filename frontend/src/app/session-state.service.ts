@@ -30,6 +30,12 @@ export class SessionStateService {
   /** Patient id — sent to /api/tts so the backend resolves a per-character
    *  voice (temperament). Re-pinned on in-app nav like gender/avatar. */
   readonly characterId = signal<number | null>(null);
+  /** Which session the current bubbles belong to. chat.component compares
+   *  this against the route's sessionId so cached bubbles from a previous
+   *  patient are never shown under a different session — the singleton state
+   *  is shared across navigations, so without this guard opening session B
+   *  while A's bubbles linger would render A ("wrong patient loads"). */
+  readonly sessionId = signal<number | null>(null);
   readonly bubbles = signal<ChatBubble[]>([]);
 
   reset(
@@ -42,6 +48,9 @@ export class SessionStateService {
     this.characterGender.set(gender);
     this.characterAvatar.set(avatar);
     this.characterId.set(characterId);
+    // Cleared here; the caller sets it to the new session id after it has
+    // repopulated bubbles. A null id means "unknown" → chat refetches.
+    this.sessionId.set(null);
     this.bubbles.set([]);
   }
 
