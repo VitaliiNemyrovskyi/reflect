@@ -27,16 +27,21 @@ export class SessionStateService {
   /** Patient avatar URL — used by the video-call mode tile. Null when
    *  unknown (legacy rows / not yet loaded) → the tile shows initials. */
   readonly characterAvatar = signal<string | null>(null);
+  /** Patient id — sent to /api/tts so the backend resolves a per-character
+   *  voice (temperament). Re-pinned on in-app nav like gender/avatar. */
+  readonly characterId = signal<number | null>(null);
   readonly bubbles = signal<ChatBubble[]>([]);
 
   reset(
     displayName: string | null = null,
     gender: 'female' | 'male' | null = null,
     avatar: string | null = null,
+    characterId: number | null = null,
   ) {
     this.characterDisplayName.set(displayName);
     this.characterGender.set(gender);
     this.characterAvatar.set(avatar);
+    this.characterId.set(characterId);
     this.bubbles.set([]);
   }
 

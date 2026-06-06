@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { stripStageDirections } from '../common/text';
+import type { VoiceProfile } from './voice-profile';
 
 /**
  * Backend TTS gateway with two engines:
@@ -91,7 +92,7 @@ export class TtsService implements OnModuleInit {
   async synthesize(
     text: string,
     voiceOrLang: string,
-    opts: { gender?: string | null; age?: number | null } = {},
+    opts: { gender?: string | null; age?: number | null; voice?: VoiceProfile | null } = {},
   ): Promise<{ audio: Buffer; contentType: string }> {
     if (!this.enabled && !this.omniEnabled) {
       throw new ServiceUnavailableException(
@@ -109,7 +110,7 @@ export class TtsService implements OnModuleInit {
     const bareLang = ['uk', 'en', 'fr'].includes(voiceOrLang);
     if (this.omniEnabled && this.omniHealthy && bareLang && Date.now() >= this.omniSkipUntil) {
       try {
-        const out = await this.tryOmnivoice(cleaned, voiceOrLang, opts.gender ?? null);
+        const out = await this.tryOmnivoice(cleaned, voiceOrLang, opts.gender ?? null, opts.voice ?? null);
         this.omniFails = 0;
         this.omniHealthy = true;
         return out;
@@ -175,16 +176,22 @@ export class TtsService implements OnModuleInit {
     text: string,
     lang: string,
     gender: string | null,
+    voice: VoiceProfile | null = null,
   ): Promise<{ audio: Buffer; contentType: string }> {
+    // Per-character voice (temperament) when resolved; else gender-only.
+    // `speed` < 1 keeps delivery calm — raw 1.0 reads too fast for everyone.
+    const body: Record<string, unknown> = {
+      input: text,
+      language: lang,
+      instruct: voice?.instruct ?? this.voiceInstruct(gender),
+      speed: voice?.speed ?? 0.85,
+      response_format: 'mp3',
+    };
+    if (voice?.tone) body.description = voice.tone;
     const res = await fetch(`${this.omniUrl}/v1/audio/speech`, {
       method: 'POST',
       headers: this.omniHeaders(),
-      body: JSON.stringify({
-        input: text,
-        language: lang,
-        instruct: this.voiceInstruct(gender),
-        response_format: 'mp3',
-      }),
+      body: JSON.stringify(body),
       // Warm synth is ~5s; cap at 12s so a cold/slow call falls back fast.
       signal: AbortSignal.timeout(12_000),
     });
