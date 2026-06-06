@@ -45,12 +45,12 @@ jobs:
             ensure_env VAPID_PUBLIC_KEY "${{ secrets.VAPID_PUBLIC_KEY }}"
             ensure_env VAPID_PRIVATE_KEY "${{ secrets.VAPID_PRIVATE_KEY }}"
             echo "VAPID sync done"
-            # OmniVoice (self-hosted TTS) URL + share PIN. Unlike the stable
-            # VAPID keypair these are EPHEMERAL (a Cloudflare quick-tunnel host
-            # + a regenerating share PIN), so they must be UPDATED in place on
-            # every deploy — append-once would freeze the first value forever.
+            # OmniVoice (self-hosted TTS): named-tunnel URL + Cloudflare Access
+            # service-token pair. These are stable, but we still UPDATE in place
+            # (not append-once like VAPID) so rotating the CF Access token and
+            # re-deploying actually propagates the new value into .env.
             # grep -v rewrite avoids sed (portable under dash). An empty secret
-            # leaves any existing value untouched (don't wipe a live tunnel).
+            # leaves any existing value untouched (don't wipe a live config).
             upsert_env() {
               key="$1"
               val="$2"
@@ -62,7 +62,8 @@ jobs:
               fi
             }
             upsert_env OMNIVOICE_URL "${{ secrets.OMNIVOICE_URL }}"
-            upsert_env OMNIVOICE_PIN "${{ secrets.OMNIVOICE_PIN }}"
+            upsert_env OMNIVOICE_CF_ACCESS_CLIENT_ID "${{ secrets.OMNIVOICE_CF_ACCESS_CLIENT_ID }}"
+            upsert_env OMNIVOICE_CF_ACCESS_CLIENT_SECRET "${{ secrets.OMNIVOICE_CF_ACCESS_CLIENT_SECRET }}"
             echo "OmniVoice sync done"
 
             # Build api + web + tts. api+web change every commit; tts is

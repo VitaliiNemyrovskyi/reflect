@@ -75,12 +75,14 @@ x-api: &api
     VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
     VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
     VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@reflect.swift-mail.app}
-    # OmniVoice (self-hosted TTS on a GPU box, reached via a Cloudflare
-    # tunnel + share PIN). Both unset → TtsService silently uses the
-    # Gemini/edge sidecar (no behaviour change). Synced into
+    # OmniVoice (self-hosted TTS on a GPU box in server mode, reached via a
+    # named Cloudflare tunnel fronted by Cloudflare Access — a stable
+    # service-token pair, no rotating PIN). Any unset → TtsService silently
+    # uses the Gemini/edge sidecar (no behaviour change). Synced into
     # /opt/reflect/.env by the deploy workflow from GitHub secrets.
     OMNIVOICE_URL: ${OMNIVOICE_URL:-}
-    OMNIVOICE_PIN: ${OMNIVOICE_PIN:-}
+    OMNIVOICE_CF_ACCESS_CLIENT_ID: ${OMNIVOICE_CF_ACCESS_CLIENT_ID:-}
+    OMNIVOICE_CF_ACCESS_CLIENT_SECRET: ${OMNIVOICE_CF_ACCESS_CLIENT_SECRET:-}
   volumes:
     - reflect_data:/data
   # 120s drain budget for SIGTERM → SIGKILL. Inside, the app does:
