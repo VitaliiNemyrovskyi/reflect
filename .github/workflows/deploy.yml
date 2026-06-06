@@ -45,6 +45,25 @@ jobs:
             ensure_env VAPID_PUBLIC_KEY "${{ secrets.VAPID_PUBLIC_KEY }}"
             ensure_env VAPID_PRIVATE_KEY "${{ secrets.VAPID_PRIVATE_KEY }}"
             echo "VAPID sync done"
+            # OmniVoice (self-hosted TTS) URL + share PIN. Unlike the stable
+            # VAPID keypair these are EPHEMERAL (a Cloudflare quick-tunnel host
+            # + a regenerating share PIN), so they must be UPDATED in place on
+            # every deploy — append-once would freeze the first value forever.
+            # grep -v rewrite avoids sed (portable under dash). An empty secret
+            # leaves any existing value untouched (don't wipe a live tunnel).
+            upsert_env() {
+              key="$1"
+              val="$2"
+              if [ -n "$val" ]; then
+                if grep -q "^${key}=" .env; then
+                  grep -v "^${key}=" .env > .env.tmp && mv .env.tmp .env
+                fi
+                echo "${key}=${val}" >> .env
+              fi
+            }
+            upsert_env OMNIVOICE_URL "${{ secrets.OMNIVOICE_URL }}"
+            upsert_env OMNIVOICE_PIN "${{ secrets.OMNIVOICE_PIN }}"
+            echo "OmniVoice sync done"
 
             # Build api + web + tts. api+web change every commit; tts is
             # rebuilt too because the Gemini/edge sidecar evolves often
