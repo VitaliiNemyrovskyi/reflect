@@ -101,9 +101,22 @@ interface SelectionAnchor {
               <app-icon [name]="recognition.listening() ? 'square' : 'mic'" />
             </button>
           }
-          <button class="vbtn" [class.off]="voice.muted()" (click)="voice.toggleMute()"
-                  [title]="voice.muted() ? i18n.t('chat.unmute') : i18n.t('chat.mute')"
-                  [attr.aria-label]="i18n.t('chat.patient_sound')"><app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" /></button>
+          <div class="vol-wrap">
+            @if (volOpen()) {
+              <div class="vol-backdrop" (click)="volOpen.set(false)"></div>
+              <div class="vol-pop" role="group" [attr.aria-label]="i18n.t('chat.patient_sound')">
+                <button class="vol-mini" (click)="voice.toggleMute()"
+                        [title]="voice.muted() ? i18n.t('chat.unmute') : i18n.t('chat.mute')"><app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" /></button>
+                <input type="range" min="0" max="100" step="1" [value]="volPct()"
+                       (input)="onVolInput($event)" [attr.aria-label]="i18n.t('chat.patient_sound')" />
+                <span class="vol-pct">{{ volPct() }}%</span>
+              </div>
+            }
+            <button class="vbtn" [class.off]="voice.muted()" [class.live]="volOpen()"
+                    (click)="volOpen.set(!volOpen())"
+                    [title]="i18n.t('chat.patient_sound')"
+                    [attr.aria-label]="i18n.t('chat.patient_sound')"><app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" /></button>
+          </div>
           <button class="vbtn" [class.off]="!captionsOn()" (click)="toggleCaptions()"
                   [title]="i18n.t('chat.captions')" [attr.aria-label]="i18n.t('chat.captions')"><app-icon name="captions" /></button>
           <button class="vbtn" [class.live]="transcriptOpen()" (click)="toggleTranscript()"
@@ -1161,6 +1174,18 @@ interface SelectionAnchor {
       50% { box-shadow: 0 0 0 7px transparent; }
     }
     .vbtn.off { color: var(--fg-dim); opacity: 0.7; }
+    .vol-wrap { position: relative; display: inline-flex; }
+    .vol-backdrop { position: fixed; inset: 0; z-index: 40; }
+    .vol-pop {
+      position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+      z-index: 50; display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; border-radius: 999px; white-space: nowrap;
+      background: var(--card, #14141a); border: 1px solid var(--bd, #25252c);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+    .vol-pop input[type="range"] { width: 120px; accent-color: var(--accent); cursor: pointer; }
+    .vol-pop .vol-pct { font-size: 12px; color: var(--fg-dim); min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+    .vol-mini { background: none; border: 0; padding: 0; color: var(--fg); cursor: pointer; display: inline-flex; }
     .vbtn.end {
       background: var(--danger);
       border-color: var(--danger);
@@ -1658,6 +1683,14 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   toggleCaptions() {
     this.captionsOn.update((v) => !v);
+  }
+
+  /** Volume popover (the speaker control in the call bar). */
+  protected volOpen = signal<boolean>(false);
+  /** Patient TTS volume as a 0–100 integer for the slider. */
+  protected volPct = computed(() => Math.round(this.voice.volume() * 100));
+  protected onVolInput(e: Event) {
+    this.voice.setVolume((e.target as HTMLInputElement).valueAsNumber / 100);
   }
 
   /** Strip the supported OmniVoice non-verbal cues ([sigh]/[laughter], …) from
