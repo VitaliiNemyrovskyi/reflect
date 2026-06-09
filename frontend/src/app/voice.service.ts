@@ -1,8 +1,9 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { I18nService } from './i18n.service';
 import { AuthService } from './auth.service';
 
-const STORAGE_KEY = 'reflect.muted';
+const STORAGE_KEY = 'reflect.muted'; // legacy mute flag — migrated to VOLUME_KEY
+const VOLUME_KEY = 'reflect.volume'; // patient TTS playback gain, 0..1
 
 type Gender = 'female' | 'male';
 
@@ -10,7 +11,14 @@ type Gender = 'female' | 'male';
 export class VoiceService {
   private readonly i18n = inject(I18nService);
   private readonly auth = inject(AuthService);
-  readonly muted = signal<boolean>(this.readStored());
+  /** Patient TTS playback gain, 0..1. Persisted; applied to the audio element
+   *  live via the effect in the constructor. */
+  readonly volume = signal<number>(this.readVolume());
+  /** Derived: volume 0 == muted. Read-only alias so existing callers (chat
+   *  controls, the speak() gate) keep working unchanged. */
+  readonly muted = computed(() => this.volume() === 0);
+  /** Last non-zero volume — restored when un-muting. */
+  private lastVolume = this.volume() || 0.8;
   readonly speaking = signal<boolean>(false);
   readonly engine = signal<'elevenlabs' | 'browser' | 'unknown'>('unknown');
   /**
@@ -54,6 +62,12 @@ export class VoiceService {
       window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     }
     void this.probeElevenlabs();
+    // Apply volume changes to the currently-playing clip in real time, so the
+    // slider moves the sound immediately (not just the next utterance).
+    effect(() => {
+      const v = this.volume();
+      if (this.currentAudio) this.currentAudio.volume = v;
+    });
   }
 
   /**
@@ -99,13 +113,20 @@ export class VoiceService {
     this.currentUtterance = null;
   }
 
-  toggleMute() {
-    const next = !this.muted();
-    this.muted.set(next);
+  /** Set playback gain (0..1). Persists, tracks the restore point for un-mute,
+   *  and at 0 stops the current clip (so a muted clip doesn't keep pulsing). */
+  setVolume(v: number) {
+    const clamped = Math.min(1, Math.max(0, Number(v) || 0));
+    this.volume.set(clamped);
+    if (clamped > 0) this.lastVolume = clamped;
     try {
-      localStorage.setItem(STORAGE_KEY, String(next));
+      localStorage.setItem(VOLUME_KEY, String(clamped));
     } catch {}
-    if (next) this.cancel();
+    if (clamped === 0) this.cancel();
+  }
+
+  toggleMute() {
+    this.setVolume(this.volume() > 0 ? 0 : this.lastVolume || 0.8);
   }
 
   private async speakAsync(text: string, seq: number) {
@@ -172,6 +193,7 @@ export class VoiceService {
     const url = URL.createObjectURL(blob);
     this.currentObjectUrl = url;
     const audio = new Audio(url);
+    audio.volume = this.volume();
     this.currentAudio = audio;
     audio.onplay = () => {
       if (seq !== this.speakSeq) {
@@ -343,11 +365,17 @@ export class VoiceService {
     return null;
   }
 
-  private readStored(): boolean {
+  private readVolume(): number {
     try {
-      return localStorage.getItem(STORAGE_KEY) === 'true';
+      const raw = localStorage.getItem(VOLUME_KEY);
+      if (raw != null) {
+        const v = Number(raw);
+        if (Number.isFinite(v)) return Math.min(1, Math.max(0, v));
+      }
+      // Migrate the legacy mute flag → 0 (muted) or 1 (full volume).
+      return localStorage.getItem(STORAGE_KEY) === 'true' ? 0 : 1;
     } catch {
-      return false;
+      return 1;
     }
   }
 }
