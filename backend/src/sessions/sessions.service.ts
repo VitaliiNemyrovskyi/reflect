@@ -1658,11 +1658,22 @@ export class SessionsService {
     // on difficulty + modality. Cuts output cost AND shrinks history for
     // subsequent turns — double-savings on long sessions.
     const brevityInstruction = this.prompts.getBrevityInstruction(difficulty, modality);
+    // Output-language directive — placed LAST (strongest steering) so an
+    // en/fr character replies in English/French even though the persona
+    // template (anna_system.md) is authored in Ukrainian. Without this the
+    // model mirrored the prompt's language and London/Paris patients spoke
+    // Ukrainian.
+    const languageDirective =
+      lang === 'en'
+        ? '\n\n## LANGUAGE (override — critical)\nYou are an English-speaking patient. Reply ONLY in natural, conversational English. Do NOT reply in Ukrainian or Russian, even though parts of these instructions are written in Ukrainian.'
+        : lang === 'fr'
+          ? '\n\n## LANGUE (impératif)\nTu es un patient francophone. Réponds UNIQUEMENT en français naturel et courant. Ne réponds jamais en ukrainien ni en russe, même si une partie de ces instructions est rédigée en ukrainien.'
+          : '\n\n## Мова\nВідповідай природною розмовною українською.';
     return this.llm.chat({
       // absenceContext (stage-direction about a long gap since last session)
       // goes right after the persona + memories so the model factors it into
       // HOW the patient shows up today, before difficulty/modality steering.
-      systemPrompt: filled + warning + memorySection + absenceContext + npcSection + citySection + difficultyModulator + modalityModulator + brevityInstruction,
+      systemPrompt: filled + warning + memorySection + absenceContext + npcSection + citySection + difficultyModulator + modalityModulator + brevityInstruction + languageDirective,
       history,
       cacheSystem: true,
     });
