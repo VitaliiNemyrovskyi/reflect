@@ -81,7 +81,7 @@ interface SelectionAnchor {
         @if (captionsOn() && lastLine(); as line) {
           <div class="captions" [class.mine]="line.role === 'user'">
             <span class="cap-who">{{ line.role === 'user' ? i18n.t('chat.you') : (state.characterDisplayName() ?? i18n.t('chat.client_fallback')) }}</span>
-            <p>{{ line.content }}</p>
+            <p>{{ displayText(line.content) }}</p>
           </div>
         }
 
@@ -176,7 +176,7 @@ interface SelectionAnchor {
                       <span class="vline-who">
                         {{ b.role === 'user' ? i18n.t('chat.you') : (state.characterDisplayName() ?? i18n.t('chat.client_fallback')) }}
                       </span>
-                      <p class="vline-text">{{ b.content }}</p>
+                      <p class="vline-text">{{ displayText(b.content) }}</p>
                     </div>
                   }
                 }
@@ -1658,6 +1658,19 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   toggleCaptions() {
     this.captionsOn.update((v) => !v);
+  }
+
+  /** Strip the supported OmniVoice non-verbal cues ([sigh]/[laughter], …) from
+   *  the DISPLAYED text. The trainee HEARS them in the voice (like a real
+   *  session), but the raw tag shouldn't show in the caption/transcript. */
+  protected displayText(content: string): string {
+    return content
+      .replace(
+        /\[(?:laughter|sigh|confirmation-en|question-(?:en|ah|oh|ei|yi)|surprise-(?:ah|oh|wa|yo)|dissatisfaction-hnn)\]/gi,
+        '',
+      )
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   }
 
   /**
