@@ -30,23 +30,21 @@ const ANNOUNCE_KEY = 'reflect_announce_push_v1';
           <div class="announce-text">
             <strong>{{ done() }}</strong>
             <a routerLink="/settings" class="announce-link" (click)="close()">
-              {{ i18n.isEn ? 'Manage in Settings →' : 'Керувати в Налаштуваннях →' }}
+              {{ i18n.t('announce.manageInSettings') }}
             </a>
           </div>
-          <button class="ghost icon-btn" (click)="close()" [attr.aria-label]="i18n.isEn ? 'Close' : 'Закрити'">✕</button>
+          <button class="ghost icon-btn" (click)="close()" [attr.aria-label]="i18n.t('announce.close')">✕</button>
         } @else {
           <div class="announce-text">
-            <strong>{{ i18n.isEn ? 'New: patient reminders' : 'Нове: нагадування про пацієнтів' }}</strong>
-            <span>{{ i18n.isEn
-              ? 'Reflect can gently remind you when a patient hasn’t had a session in a while. Turn it on?'
-              : 'Reflect делікатно нагадає, якщо когось із пацієнтів давно не було на сесії. Увімкнути?' }}</span>
+            <strong>{{ i18n.t('announce.title') }}</strong>
+            <span>{{ i18n.t('announce.body') }}</span>
           </div>
           <div class="announce-actions">
             <button class="primary small" [disabled]="busy()" (click)="enable()">
-              {{ busy() ? '…' : (i18n.isEn ? 'Enable' : 'Увімкнути') }}
+              {{ busy() ? '…' : i18n.t('announce.enable') }}
             </button>
             <button class="ghost small" [disabled]="busy()" (click)="dismiss()">
-              {{ i18n.isEn ? 'Later' : 'Пізніше' }}
+              {{ i18n.t('announce.later') }}
             </button>
           </div>
         }
@@ -90,7 +88,7 @@ const ANNOUNCE_KEY = 'reflect_announce_push_v1';
 })
 export class AnnounceComponent {
   protected auth = inject(AuthService);
-  protected i18n = inject(I18nService);
+  protected readonly i18n = inject(I18nService);
   protected push = inject(PushClientService);
 
   protected show = signal(false);
@@ -143,7 +141,7 @@ export class AnnounceComponent {
     this.busy.set(false);
     this.persist();
     if (r === 'ok') {
-      this.done.set(this.i18n.isEn ? 'Reminders enabled ✓' : 'Нагадування увімкнено ✓');
+      this.done.set(this.i18n.t('announce.enabled'));
     } else {
       // denied / unsupported / error — don't nag; they can enable in Settings.
       this.show.set(false);

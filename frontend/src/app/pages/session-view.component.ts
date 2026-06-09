@@ -4,6 +4,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { marked } from 'marked';
 import { ApiService, SessionView } from '../api.service';
+import { I18nService } from '../i18n.service';
 import { TestResultCardComponent } from '../test-result-card.component';
 
 marked.setOptions({ gfm: true, breaks: true });
@@ -14,33 +15,33 @@ marked.setOptions({ gfm: true, breaks: true });
   imports: [CommonModule, DatePipe, RouterLink, TestResultCardComponent],
   template: `
     @if (loading()) {
-      <p class="hint">Завантаження…</p>
+      <p class="hint">{{ i18n.t('sessionView.loading') }}</p>
     } @else if (error()) {
       <p class="hint danger">{{ error() }}</p>
-      <a routerLink="/" class="link-btn">← На головну</a>
+      <a routerLink="/" class="link-btn">{{ i18n.t('sessionView.backHome') }}</a>
     } @else if (session()) {
       @let s = session()!;
       <header class="view-header">
-        <a [routerLink]="['/patient', s.character.id]" class="back">← {{ s.character.displayName }}</a>
+        <a [routerLink]="['/patient', s.character.id]" class="back">{{ i18n.t('sessionView.backToPatient', { name: s.character.displayName }) }}</a>
         <div class="header-row">
           <div>
-            <h1>Сесія #{{ s.id }}</h1>
+            <h1>{{ i18n.t('sessionView.heading', { id: s.id }) }}</h1>
             <p class="meta">
               {{ s.startedAt | date: 'dd.MM.yyyy HH:mm' }}
               @if (s.endedAt) {
-                · завершена {{ s.endedAt | date: 'HH:mm' }}
-                @if (durationMin(); as d) { · {{ d }} хв }
+                · {{ i18n.t('sessionView.endedAt', { time: (s.endedAt | date: 'HH:mm') ?? '' }) }}
+                @if (durationMin(); as d) { · {{ i18n.t('sessionView.durationMin', { count: d }) }} }
               } @else {
-                <span class="badge open">у процесі</span>
+                <span class="badge open">{{ i18n.t('sessionView.inProgress') }}</span>
               }
-              · {{ s.messages.length }} реплік
-              @if (s.notes.length) { · {{ s.notes.length }} нотаток }
+              · {{ i18n.t('sessionView.messageCount', { count: s.messages.length }) }}
+              @if (s.notes.length) { · {{ i18n.t('sessionView.noteCount', { count: s.notes.length }) }} }
             </p>
           </div>
           <div class="header-actions">
             @if (s.feedback) {
               <button class="ghost" (click)="toggleFeedback()">
-                {{ feedbackOpen() ? '× Сховати фідбек' : '📝 Показати фідбек' }}
+                {{ feedbackOpen() ? i18n.t('sessionView.hideFeedback') : i18n.t('sessionView.showFeedback') }}
               </button>
             }
           </div>
@@ -63,7 +64,7 @@ marked.setOptions({ gfm: true, breaks: true });
             <div class="bubble-meta">
               <span class="line-no">[L{{ i + 1 }}]</span>
               <span class="role">
-                {{ m.role === 'user' ? 'Терапевт' : s.character.displayName }}
+                {{ m.role === 'user' ? i18n.t('sessionView.therapistRole') : s.character.displayName }}
               </span>
               <span class="time">{{ m.createdAt | date: 'HH:mm:ss' }}</span>
             </div>
@@ -85,7 +86,7 @@ marked.setOptions({ gfm: true, breaks: true });
            collapsible answer-by-answer breakdown. -->
       @if (s.tests && s.tests.length > 0) {
         <section class="session-tests">
-          <h3>📋 Пройдені тести</h3>
+          <h3>{{ i18n.t('sessionView.testsHeading') }}</h3>
           @for (t of s.tests; track t.id) {
             <app-test-result-card [test]="t" />
           }
@@ -94,7 +95,7 @@ marked.setOptions({ gfm: true, breaks: true });
 
       @if (orphanNotes().length > 0) {
         <section class="orphan-notes">
-          <h3>Нотатки без прив'язки</h3>
+          <h3>{{ i18n.t('sessionView.orphanNotesHeading') }}</h3>
           <ul>
             @for (n of orphanNotes(); track n.id) {
               <li>
@@ -367,6 +368,7 @@ export class SessionViewComponent implements OnInit {
   private router = inject(Router);
   private api = inject(ApiService);
   private sanitizer = inject(DomSanitizer);
+  protected readonly i18n = inject(I18nService);
 
   loading = signal(true);
   error = signal<string | null>(null);
@@ -445,7 +447,7 @@ export class SessionViewComponent implements OnInit {
   async ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('sessionId'));
     if (!id) {
-      this.error.set('Невідома сесія.');
+      this.error.set(this.i18n.t('sessionView.unknownSession'));
       this.loading.set(false);
       return;
     }
@@ -463,9 +465,9 @@ export class SessionViewComponent implements OnInit {
       const httpErr = e as { status?: number; error?: { message?: string }; message?: string };
       const msg =
         httpErr.error?.message ||
-        (httpErr.status === 404 ? 'Сесія не знайдена або у тебе немає доступу.' : null) ||
+        (httpErr.status === 404 ? this.i18n.t('sessionView.notFound') : null) ||
         httpErr.message ||
-        'Не вдалось завантажити сесію.';
+        this.i18n.t('sessionView.loadFailed');
       this.error.set(msg);
     } finally {
       this.loading.set(false);

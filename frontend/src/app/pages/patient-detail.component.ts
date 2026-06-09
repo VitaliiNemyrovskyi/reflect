@@ -51,11 +51,11 @@ const SPOILER_PATTERNS: RegExp[] = [
   imports: [CommonModule, RouterLink, DatePipe, FormsModule, IconComponent],
   template: `
     @if (loading()) {
-      <p class="hint">Завантаження…</p>
+      <p class="hint">{{ i18n.t('patientDetail.loading') }}</p>
     } @else if (!patient()) {
-      <p class="hint danger">Картку пацієнта не знайдено.</p>
+      <p class="hint danger">{{ i18n.t('patientDetail.notFound') }}</p>
     } @else {
-      <a routerLink="/" class="back">← {{ i18n.isEn ? 'All clients' : 'Усі пацієнти' }}</a>
+      <a routerLink="/" class="back">← {{ i18n.t('patientDetail.allClients') }}</a>
 
       <!-- ╔═══ HERO ═══╗
            Portrait photo on the left + identity (name/diagnosis) +
@@ -103,19 +103,19 @@ const SPOILER_PATTERNS: RegExp[] = [
             @if (patient()!.isMine) {
               <a [routerLink]="['/patient', patient()!.id, 'edit']"
                  class="ghost icon small"
-                 title="Редагувати профіль"
-                 aria-label="Редагувати">✎</a>
+                 [title]="i18n.t('patientDetail.editProfileTitle')"
+                 [attr.aria-label]="i18n.t('patientDetail.editAria')">✎</a>
               <button class="ghost icon small"
-                      title="Поділитися доступом"
-                      aria-label="Доступ"
+                      [title]="i18n.t('patientDetail.shareTitle')"
+                      [attr.aria-label]="i18n.t('patientDetail.accessAria')"
                       (click)="openShareModal()">👥</button>
               <button class="ghost icon small danger-icon"
-                      title="Видалити профіль"
+                      [title]="i18n.t('patientDetail.deleteProfileTitle')"
                       [disabled]="deleting()"
                       (click)="confirmDelete()">🗑</button>
             }
             <button class="primary new-session-btn fx-glow" (click)="newSession()">
-              {{ i18n.isEn ? 'New session' : 'Нова сесія' }}
+              {{ i18n.t('patientDetail.newSession') }}
             </button>
           </div>
         </div>
@@ -129,9 +129,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                   [class.active]="activeSector() === 'sessions'"
                   (mouseenter)="activeSector.set('sessions')"
                   (click)="toggleSector('sessions')">
-            <span class="vital-label">{{ i18n.isEn ? 'SESSIONS' : 'СЕСІЇ' }}</span>
+            <span class="vital-label">{{ i18n.t('patientDetail.vitalSessions') }}</span>
             <span class="vital-value">{{ patient()!.sessionCount }}</span>
-            <span class="vital-meta">{{ patient()!.completedCount }} {{ i18n.isEn ? 'completed' : 'завершено' }}</span>
+            <span class="vital-meta">{{ patient()!.completedCount }} {{ i18n.t('patientDetail.completed') }}</span>
           </button>
 
           <button type="button"
@@ -140,7 +140,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                   [class.vital-warn]="patient()!.progressBadge === 'worsening'"
                   (mouseenter)="activeSector.set('state')"
                   (click)="toggleSector('state')">
-            <span class="vital-label">{{ i18n.isEn ? 'STATE' : 'СТАН' }}</span>
+            <span class="vital-label">{{ i18n.t('patientDetail.vitalState') }}</span>
             <span class="vital-value">{{ stateGlyph(patient()!.progressBadge) }}</span>
             <span class="vital-meta">{{ badgeText(patient()!.progressBadge) }}</span>
           </button>
@@ -151,7 +151,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                     [class.active]="activeSector() === 'behavior'"
                     (mouseenter)="activeSector.set('behavior')"
                     (click)="toggleSector('behavior')">
-              <span class="vital-label">{{ i18n.isEn ? 'DIFFICULTY' : 'ПОВЕДІНКА' }}</span>
+              <span class="vital-label">{{ i18n.t('patientDetail.vitalDifficulty') }}</span>
               <span class="vital-value">{{ patient()!.difficulty }}<small>/5</small></span>
               <span class="vital-meta">{{ stars(patient()!.difficulty!) }}</span>
             </button>
@@ -163,7 +163,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                     [class.active]="activeSector() === 'severity'"
                     (mouseenter)="activeSector.set('severity')"
                     (click)="toggleSector('severity')">
-              <span class="vital-label">{{ i18n.isEn ? 'COMPLEXITY' : 'ТЯЖКІСТЬ' }}</span>
+              <span class="vital-label">{{ i18n.t('patientDetail.vitalComplexity') }}</span>
               <span class="vital-value">{{ patient()!.complexity }}<small>/5</small></span>
               <span class="vital-meta">{{ dots(patient()!.complexity!) }}</span>
             </button>
@@ -197,7 +197,7 @@ const SPOILER_PATTERNS: RegExp[] = [
           </article>
         } @else {
           <div class="sector-detail empty">
-            <span>{{ i18n.isEn ? 'Hover over a metric on the right to see details.' : 'Наведи на показник справа — побачиш деталі.' }}</span>
+            <span>{{ i18n.t('patientDetail.hoverHint') }}</span>
           </div>
         }
       </section>
@@ -232,9 +232,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                 @if (i18n.isEn) {
                   How the client might frame this in their first session
                 } @else if (feminine()) {
-                  Як пацієнтка озвучила б це сама на першій сесії
+                  {{ i18n.t('patientDetail.presentingFootFem') }}
                 } @else {
-                  Як пацієнт озвучив би це сам на першій сесії
+                  {{ i18n.t('patientDetail.presentingFootMasc') }}
                 }
               </footer>
             </article>
@@ -250,7 +250,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                 <span class="section-label">PATIENT MEMORY</span>
                 @if (memory.sessionId) {
                   <a [routerLink]="['/session', memory.sessionId, 'view']"
-                     class="memory-link">Сесія #{{ memory.sessionId }} →</a>
+                     class="memory-link">{{ i18n.t('patientDetail.sessionWordCap') }} #{{ memory.sessionId }} →</a>
                 }
               </header>
               <p class="memory-body">{{ memory.text }}</p>
@@ -258,9 +258,9 @@ const SPOILER_PATTERNS: RegExp[] = [
                 @if (i18n.isEn) {
                   What they will carry into the next session
                 } @else if (feminine()) {
-                  Те, з чим вона прийде на наступну сесію
+                  {{ i18n.t('patientDetail.memoryFootFem') }}
                 } @else {
-                  Те, з чим він прийде на наступну сесію
+                  {{ i18n.t('patientDetail.memoryFootMasc') }}
                 }
               </footer>
             </article>
@@ -272,7 +272,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                 <header class="panel-head">
                   <h3 class="panel-title">DEMOGRAPHICS</h3>
                   <span class="panel-meta">
-                    <a (click)="tab.set('profile')" class="link-btn">{{ i18n.isEn ? 'Full profile →' : 'Повний профіль →' }}</a>
+                    <a (click)="tab.set('profile')" class="link-btn">{{ i18n.t('patientDetail.fullProfile') }} →</a>
                   </span>
                 </header>
                 <dl class="facts">
@@ -292,14 +292,14 @@ const SPOILER_PATTERNS: RegExp[] = [
                   <h3 class="panel-title">MENTOR AI · LAST FEEDBACK</h3>
                   <span class="panel-meta">
                     @if (patient()!.sessions[0]; as last) {
-                      Сесія #{{ last.id }}
+                      {{ i18n.t('patientDetail.sessionWordCap') }} #{{ last.id }}
                     }
                   </span>
                 </header>
                 <pre class="feedback-preview">{{ recentFeedbackPreview() }}</pre>
                 @if (patient()!.sessions[0]) {
                   <a [routerLink]="['/session', patient()!.sessions[0].id, 'feedback']" class="link-btn">
-                    Повний фідбек →
+                    {{ i18n.t('patientDetail.fullFeedback') }} →
                   </a>
                 }
               </article>
@@ -309,7 +309,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 
         @if (tab() === 'profile') {
           @if (profileSections().length === 0) {
-            <p class="hint">{{ i18n.isEn ? 'Profile could not be parsed into structure — showing raw text.' : 'Профіль не парситься у структуру — показую сирий текст.' }}</p>
+            <p class="hint">{{ i18n.t('patientDetail.profileUnparsed') }}</p>
             <article class="card">
               <pre class="profile-fallback">{{ patient()!.profileText }}</pre>
             </article>
@@ -332,8 +332,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                       {{ s.title }}
                     </h3>
                     @if (s.isSpoiler) {
-                      <span class="spoiler-tag" title="Це — клінічна підказка / відповідь. Дивись після того, як спробуєш кейс самостійно.">
-                        <app-icon name="lock" /> Підказка
+                      <span class="spoiler-tag" [title]="i18n.t('patientDetail.spoilerTagTitle')">
+                        <app-icon name="lock" /> {{ i18n.t('patientDetail.spoilerTag') }}
                       </span>
                     }
                     <span class="section-toggle" aria-hidden="true">
@@ -344,11 +344,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                     <div class="section-body" [innerHTML]="s.bodyHtml"></div>
                   } @else if (s.isSpoiler) {
                     <p class="spoiler-warn">
-                      Цей розділ — клінічна підказка (як насправді
-                      влаштован{{ feminine() ? 'а' : 'ий' }} пацієнт{{ feminine() ? 'ка' : '' }}
-                      і як {{ feminine() ? 'вона поведеться' : 'він поведеться' }}).
-                      Він спойлерить кейс. Розгорни лише якщо хочеш звірити свою
-                      гіпотезу або ти вже провів{{ feminine() ? 'ла' : '' }} сесію.
+                      {{ i18n.t(feminine() ? 'patientDetail.spoilerWarnFem' : 'patientDetail.spoilerWarnMasc') }}
                     </p>
                   }
                 </article>
@@ -360,8 +356,8 @@ const SPOILER_PATTERNS: RegExp[] = [
         @if (tab() === 'sessions') {
           @if (patient()!.sessions.length === 0) {
             <p class="hint">
-              Сесій з {{ feminine() ? 'цією пацієнткою' : 'цим пацієнтом' }} ще не було.
-              <button class="link-btn" (click)="newSession()">Почати першу</button>
+              {{ i18n.t(feminine() ? 'patientDetail.noSessionsFem' : 'patientDetail.noSessionsMasc') }}
+              <button class="link-btn" (click)="newSession()">{{ i18n.t('patientDetail.startFirst') }}</button>
             </p>
           } @else {
             <ul class="sessions-list fx-stagger">
@@ -369,32 +365,32 @@ const SPOILER_PATTERNS: RegExp[] = [
                 <li class="session-item">
                   <header class="session-head">
                     <div>
-                      <span class="session-id">Сесія #{{ s.id }}</span>
+                      <span class="session-id">{{ i18n.t('patientDetail.sessionWordCap') }} #{{ s.id }}</span>
                       <span class="session-date">{{ s.startedAt | date: 'dd.MM.yyyy HH:mm' }}</span>
                     </div>
                     <div>
                       @if (s.endedAt) {
-                        <span class="session-status done">Завершена</span>
+                        <span class="session-status done">{{ i18n.t('patientDetail.sessionDone') }}</span>
                       } @else {
-                        <span class="session-status open">У процесі</span>
+                        <span class="session-status open">{{ i18n.t('patientDetail.sessionOpen') }}</span>
                       }
                     </div>
                   </header>
                   <div class="session-stats">
-                    {{ s.messageCount }} реплік · {{ s.noteCount }} нотаток
+                    {{ s.messageCount }} {{ i18n.t('patientDetail.replies') }} · {{ s.noteCount }} {{ i18n.t('patientDetail.notesWord') }}
                     @if (s.assessment?.patient?.symptomSeverity != null) {
-                      · симптоми {{ s.assessment!.patient!.symptomSeverity }}/10
+                      · {{ i18n.t('patientDetail.symptoms') }} {{ s.assessment!.patient!.symptomSeverity }}/10
                     }
                   </div>
                   @if (s.feedbackPreview) {
                     <p class="session-preview">{{ s.feedbackPreview }}</p>
                   }
                   <div class="session-actions">
-                    <a [routerLink]="['/session', s.id, 'view']" class="link-btn">Транскрипт</a>
+                    <a [routerLink]="['/session', s.id, 'view']" class="link-btn">{{ i18n.t('patientDetail.transcript') }}</a>
                     @if (s.endedAt) {
-                      <a [routerLink]="['/session', s.id, 'feedback']" class="link-btn">Повний фідбек</a>
+                      <a [routerLink]="['/session', s.id, 'feedback']" class="link-btn">{{ i18n.t('patientDetail.fullFeedback') }}</a>
                     } @else {
-                      <a [routerLink]="['/session', s.id]" class="link-btn">Продовжити</a>
+                      <a [routerLink]="['/session', s.id]" class="link-btn">{{ i18n.t('patientDetail.continue') }}</a>
                     }
                   </div>
                 </li>
@@ -405,7 +401,7 @@ const SPOILER_PATTERNS: RegExp[] = [
 
         @if (tab() === 'notes') {
           @if (patient()!.notes.length === 0) {
-            <p class="hint">Жодної нотатки. Виділяй текст під час сесії — нотатки потраплять сюди.</p>
+            <p class="hint">{{ i18n.t('patientDetail.notesEmpty') }}</p>
           } @else {
             <ul class="notes-aggregated fx-stagger">
               @for (n of patient()!.notes; track n.id) {
@@ -415,7 +411,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                   }
                   <p class="note-body">{{ n.noteText }}</p>
                   <footer class="note-meta">
-                    Сесія #{{ n.sessionId }} · {{ n.createdAt | date: 'dd.MM.yyyy' }}
+                    {{ i18n.t('patientDetail.sessionWordCap') }} #{{ n.sessionId }} · {{ n.createdAt | date: 'dd.MM.yyyy' }}
                   </footer>
                 </li>
               }
@@ -447,7 +443,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                       <footer class="memory-meta">
                         @if (m.sessionId !== null) {
                           <a [routerLink]="['/session', m.sessionId, 'view']" class="link-btn">
-                            {{ i18n.isEn ? 'session' : 'сесія' }} #{{ m.sessionId }}
+                            {{ i18n.t('patientDetail.sessionWord') }} #{{ m.sessionId }}
                           </a>
                           <span class="dim">·</span>
                         }
@@ -463,10 +459,10 @@ const SPOILER_PATTERNS: RegExp[] = [
 
         @if (tab() === 'progress') {
           @if (chartTrends().length === 0) {
-            <p class="hint">{{ i18n.isEn ? 'Progress charts appear after the first completed session with feedback.' : "Прогрес-графіки з'являться після першої завершеної сесії з фідбеком." }}</p>
+            <p class="hint">{{ i18n.t('patientDetail.progressEmpty') }}</p>
           } @else {
             <div class="charts-section">
-              <h3>{{ feminine() ? 'Стан клієнтки' : 'Стан клієнта' }} (1-10)</h3>
+              <h3>{{ i18n.t(feminine() ? 'patientDetail.clientStateFem' : 'patientDetail.clientStateMasc') }} (1-10)</h3>
               <div class="charts-grid">
                 @for (t of patientTrends(); track t.metric) {
                   <article class="chart-card">
@@ -491,7 +487,7 @@ const SPOILER_PATTERNS: RegExp[] = [
                 }
               </div>
 
-              <h3>Компетенції терапевта (0-6)</h3>
+              <h3>{{ i18n.t('patientDetail.therapistCompetencies') }} (0-6)</h3>
               <div class="charts-grid">
                 @for (t of therapistTrends(); track t.metric) {
                   <article class="chart-card">
@@ -521,20 +517,18 @@ const SPOILER_PATTERNS: RegExp[] = [
         <div class="modal-backdrop" (click)="closeShareModal()"></div>
         <div class="modal-card" role="dialog" aria-labelledby="share-title">
           <header class="modal-head">
-            <h2 id="share-title">Доступ до профілю</h2>
-            <button class="modal-close" (click)="closeShareModal()" aria-label="Закрити">×</button>
+            <h2 id="share-title">{{ i18n.t('patientDetail.shareModalTitle') }}</h2>
+            <button class="modal-close" (click)="closeShareModal()" [attr.aria-label]="i18n.t('patientDetail.close')">×</button>
           </header>
           <div class="modal-body">
             <p class="modal-intro">
-              Профіль приватний: бачиш лише ти + ті, кому надано доступ.
-              Колеги зможуть запускати сесії й читати свої транскрипти, але
-              не зможуть редагувати чи видалити профіль.
+              {{ i18n.t('patientDetail.shareIntro') }}
             </p>
 
             <form class="share-form" (ngSubmit)="addShare()">
               <input type="email"
                      name="shareEmail"
-                     placeholder="email колеги"
+                     [placeholder]="i18n.t('patientDetail.shareEmailPlaceholder')"
                      [ngModel]="shareEmail()"
                      (ngModelChange)="shareEmail.set($event)"
                      [disabled]="sharing()"
@@ -542,7 +536,7 @@ const SPOILER_PATTERNS: RegExp[] = [
               <button type="submit"
                       class="primary"
                       [disabled]="sharing() || !shareEmail().trim()">
-                {{ sharing() ? 'Додаю…' : 'Додати' }}
+                {{ sharing() ? i18n.t('patientDetail.adding') : i18n.t('patientDetail.add') }}
               </button>
             </form>
             @if (shareError()) {
@@ -551,11 +545,11 @@ const SPOILER_PATTERNS: RegExp[] = [
 
             <div class="share-list">
               @if (sharesLoading()) {
-                <p class="hint">Завантаження…</p>
+                <p class="hint">{{ i18n.t('patientDetail.loading') }}</p>
               } @else if (shares().length === 0) {
-                <p class="hint">Поки що нікому не надано доступ.</p>
+                <p class="hint">{{ i18n.t('patientDetail.shareNobody') }}</p>
               } @else {
-                <h3 class="share-list-head">З ким поділено ({{ shares().length }})</h3>
+                <h3 class="share-list-head">{{ i18n.t('patientDetail.sharedWith') }} ({{ shares().length }})</h3>
                 <ul>
                   @for (s of shares(); track s.id) {
                     <li class="share-row">
@@ -566,8 +560,8 @@ const SPOILER_PATTERNS: RegExp[] = [
                       <button class="ghost icon small danger-icon"
                               [disabled]="removingShareId() === s.id"
                               (click)="removeShare(s)"
-                              title="Забрати доступ"
-                              aria-label="Забрати доступ">×</button>
+                              [title]="i18n.t('patientDetail.revoke')"
+                              [attr.aria-label]="i18n.t('patientDetail.revoke')">×</button>
                     </li>
                   }
                 </ul>
@@ -2515,11 +2509,11 @@ export class PatientDetailComponent implements OnInit {
       { key: /^living\s+sit/i,     label: 'Living situation' },
       { key: /^referral$/i,        label: 'Referral' },
     ] : [
-      { key: /^вік$/i,             label: 'Вік' },
-      { key: /^місто.*район|^місто$/i, label: 'Місто' },
-      { key: /^сімейний стан$/i,   label: 'Сімейний стан' },
-      { key: /^освіта$/i,          label: 'Освіта' },
-      { key: /^робота($|\s|\b)/i,  label: 'Робота' },
+      { key: /^вік$/i,             label: this.i18n.t('patientDetail.factAge') },
+      { key: /^місто.*район|^місто$/i, label: this.i18n.t('patientDetail.factCity') },
+      { key: /^сімейний стан$/i,   label: this.i18n.t('patientDetail.factMarital') },
+      { key: /^освіта$/i,          label: this.i18n.t('patientDetail.factEducation') },
+      { key: /^робота($|\s|\b)/i,  label: this.i18n.t('patientDetail.factWork') },
     ];
     const facts: { label: string; value: string }[] = [];
     for (const raw of body.split('\n')) {
@@ -2576,14 +2570,14 @@ export class PatientDetailComponent implements OnInit {
         const last = p.sessions[0];
         const open = p.sessions.filter((s) => !s.endedAt).length;
         return {
-          title: 'Сесії',
-          meta: last ? this.formatDate(last.startedAt) : 'ще не починалися',
+          title: this.i18n.t('patientDetail.sectorSessions'),
+          meta: last ? this.formatDate(last.startedAt) : this.i18n.t('patientDetail.notStartedYet'),
           rows: [
-            { label: 'Усього', value: String(p.sessionCount) },
-            { label: 'Завершено', value: `${p.completedCount} з ${p.sessionCount}` },
-            { label: 'Відкритих', value: open ? `${open} (не завершено)` : '0' },
+            { label: this.i18n.t('patientDetail.total'), value: String(p.sessionCount) },
+            { label: this.i18n.t('patientDetail.completedLabel'), value: this.i18n.t('patientDetail.xOfY', { x: p.completedCount, y: p.sessionCount }) },
+            { label: this.i18n.t('patientDetail.openLabel'), value: open ? this.i18n.t('patientDetail.openCount', { n: open }) : '0' },
             {
-              label: 'Остання',
+              label: this.i18n.t('patientDetail.lastLabel'),
               value: last ? this.formatDate(last.startedAt) : '—',
             },
           ],
@@ -2591,21 +2585,21 @@ export class PatientDetailComponent implements OnInit {
       }
       case 'state': {
         return {
-          title: 'Стан клієнт' + (this.feminine() ? 'ки' : 'а'),
+          title: this.i18n.t(this.feminine() ? 'patientDetail.clientStateFem' : 'patientDetail.clientStateMasc'),
           meta: this.badgeText(p.progressBadge),
           rows: [
             {
-              label: 'Тренд',
+              label: this.i18n.t('patientDetail.trend'),
               value:
                 {
-                  improving: '↑ Покращення — метрики поліпшуються між останніми сесіями',
-                  stable: '→ Стабільно — без значимих змін, тримається поточний рівень',
-                  worsening: '↓ Погіршення — метрики падають, варто переглянути план',
-                  unknown: 'Недостатньо даних — потрібна щонайменше 2 завершені сесії',
+                  improving: this.i18n.t('patientDetail.trendImproving'),
+                  stable: this.i18n.t('patientDetail.trendStable'),
+                  worsening: this.i18n.t('patientDetail.trendWorsening'),
+                  unknown: this.i18n.t('patientDetail.trendUnknown'),
                 }[p.progressBadge],
             },
             {
-              label: 'Останні оцінки',
+              label: this.i18n.t('patientDetail.latestScores'),
               value: this.latestAssessmentSummary(),
             },
           ],
@@ -2614,12 +2608,12 @@ export class PatientDetailComponent implements OnInit {
       case 'behavior': {
         const d = p.difficulty ?? 0;
         return {
-          title: 'Поведінкова складність',
+          title: this.i18n.t('patientDetail.behavioralComplexity'),
           meta: `${d} / 5`,
           rows: [
-            { label: 'Рівень', value: `${this.stars(d)} ${d}/5` },
+            { label: this.i18n.t('patientDetail.level'), value: `${this.stars(d)} ${d}/5` },
             {
-              label: 'Що це означає',
+              label: this.i18n.t('patientDetail.whatItMeans'),
               value: this.difficultyDescription(d),
             },
           ],
@@ -2628,12 +2622,12 @@ export class PatientDetailComponent implements OnInit {
       case 'severity': {
         const c = p.complexity ?? 0;
         return {
-          title: 'Клінічна тяжкість',
+          title: this.i18n.t('patientDetail.clinicalSeverity'),
           meta: `${c} / 5`,
           rows: [
-            { label: 'Рівень', value: `${this.dots(c)} ${c}/5` },
+            { label: this.i18n.t('patientDetail.level'), value: `${this.dots(c)} ${c}/5` },
             {
-              label: 'Що це означає',
+              label: this.i18n.t('patientDetail.whatItMeans'),
               value: this.severityDescription(c),
             },
           ],
@@ -2654,31 +2648,31 @@ export class PatientDetailComponent implements OnInit {
 
   private latestAssessmentSummary(): string {
     const a = this.latestAssessment();
-    if (!a?.patient) return 'нема даних';
+    if (!a?.patient) return this.i18n.t('patientDetail.noData');
     const bits: string[] = [];
-    if (a.patient.symptomSeverity != null) bits.push(`симпт. ${a.patient.symptomSeverity}/10`);
-    if (a.patient.insight != null) bits.push(`інсайт ${a.patient.insight}/10`);
-    if (a.patient.alliance != null) bits.push(`альянс ${a.patient.alliance}/10`);
-    return bits.length ? bits.join(' · ') : 'нема даних';
+    if (a.patient.symptomSeverity != null) bits.push(`${this.i18n.t('patientDetail.symptAbbr')} ${a.patient.symptomSeverity}/10`);
+    if (a.patient.insight != null) bits.push(`${this.i18n.t('patientDetail.insightWord')} ${a.patient.insight}/10`);
+    if (a.patient.alliance != null) bits.push(`${this.i18n.t('patientDetail.allianceWord')} ${a.patient.alliance}/10`);
+    return bits.length ? bits.join(' · ') : this.i18n.t('patientDetail.noData');
   }
 
   private difficultyDescription(d: number): string {
     return [
-      'Дуже відкрита, готова до контакту, чесно відповідає на питання',
-      'Загалом відкрита, інколи захищається на болючих темах',
-      'Помірний рівень опору — є зона комфорту, потребує м\'якого підходу',
-      'Високий опір — закривається, інтелектуалізує, тестує терапевта',
-      'Глухий опір — мінімум контакту, маніпуляції, потребує особливої уваги',
+      this.i18n.t('patientDetail.difficulty1'),
+      this.i18n.t('patientDetail.difficulty2'),
+      this.i18n.t('patientDetail.difficulty3'),
+      this.i18n.t('patientDetail.difficulty4'),
+      this.i18n.t('patientDetail.difficulty5'),
     ][Math.max(0, Math.min(4, d - 1))] ?? '—';
   }
 
   private severityDescription(c: number): string {
     return [
-      'Легка форма — без значних наслідків для функціонування',
-      'Помірна — впливає на роботу/стосунки, але без гострого ризику',
-      'Виражена — функціонування суттєво порушене, моніторинг важливий',
-      'Тяжка — є ознаки декомпенсації, можливі коморбідні стани',
-      'Гостра — ризики (суїцид/психоз/насильство), потрібна координація',
+      this.i18n.t('patientDetail.severity1'),
+      this.i18n.t('patientDetail.severity2'),
+      this.i18n.t('patientDetail.severity3'),
+      this.i18n.t('patientDetail.severity4'),
+      this.i18n.t('patientDetail.severity5'),
     ][Math.max(0, Math.min(4, c - 1))] ?? '—';
   }
 
@@ -2798,10 +2792,12 @@ export class PatientDetailComponent implements OnInit {
   // ─── Misc UI helpers ─────────────────────────────────────────────────────
 
   badgeText(b: ProgressBadge): string {
-    if (this.i18n.isEn) {
-      return { improving: '↑ improving', stable: '→ stable', worsening: '↓ worsening', unknown: 'no data' }[b];
-    }
-    return { improving: '↑ покращення', stable: '→ стабільно', worsening: '↓ погіршення', unknown: 'нема даних' }[b];
+    return {
+      improving: this.i18n.t('patientDetail.badgeImproving'),
+      stable: this.i18n.t('patientDetail.badgeStable'),
+      worsening: this.i18n.t('patientDetail.badgeWorsening'),
+      unknown: this.i18n.t('patientDetail.noData'),
+    }[b];
   }
 
   /**
@@ -2864,15 +2860,15 @@ export class PatientDetailComponent implements OnInit {
 
   trendLabel(metric: string): string {
     const map: Record<string, string> = {
-      'patient.symptomSeverity': 'Симптоми',
-      'patient.insight': 'Інсайт',
-      'patient.alliance': 'Альянс',
-      'patient.defensiveness': 'Захисність',
-      'patient.hopefulness': 'Надія',
-      'therapist.empathy': 'Емпатія',
-      'therapist.collaboration': 'Колаборативність',
-      'therapist.guidedDiscovery': 'Кероване дослідження',
-      'therapist.strategyForChange': 'Стратегія змін',
+      'patient.symptomSeverity': this.i18n.t('patientDetail.metricSymptoms'),
+      'patient.insight': this.i18n.t('patientDetail.metricInsight'),
+      'patient.alliance': this.i18n.t('patientDetail.metricAlliance'),
+      'patient.defensiveness': this.i18n.t('patientDetail.metricDefensiveness'),
+      'patient.hopefulness': this.i18n.t('patientDetail.metricHopefulness'),
+      'therapist.empathy': this.i18n.t('patientDetail.metricEmpathy'),
+      'therapist.collaboration': this.i18n.t('patientDetail.metricCollaboration'),
+      'therapist.guidedDiscovery': this.i18n.t('patientDetail.metricGuidedDiscovery'),
+      'therapist.strategyForChange': this.i18n.t('patientDetail.metricStrategyForChange'),
     };
     return map[metric] ?? metric;
   }
@@ -2924,7 +2920,7 @@ export class PatientDetailComponent implements OnInit {
     if (!p?.isMine) return;
     const fem = this.feminine();
     const ok = confirm(
-      `Видалити ${fem ? 'пацієнтку' : 'пацієнта'} ${p.displayName}?\n\nЗникнуть ВСІ сесії з ${fem ? 'нею' : 'ним'}, нотатки, фідбеки, пам'ять. Це незворотно.`,
+      this.i18n.t(fem ? 'patientDetail.deleteConfirmFem' : 'patientDetail.deleteConfirmMasc', { name: p.displayName }),
     );
     if (!ok) return;
     this.deleting.set(true);
@@ -2935,7 +2931,7 @@ export class PatientDetailComponent implements OnInit {
       this.deleting.set(false);
       alert(
         (e as { error?: { message?: string } })?.error?.message ??
-          'Не вдалось видалити.',
+          this.i18n.t('patientDetail.deleteFailed'),
       );
     }
   }
@@ -2961,7 +2957,7 @@ export class PatientDetailComponent implements OnInit {
       const list = await this.api.listShares(p.id);
       this.shares.set(list);
     } catch {
-      this.shareError.set('Не вдалось завантажити список доступу.');
+      this.shareError.set(this.i18n.t('patientDetail.shareLoadFailed'));
     } finally {
       this.sharesLoading.set(false);
     }
@@ -2990,7 +2986,7 @@ export class PatientDetailComponent implements OnInit {
     } catch (e: unknown) {
       this.shareError.set(
         (e as { error?: { message?: string } })?.error?.message ??
-          'Не вдалось додати доступ.',
+          this.i18n.t('patientDetail.shareAddFailed'),
       );
     } finally {
       this.sharing.set(false);
@@ -3000,7 +2996,7 @@ export class PatientDetailComponent implements OnInit {
   async removeShare(share: CharacterShare) {
     const p = this.patient();
     if (!p) return;
-    if (!confirm(`Забрати доступ у ${share.email}?`)) return;
+    if (!confirm(this.i18n.t('patientDetail.revokeConfirm', { email: share.email }))) return;
     this.removingShareId.set(share.id);
     try {
       await this.api.removeShare(p.id, share.id);
@@ -3008,7 +3004,7 @@ export class PatientDetailComponent implements OnInit {
     } catch (e: unknown) {
       alert(
         (e as { error?: { message?: string } })?.error?.message ??
-          'Не вдалось забрати доступ.',
+          this.i18n.t('patientDetail.shareRevokeFailed'),
       );
     } finally {
       this.removingShareId.set(null);

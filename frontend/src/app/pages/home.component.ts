@@ -153,8 +153,8 @@ import { IconComponent } from '../icon.component';
       <a routerLink="/courses" class="panel panel-soft courses-entry">
         <span class="courses-entry-ic"><app-icon name="lightbulb" /></span>
         <span class="courses-entry-text">
-          <span class="courses-entry-title">{{ i18n.isEn ? 'Courses' : 'Курси' }}</span>
-          <span class="courses-entry-sub dim">{{ i18n.isEn ? 'Skill paths: learn → practise → feedback' : 'Скіл-паси: теорія → практика → фідбек' }}</span>
+          <span class="courses-entry-title">{{ i18n.t('home.courses') }}</span>
+          <span class="courses-entry-sub dim">{{ i18n.t('home.courses_sub') }}</span>
         </span>
         <span class="link-btn">→</span>
       </a>
@@ -177,7 +177,7 @@ import { IconComponent } from '../icon.component';
              [class.at-risk]="n.stage === 'at_risk'">
             <span class="nudge-dot"></span>
             <span class="nudge-text">{{ nudgeText(n) }}</span>
-            <span class="nudge-cta">{{ i18n.isEn ? 'Open' : 'Відкрити' }} →</span>
+            <span class="nudge-cta">{{ i18n.t('home.open') }} →</span>
           </a>
         }
 
@@ -231,11 +231,11 @@ import { IconComponent } from '../icon.component';
       <article class="panel panel-soft stats-panel">
         <header class="panel-head">
           <h2 class="panel-title">{{ i18n.t('home.week_sessions') }}</h2>
-          <span class="panel-meta">{{ i18n.isFr ? '7 derniers jours' : (i18n.isEn ? 'last 7 days' : 'останні 7 днів') }}</span>
+          <span class="panel-meta">{{ i18n.t('home.last_7_days') }}</span>
         </header>
         <div class="facts-row">
           <div class="facts-cell">
-            <span class="facts-label">{{ i18n.isFr ? 'Séances' : (i18n.isEn ? 'Sessions' : 'Сесій') }}</span>
+            <span class="facts-label">{{ i18n.t('home.sessions_label') }}</span>
             <span class="facts-value">{{ d.weekStats.sessions }}</span>
           </div>
           <div class="facts-cell">
@@ -853,29 +853,27 @@ export class HomeComponent implements OnInit {
       if (day < 7) return `${day} days ago`;
       return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     }
-    if (min < 1) return 'щойно';
-    if (min < 60) return `${min} хв тому`;
-    if (hr < 24) return `${hr} год тому`;
-    if (day === 1) return 'вчора';
-    if (day < 7) return `${day} ${day < 5 ? 'дні' : 'днів'} тому`;
-    return date.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+    if (min < 1) return this.i18n.t('home.time_just_now');
+    if (min < 60) return this.i18n.t('home.time_min_ago', { min });
+    if (hr < 24) return this.i18n.t('home.time_hr_ago', { hr });
+    if (day === 1) return this.i18n.t('home.time_yesterday');
+    if (day < 7) return this.i18n.t('home.time_days_ago', { day });
+    return date.toLocaleDateString(this.i18n.isFr ? 'fr-FR' : 'uk-UA', { day: 'numeric', month: 'short' });
   }
 
   /** Tooltip on a patient card's wellbeing dot — gentle, informational. */
   wellbeingTitle(wb: PatientWellbeing): string {
     const w = Math.max(1, Math.round(wb.weeksIdle));
     if (wb.stage === 'lapsed') {
-      return this.i18n.isEn ? 'Stopped coming — reach out to re-engage' : 'Припинив(ла) ходити — варто відновити контакт';
+      return this.i18n.t('home.wb_lapsed');
     }
-    return this.i18n.isEn ? `Not seen in ~${w} wk${w === 1 ? '' : 's'}` : `Не було на сесії ~${w} тиж.`;
+    return this.i18n.t('home.wb_idle', { w });
   }
 
   /** Copy for the single caseload nudge — informational, never guilt. */
   nudgeText(n: CaseloadNudge): string {
     const w = Math.max(1, Math.round(n.weeksIdle));
-    return this.i18n.isEn
-      ? `Haven't seen ${n.displayName} in ~${w} week${w === 1 ? '' : 's'}`
-      : `${n.displayName} давно не було на сесії — ~${w} тиж.`;
+    return this.i18n.t('home.nudge_idle', { name: n.displayName, w });
   }
 
   /**

@@ -81,23 +81,23 @@ import { IconComponent } from './icon.component';
             </a>
             <div class="mm-sep"></div>
             <a routerLink="/progress" class="mm-item" (click)="menuOpen.set(false)">
-              <app-icon name="chart-up" /><span>{{ i18n.isEn ? 'Progress' : 'Прогрес' }}</span>
+              <app-icon name="chart-up" /><span>{{ i18n.t('appHeader.navProgress') }}</span>
             </a>
             <a routerLink="/courses" class="mm-item" (click)="menuOpen.set(false)">
-              <app-icon name="lightbulb" /><span>{{ i18n.isEn ? 'Courses' : 'Курси' }}</span>
+              <app-icon name="lightbulb" /><span>{{ i18n.t('appHeader.navCourses') }}</span>
             </a>
             <a routerLink="/glossary" class="mm-item" (click)="menuOpen.set(false)">
-              <app-icon name="clipboard" /><span>{{ i18n.isEn ? 'Glossary' : 'Словник' }}</span>
+              <app-icon name="clipboard" /><span>{{ i18n.t('appHeader.navGlossary') }}</span>
             </a>
             <a routerLink="/network" class="mm-item" (click)="menuOpen.set(false)">
               <app-icon name="network" /><span>{{ i18n.t('nav.network') }}</span>
             </a>
             <a routerLink="/cohorts" class="mm-item" (click)="menuOpen.set(false)">
-              <app-icon name="users" /><span>{{ i18n.isEn ? 'Cohorts' : 'Групи' }}</span>
+              <app-icon name="users" /><span>{{ i18n.t('appHeader.navCohorts') }}</span>
             </a>
             @if (u.isAdmin) {
               <a routerLink="/admin" class="mm-item" (click)="menuOpen.set(false)">
-                <app-icon name="shield-check" /><span>{{ i18n.isEn ? 'Admin' : 'Адмін' }}</span>
+                <app-icon name="shield-check" /><span>{{ i18n.t('appHeader.navAdmin') }}</span>
               </a>
             }
             <a routerLink="/settings" class="mm-item" (click)="menuOpen.set(false)">
@@ -114,16 +114,16 @@ import { IconComponent } from './icon.component';
           <div class="menu-backdrop" (click)="notifOpen.set(false)"></div>
           <div class="notif-panel fx-fade-up" role="menu">
             <div class="np-head">
-              <strong>{{ i18n.isEn ? 'Notifications' : 'Сповіщення' }}</strong>
+              <strong>{{ i18n.t('appHeader.notifications') }}</strong>
               @if (unread() > 0) {
                 <button type="button" class="np-readall" (click)="markAllRead()">
-                  {{ i18n.isEn ? 'Mark all read' : 'Прочитати всі' }}
+                  {{ i18n.t('appHeader.markAllRead') }}
                 </button>
               }
             </div>
             <div class="np-list">
               @if (notifs().length === 0) {
-                <p class="np-empty">{{ i18n.isEn ? 'No notifications yet' : 'Сповіщень ще немає' }}</p>
+                <p class="np-empty">{{ i18n.t('appHeader.noNotificationsYet') }}</p>
               } @else {
                 @for (n of notifs(); track n.id) {
                   <button type="button" class="np-item" [class.unread]="!n.read" (click)="openNotif(n)">
@@ -138,7 +138,7 @@ import { IconComponent } from './icon.component';
               }
             </div>
             <a routerLink="/notifications" class="np-all" (click)="notifOpen.set(false)">
-              {{ i18n.isEn ? 'See all notifications' : 'Усі сповіщення' }} →
+              {{ i18n.t('appHeader.seeAllNotifications') }} →
             </a>
           </div>
         }
@@ -400,9 +400,10 @@ export class AppHeaderComponent implements OnDestroy {
   }
 
   protected bellLabel = computed(() => {
-    const base = this.i18n.isEn ? 'Notifications' : 'Сповіщення';
     const u = this.unread();
-    return u > 0 ? `${base} (${u})` : base;
+    return u > 0
+      ? this.i18n.t('appHeader.notificationsWithCount', { count: u })
+      : this.i18n.t('appHeader.notifications');
   });
 
   private async refreshUnread(): Promise<void> {
@@ -463,12 +464,12 @@ export class AppHeaderComponent implements OnDestroy {
   protected relTime(iso: string): string {
     const diff = Date.now() - new Date(iso).getTime();
     const m = Math.floor(diff / 60000);
-    if (m < 1) return this.i18n.isEn ? 'just now' : 'щойно';
-    if (m < 60) return `${m}${this.i18n.isEn ? 'm' : ' хв'}`;
+    if (m < 1) return this.i18n.t('appHeader.timeJustNow');
+    if (m < 60) return this.i18n.t('appHeader.timeMinutes', { count: m });
     const h = Math.floor(m / 60);
-    if (h < 24) return `${h}${this.i18n.isEn ? 'h' : ' год'}`;
+    if (h < 24) return this.i18n.t('appHeader.timeHours', { count: h });
     const d = Math.floor(h / 24);
-    return `${d}${this.i18n.isEn ? 'd' : ' дн'}`;
+    return this.i18n.t('appHeader.timeDays', { count: d });
   }
   /** True once the page has scrolled — fades in the header backdrop. */
   protected scrolled = signal(false);

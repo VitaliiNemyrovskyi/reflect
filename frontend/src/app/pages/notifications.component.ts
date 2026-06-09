@@ -21,25 +21,23 @@ import { IconComponent } from '../icon.component';
       <section class="panel panel-soft frame-bordered">
         <div class="head">
           <span class="section-label">
-            <app-icon name="bell" /> {{ i18n.isEn ? 'Notifications' : 'Сповіщення' }}
+            <app-icon name="bell" /> {{ i18n.t('notifications.title') }}
           </span>
           @if (items().length) {
             <button type="button" class="ghost small" (click)="markAll()">
-              {{ i18n.isEn ? 'Mark all read' : 'Прочитати всі' }}
+              {{ i18n.t('notifications.markAllRead') }}
             </button>
           }
         </div>
 
         @if (loading()) {
-          <p class="hint">{{ i18n.isEn ? 'Loading…' : 'Завантаження…' }}</p>
+          <p class="hint">{{ i18n.t('notifications.loading') }}</p>
         } @else if (items().length === 0) {
           <div class="empty">
             <app-icon name="bell" />
-            <p>{{ i18n.isEn ? 'No notifications yet.' : 'Сповіщень ще немає.' }}</p>
+            <p>{{ i18n.t('notifications.empty') }}</p>
             <span class="empty-sub">
-              {{ i18n.isEn
-                ? 'Feedback, badges and reminders will show up here.'
-                : 'Тут зʼявлятимуться фідбек, бейджі та нагадування.' }}
+              {{ i18n.t('notifications.emptySub') }}
             </span>
           </div>
         } @else {

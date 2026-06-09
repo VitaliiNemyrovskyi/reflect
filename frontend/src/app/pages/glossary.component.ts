@@ -16,22 +16,22 @@ import { buildLinker, Linker } from '../glossary-link.util';
   imports: [RouterLink, RichTextComponent],
   template: `
     <section class="wrap">
-      <a routerLink="/dashboard" class="back">← {{ tr('На головну', 'Home') }}</a>
+      <a routerLink="/dashboard" class="back">← {{ i18n.t('glossary.backToHome') }}</a>
       <header class="head">
-        <h1>{{ tr('Словник термінів', 'Glossary') }}</h1>
-        <p class="muted">{{ tr('Ключові поняття з курсів — коротко й своїми словами.', 'Key concepts from the courses — short, in plain words.') }}</p>
+        <h1>{{ i18n.t('glossary.title') }}</h1>
+        <p class="muted">{{ i18n.t('glossary.subtitle') }}</p>
         <input class="search" type="search" [value]="query()"
           (input)="query.set($any($event.target).value)"
-          [attr.aria-label]="tr('Пошук терміна', 'Search terms')"
-          [placeholder]="tr('Пошук…', 'Search…')" />
+          [attr.aria-label]="i18n.t('glossary.searchAriaLabel')"
+          [placeholder]="i18n.t('glossary.searchPlaceholder')" />
       </header>
 
       @if (loading()) {
-        <p class="muted">{{ tr('Завантаження…', 'Loading…') }}</p>
+        <p class="muted">{{ i18n.t('glossary.loading') }}</p>
       } @else if (error()) {
         <p class="danger">{{ error() }}</p>
       } @else if (groups().length === 0) {
-        <p class="muted">{{ tr('Нічого не знайдено.', 'Nothing found.') }}</p>
+        <p class="muted">{{ i18n.t('glossary.nothingFound') }}</p>
       } @else {
         @for (g of groups(); track g.cat) {
           <section class="cat">
@@ -115,24 +115,20 @@ export class GlossaryComponent implements OnInit {
     try {
       this.terms.set(await this.api.listGlossary());
     } catch {
-      this.error.set(this.tr('Не вдалося завантажити словник.', 'Failed to load the glossary.'));
+      this.error.set(this.i18n.t('glossary.loadError'));
     } finally {
       this.loading.set(false);
     }
   }
 
-  protected tr(uk: string, en: string): string {
-    return this.i18n.isEn ? en : uk;
-  }
-
   protected catLabel(cat: string): string {
     switch (cat) {
-      case 'frame': return this.tr('Рамка та контракт', 'Frame & contract');
-      case 'alliance': return this.tr('Альянс і ядрові умови', 'Alliance & core conditions');
-      case 'listening': return this.tr('Активне слухання (OARS)', 'Active listening (OARS)');
-      case 'risk': return this.tr('Ризик і безпека', 'Risk & safety');
-      case 'anxiety': return this.tr('Тривога', 'Anxiety');
-      default: return this.tr('Загальне', 'General');
+      case 'frame': return this.i18n.t('glossary.catFrame');
+      case 'alliance': return this.i18n.t('glossary.catAlliance');
+      case 'listening': return this.i18n.t('glossary.catListening');
+      case 'risk': return this.i18n.t('glossary.catRisk');
+      case 'anxiety': return this.i18n.t('glossary.catAnxiety');
+      default: return this.i18n.t('glossary.catGeneral');
     }
   }
 }

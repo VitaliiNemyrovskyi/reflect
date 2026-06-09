@@ -37,7 +37,7 @@ import { IconComponent } from '../icon.component';
               class="chip"
               [class.active]="modalityFilter() === null"
               (click)="modalityFilter.set(null)">
-              {{ i18n.isEn ? 'All types' : 'Усі типи' }} ({{ characters().length }})
+              {{ i18n.t('charactersList.all_types') }} ({{ characters().length }})
             </button>
             @for (m of visibleModalities(); track m.key) {
               <button
@@ -56,7 +56,7 @@ import { IconComponent } from '../icon.component';
             class="chip"
             [class.active]="difficultyFilter() === null"
             (click)="difficultyFilter.set(null)">
-            {{ i18n.isEn ? 'All' : 'Усі' }} ({{ characters().length }})
+            {{ i18n.t('charactersList.all') }} ({{ characters().length }})
           </button>
           @for (d of [1, 2, 3, 4, 5]; track d) {
             @if (countByDifficulty(d) > 0) {
@@ -84,15 +84,15 @@ import { IconComponent } from '../icon.component';
     @if (stats(); as st) {
       <section class="stats-strip fx-fade-up">
         <div class="stat-cell">
-          <span class="stat-label">{{ i18n.isEn ? 'Sessions total' : 'Сесій усього' }}</span>
+          <span class="stat-label">{{ i18n.t('charactersList.sessions_total') }}</span>
           <span class="stat-value">{{ st.totalSessions }}</span>
         </div>
         <div class="stat-cell">
-          <span class="stat-label">{{ i18n.isEn ? 'Active cases' : 'Активних кейсів' }}</span>
+          <span class="stat-label">{{ i18n.t('charactersList.active_cases') }}</span>
           <span class="stat-value">{{ st.activeCases }}<small> / {{ characters().length }}</small></span>
         </div>
         <div class="stat-cell">
-          <span class="stat-label">{{ i18n.isEn ? 'Last session' : 'Остання сесія' }}</span>
+          <span class="stat-label">{{ i18n.t('charactersList.last_session') }}</span>
           <span class="stat-value">{{ st.lastSessionAgo }}</span>
         </div>
       </section>
@@ -108,11 +108,9 @@ import { IconComponent } from '../icon.component';
            "edit prompts/profiles/" hint, which only made sense to devs. -->
       <section class="empty-state synapse-panel">
         <div class="empty-illustration" aria-hidden="true">⊙</div>
-        <h2>Поки що порожньо</h2>
+        <h2>{{ i18n.t('charactersList.empty_title') }}</h2>
         <p>
-          Створи першого пацієнта — заповни короткий бриф, і AI допоможе
-          згенерувати повноцінний клінічний профіль. Далі — перша тренувальна
-          сесія в кілька кліків.
+          {{ i18n.t('charactersList.empty_body') }}
         </p>
         <a routerLink="/patient/new" class="primary">
           {{ i18n.t('chars.new_patient') }}
@@ -124,19 +122,19 @@ import { IconComponent } from '../icon.component';
            modality and difficulty) — easier than figuring out which
            chip is at fault. -->
       <section class="empty-state synapse-panel filtered">
-        <h2>Під ці фільтри ніхто не підпадає</h2>
+        <h2>{{ i18n.t('charactersList.filtered_empty_title') }}</h2>
         <p>
-          Спробуй скинути активні фільтри —
+          {{ i18n.t('charactersList.filtered_empty_body') }}
           @if (modalityFilter()) {
-            модальність ({{ modalityInfo(modalityFilter())?.label }})
+            {{ i18n.t('charactersList.filter_modality') }} ({{ modalityInfo(modalityFilter())?.label }})
           }
           @if (modalityFilter() && difficultyFilter() != null) { · }
           @if (difficultyFilter() != null) {
-            складність {{ difficultyFilter() }}/5
+            {{ i18n.t('charactersList.filter_difficulty') }} {{ difficultyFilter() }}/5
           }
         </p>
         <button class="primary" type="button" (click)="resetAllFilters()">
-          Скинути фільтри
+          {{ i18n.t('charactersList.reset_filters') }}
         </button>
       </section>
     } @else {
@@ -901,13 +899,13 @@ export class CharactersListComponent implements OnInit {
   private relativeTime(ts: number): string {
     const ms = Date.now() - ts;
     const min = Math.floor(ms / 60_000);
-    if (min < 1) return 'щойно';
-    if (min < 60) return `${min} хв тому`;
+    if (min < 1) return this.i18n.t('charactersList.time_just_now');
+    if (min < 60) return this.i18n.t('charactersList.time_minutes_ago', { min });
     const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr} год тому`;
+    if (hr < 24) return this.i18n.t('charactersList.time_hours_ago', { hr });
     const day = Math.floor(hr / 24);
-    if (day === 1) return 'учора';
-    if (day < 30) return `${day} дн тому`;
+    if (day === 1) return this.i18n.t('charactersList.time_yesterday');
+    if (day < 30) return this.i18n.t('charactersList.time_days_ago', { day });
     return new Date(ts).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
   }
 
@@ -954,9 +952,7 @@ export class CharactersListComponent implements OnInit {
       // to satisfy the loading → character list flow.
       this.characters.set(await this.api.listCharacters());
     } catch {
-      this.error.set(this.i18n.isEn
-        ? 'Server unavailable. Check that the API is running.'
-        : 'Сервер недоступний. Перевір, чи API запущений на :3000.');
+      this.error.set(this.i18n.t('charactersList.error_server_unavailable'));
     } finally {
       this.loading.set(false);
     }
@@ -972,17 +968,17 @@ export class CharactersListComponent implements OnInit {
 
   badgeText(b: ProgressBadge): string {
     return {
-      improving: '↑ покращення',
-      stable: '→ стабільно',
-      worsening: '↓ погіршення',
+      improving: this.i18n.t('charactersList.badge_improving'),
+      stable: this.i18n.t('charactersList.badge_stable'),
+      worsening: this.i18n.t('charactersList.badge_worsening'),
       unknown: '',
     }[b];
   }
 
   sessionsWord(n: number): string {
-    if (n === 1) return 'сесія';
-    if (n >= 2 && n <= 4) return 'сесії';
-    return 'сесій';
+    if (n === 1) return this.i18n.t('charactersList.sessions_word_one');
+    if (n >= 2 && n <= 4) return this.i18n.t('charactersList.sessions_word_few');
+    return this.i18n.t('charactersList.sessions_word_many');
   }
 
   stars(n: number): string {

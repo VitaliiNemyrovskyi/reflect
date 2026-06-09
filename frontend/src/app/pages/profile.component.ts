@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
+import { I18nService } from '../i18n.service';
 import { IconComponent } from '../icon.component';
 
 @Component({
@@ -12,44 +13,43 @@ import { IconComponent } from '../icon.component';
   imports: [CommonModule, FormsModule, RouterLink, IconComponent],
   template: `
     <header class="page-header">
-      <a routerLink="/" class="back">← На головну</a>
-      <h1>Мій профіль</h1>
+      <a routerLink="/" class="back">← {{ i18n.t('profile.backHome') }}</a>
+      <h1>{{ i18n.t('profile.title') }}</h1>
     </header>
 
     @if (auth.user(); as u) {
       <section class="card">
         <header class="card-head">
-          <h2>👤 Особисті дані</h2>
+          <h2>👤 {{ i18n.t('profile.personalDataHeading') }}</h2>
         </header>
         <form (ngSubmit)="saveProfile()">
           <div class="field">
             <label for="email">Email</label>
             <input id="email" type="email" [value]="u.email" disabled />
             <span class="hint">
-              Email змінити не можна — потребує верифікації, ще не реалізовано.
-              Якщо потрібно — створи новий акаунт.
+              {{ i18n.t('profile.emailHint') }}
             </span>
           </div>
 
           <div class="field">
-            <label for="displayName">Ім'я (як показувати)</label>
+            <label for="displayName">{{ i18n.t('profile.displayNameLabel') }}</label>
             <input
               id="displayName"
               type="text"
               maxlength="80"
-              placeholder="Як до тебе звертатись?"
+              [placeholder]="i18n.t('profile.displayNamePlaceholder')"
               [(ngModel)]="displayName"
               name="displayName"
               [disabled]="profileSaving()" />
           </div>
 
           <div class="field">
-            <label for="bio">Біо</label>
+            <label for="bio">{{ i18n.t('profile.bioLabel') }}</label>
             <textarea
               id="bio"
               rows="4"
               maxlength="1000"
-              placeholder="Що про себе хочеш розповісти супервайзеру? Курс, на якому вчишся, модальність, інтереси, контекст практики..."
+              [placeholder]="i18n.t('profile.bioPlaceholder')"
               [(ngModel)]="bio"
               name="bio"
               [disabled]="profileSaving()"></textarea>
@@ -57,16 +57,16 @@ import { IconComponent } from '../icon.component';
           </div>
 
           <div class="field readonly">
-            <label>Метод входу</label>
+            <label>{{ i18n.t('profile.loginMethodLabel') }}</label>
             <span class="provider-pill">{{ providerLabel() }}</span>
           </div>
 
           <div class="form-actions">
             <button type="submit" class="primary" [disabled]="profileSaving() || !profileDirty()">
-              {{ profileSaving() ? 'Зберігаю…' : 'Зберегти' }}
+              {{ profileSaving() ? i18n.t('profile.saving') : i18n.t('profile.save') }}
             </button>
             @if (profileSaved()) {
-              <span class="success">✓ Збережено</span>
+              <span class="success">✓ {{ i18n.t('profile.saved') }}</span>
             }
             @if (profileError()) {
               <span class="danger">{{ profileError() }}</span>
@@ -77,19 +77,17 @@ import { IconComponent } from '../icon.component';
 
       <section class="card">
         <header class="card-head">
-          <h2><app-icon name="lock" /> Зміна пароля</h2>
+          <h2><app-icon name="lock" /> {{ i18n.t('profile.changePasswordHeading') }}</h2>
         </header>
         @if (!u.hasPassword) {
           <p class="hint info">
-            Ти увійшов через {{ providerLabel() }} і ще не маєш пароля. Можеш встановити —
-            поле «поточний пароль» залиш порожнім. Це додасть можливість входу за email
-            (SSO продовжить працювати теж).
+            {{ i18n.t('profile.noPasswordInfo', { provider: providerLabel() }) }}
           </p>
         }
         <form (ngSubmit)="changePassword()">
           @if (u.hasPassword) {
             <div class="field">
-              <label for="currentPassword">Поточний пароль</label>
+              <label for="currentPassword">{{ i18n.t('profile.currentPasswordLabel') }}</label>
               <input
                 id="currentPassword"
                 type="password"
@@ -100,7 +98,7 @@ import { IconComponent } from '../icon.component';
             </div>
           }
           <div class="field">
-            <label for="newPassword">Новий пароль</label>
+            <label for="newPassword">{{ i18n.t('profile.newPasswordLabel') }}</label>
             <input
               id="newPassword"
               type="password"
@@ -110,10 +108,10 @@ import { IconComponent } from '../icon.component';
               [(ngModel)]="newPassword"
               name="newPassword"
               [disabled]="passwordSaving()" />
-            <span class="hint">Мінімум 8 символів.</span>
+            <span class="hint">{{ i18n.t('profile.passwordMinHint') }}</span>
           </div>
           <div class="field">
-            <label for="confirmPassword">Підтвердження</label>
+            <label for="confirmPassword">{{ i18n.t('profile.confirmPasswordLabel') }}</label>
             <input
               id="confirmPassword"
               type="password"
@@ -122,29 +120,28 @@ import { IconComponent } from '../icon.component';
               name="confirmPassword"
               [disabled]="passwordSaving()" />
             @if (confirmPassword && newPassword !== confirmPassword) {
-              <span class="hint danger">Паролі не співпадають.</span>
+              <span class="hint danger">{{ i18n.t('profile.passwordsMismatch') }}</span>
             }
           </div>
           <div class="form-actions">
             <button type="submit" class="primary"
                     [disabled]="passwordSaving() || !canSavePassword()">
-              {{ passwordSaving() ? 'Зберігаю…' : 'Змінити пароль' }}
+              {{ passwordSaving() ? i18n.t('profile.saving') : i18n.t('profile.changePasswordBtn') }}
             </button>
             @if (passwordSaved()) {
-              <span class="success">✓ Пароль змінено</span>
+              <span class="success">✓ {{ i18n.t('profile.passwordChanged') }}</span>
             }
             @if (passwordError()) {
               <span class="danger">{{ passwordError() }}</span>
             }
           </div>
           <p class="hint">
-            Після зміни пароля ти залишишся залогіненим тут, але інші пристрої/сесії
-            будуть розлогінені — refresh-токен ротується.
+            {{ i18n.t('profile.passwordChangeSessionsHint') }}
           </p>
         </form>
       </section>
     } @else {
-      <p class="hint">Не залогінений.</p>
+      <p class="hint">{{ i18n.t('profile.notLoggedIn') }}</p>
     }
   `,
   styles: [`
@@ -285,6 +282,7 @@ import { IconComponent } from '../icon.component';
 })
 export class ProfileComponent implements OnInit {
   protected auth = inject(AuthService);
+  protected readonly i18n = inject(I18nService);
   private api = inject(ApiService);
 
   // ─── Profile form state ────────────────────────────────────────────────
@@ -325,7 +323,7 @@ export class ProfileComponent implements OnInit {
   providerLabel(): string {
     const p = this.auth.user()?.provider;
     return {
-      local: 'Email + пароль',
+      local: this.i18n.t('profile.providerLocal'),
       google: 'Google',
       facebook: 'Facebook',
     }[p ?? 'local'] ?? p ?? '—';
@@ -357,7 +355,7 @@ export class ProfileComponent implements OnInit {
       const msg =
         (e as { error?: { message?: string } })?.error?.message ??
         (e as { message?: string })?.message ??
-        'Не вдалось зберегти.';
+        this.i18n.t('profile.saveError');
       this.profileError.set(msg);
     } finally {
       this.profileSaving.set(false);
@@ -384,7 +382,7 @@ export class ProfileComponent implements OnInit {
       const msg =
         (e as { error?: { message?: string } })?.error?.message ??
         (e as { message?: string })?.message ??
-        'Не вдалось змінити пароль.';
+        this.i18n.t('profile.changePasswordError');
       this.passwordError.set(msg);
     } finally {
       this.passwordSaving.set(false);

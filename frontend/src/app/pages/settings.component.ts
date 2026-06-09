@@ -15,28 +15,24 @@ import { PushClientService, type PushEnableResult } from '../push.service';
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <header class="settings-header">
-      <a routerLink="/" class="back">← На головну</a>
-      <h1>Налаштування</h1>
+      <a routerLink="/" class="back">← {{ i18n.t('settings.backToHome') }}</a>
+      <h1>{{ i18n.t('settings.title') }}</h1>
       @if (auth.user(); as u) {
         <p class="account-line">
-          <span class="dim">Акаунт:</span>
+          <span class="dim">{{ i18n.t('settings.accountLabel') }}</span>
           <span class="account-name">{{ u.displayName ?? u.email }}</span>
         </p>
       }
     </header>
 
     <section class="settings-group">
-      <h2>Сесія з клієнткою</h2>
+      <h2>{{ i18n.t('settings.sessionGroupTitle') }}</h2>
 
       <label class="setting-row" [class.saving]="saving()">
         <div class="setting-text">
-          <span class="setting-title">Підказки під час сесії</span>
+          <span class="setting-title">{{ i18n.t('settings.hintsTitle') }}</span>
           <span class="setting-desc">
-            Кнопка «Що спитати?» біля поля вводу. Натиснеш —
-            модель запропонує 3 strategic-варіанти наступної репліки
-            (open-question, reflection, here-and-now тощо), орієнтуючись
-            на транскрипт сесії й профіль клієнтки. Можна вимкнути,
-            якщо ти хочеш практикувати без помічі.
+            {{ i18n.t('settings.hintsDesc') }}
           </span>
         </div>
         <input
@@ -49,19 +45,16 @@ import { PushClientService, type PushEnableResult } from '../push.service';
     </section>
 
     <section class="settings-group">
-      <h2>Нагадування про пацієнтів</h2>
+      <h2>{{ i18n.t('settings.pushGroupTitle') }}</h2>
       <p class="group-hint">
-        Reflect раз на день може надіслати ОДНЕ делікатне нагадування у браузер
-        про пацієнта, якого давно не було на сесії. Без спаму: щонайбільше одне
-        на пацієнта на тиждень, голосом супервізора — не «пацієнт пише тобі».
-        Вимкнути можна будь-коли.
+        {{ i18n.t('settings.pushGroupHint') }}
       </p>
       @if (!push.supported) {
-        <p class="group-hint dim">Цей браузер не підтримує push-сповіщення.</p>
+        <p class="group-hint dim">{{ i18n.t('settings.pushUnsupported') }}</p>
       } @else {
         <label class="setting-row" [class.saving]="pushBusy()">
           <div class="setting-text">
-            <span class="setting-title">Push-нагадування</span>
+            <span class="setting-title">{{ i18n.t('settings.pushReminderTitle') }}</span>
             <span class="setting-desc">{{ pushStatusText() }}</span>
           </div>
           <input
@@ -73,7 +66,7 @@ import { PushClientService, type PushEnableResult } from '../push.service';
         </label>
         @if (pushOn()) {
           <button type="button" class="ghost small test-push" [disabled]="pushBusy()" (click)="sendTestPush()">
-            Надіслати тестове сповіщення
+            {{ i18n.t('settings.sendTestPush') }}
           </button>
         }
         @if (pushMsg(); as m) {
@@ -83,12 +76,9 @@ import { PushClientService, type PushEnableResult } from '../push.service';
     </section>
 
     <section class="settings-group">
-      <h2>Мова інтерфейсу</h2>
+      <h2>{{ i18n.t('settings.langGroupTitle') }}</h2>
       <p class="group-hint">
-        Перемикач мови інтерфейсу + регіону пацієнтів. Кожна мова
-        прив'язана до одного міста: 🇺🇦 → Київ, 🇬🇧 → London,
-        🇫🇷 → Paris. Зберігається в браузері, на іншому пристрої
-        треба вибрати знов.
+        {{ i18n.t('settings.langGroupHint') }}
       </p>
       <div class="lang-grid">
         @for (l of supportedLangs; track l.key) {
@@ -110,11 +100,9 @@ import { PushClientService, type PushEnableResult } from '../push.service';
     </section>
 
     <section class="settings-group">
-      <h2>Зовнішній вигляд</h2>
+      <h2>{{ i18n.t('settings.appearanceGroupTitle') }}</h2>
       <p class="group-hint">
-        Тема впливає на акцентний колір (кнопки, посилання, активні
-        стани) і трохи на фон. Зберігається у браузері — на іншому
-        пристрої треба буде вибрати знов.
+        {{ i18n.t('settings.appearanceGroupHint') }}
       </p>
       <div class="theme-grid">
         @for (opt of theme.options; track opt.key) {
@@ -400,9 +388,9 @@ export class SettingsComponent implements OnInit {
 
   pushStatusText(): string {
     if (this.push.permission === 'denied') {
-      return 'Сповіщення заблоковані в браузері — увімкни їх у налаштуваннях сайту.';
+      return this.i18n.t('settings.pushStatusDenied');
     }
-    return this.pushOn() ? 'Увімкнено на цьому пристрої.' : 'Вимкнено.';
+    return this.pushOn() ? this.i18n.t('settings.pushStatusOn') : this.i18n.t('settings.pushStatusOff');
   }
 
   async togglePush(on: boolean): Promise<void> {
@@ -414,7 +402,7 @@ export class SettingsComponent implements OnInit {
         const r = await this.push.enable();
         if (r === 'ok') {
           this.pushOn.set(true);
-          this.pushMsg.set('Готово — нагадування увімкнено на цьому пристрої.');
+          this.pushMsg.set(this.i18n.t('settings.pushEnabledOk'));
         } else {
           this.pushOn.set(false);
           this.pushErr.set(true);
@@ -423,7 +411,7 @@ export class SettingsComponent implements OnInit {
       } else {
         await this.push.disable();
         this.pushOn.set(false);
-        this.pushMsg.set('Нагадування вимкнено.');
+        this.pushMsg.set(this.i18n.t('settings.pushDisabled'));
       }
     } finally {
       this.pushBusy.set(false);
@@ -438,19 +426,19 @@ export class SettingsComponent implements OnInit {
       const r = await this.api.pushTest(this.i18n.lang());
       if (!r.enabled) {
         this.pushErr.set(true);
-        this.pushMsg.set('Сервер: VAPID не налаштований (push вимкнений на сервері).');
+        this.pushMsg.set(this.i18n.t('settings.pushTestNoVapid'));
       } else if (r.subscriptions === 0) {
         this.pushErr.set(true);
-        this.pushMsg.set('Підписки на цьому акаунті немає — пристрій не зареєструвався. Перевір дозвіл у браузері; на iPhone у вкладці Safari не працює (треба «На екран Домівки»).');
+        this.pushMsg.set(this.i18n.t('settings.pushTestNoSubscription'));
       } else if (r.sent === 0) {
         this.pushErr.set(true);
-        this.pushMsg.set(`Підписка є (${r.subscriptions}), але відправка не вдалась — проблема з ключами/мережею на сервері. Скажи мені — гляну.`);
+        this.pushMsg.set(this.i18n.t('settings.pushTestSendFailed', { subscriptions: r.subscriptions }));
       } else {
-        this.pushMsg.set(`Надіслано на ${r.sent} прист. Якщо не бачиш — увімкни сповіщення браузера в налаштуваннях ОС (на Mac: Системні налаштування → Сповіщення → твій браузер).`);
+        this.pushMsg.set(this.i18n.t('settings.pushTestSent', { sent: r.sent }));
       }
     } catch {
       this.pushErr.set(true);
-      this.pushMsg.set('Не вдалося надіслати тест.');
+      this.pushMsg.set(this.i18n.t('settings.pushTestFailed'));
     } finally {
       this.pushBusy.set(false);
     }
@@ -459,13 +447,13 @@ export class SettingsComponent implements OnInit {
   private pushEnableError(r: PushEnableResult): string {
     switch (r) {
       case 'denied':
-        return 'Дозвіл на сповіщення відхилено. Можна змінити в налаштуваннях сайту.';
+        return this.i18n.t('settings.pushErrorDenied');
       case 'unsupported':
-        return 'Цей браузер не підтримує push-сповіщення.';
+        return this.i18n.t('settings.pushUnsupported');
       case 'no-keys':
-        return 'Push поки недоступний на сервері. Спробуй пізніше.';
+        return this.i18n.t('settings.pushErrorNoKeys');
       default:
-        return 'Не вдалося увімкнути. Спробуй ще раз.';
+        return this.i18n.t('settings.pushErrorGeneric');
     }
   }
 
@@ -487,7 +475,7 @@ export class SettingsComponent implements OnInit {
     try {
       await this.prefs.update({ hintsEnabled: enabled });
     } catch {
-      this.error.set('Не вдалося зберегти налаштування. Перевір з\'єднання й спробуй ще.');
+      this.error.set(this.i18n.t('settings.saveFailed'));
     } finally {
       this.saving.set(false);
     }
