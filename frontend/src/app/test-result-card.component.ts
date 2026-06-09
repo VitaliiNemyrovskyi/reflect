@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, signal } from '@angular/core';
+import { Component, Input, inject, signal } from '@angular/core';
 import { PsychTestSummary, SessionTest } from './api.service';
+import { I18nService } from './i18n.service';
 
 /**
  * Inline card rendered in the chat transcript when the AI patient has
@@ -20,7 +21,7 @@ import { PsychTestSummary, SessionTest } from './api.service';
     <article class="test-card" [class.failed]="test.status === 'failed'" [class.pending]="test.status === 'pending'">
       <header class="card-head">
         <div class="head-left">
-          <span class="badge">📋 ТЕСТ</span>
+          <span class="badge">{{ i18n.t('testResultCard.badge') }}</span>
           <h3 class="card-title">{{ summary?.name || test.testKey }}</h3>
         </div>
         @if (test.status === 'completed') {
@@ -32,9 +33,9 @@ import { PsychTestSummary, SessionTest } from './api.service';
       </header>
 
       @if (test.status === 'pending') {
-        <p class="status-line">Пацієнт{{ feminineSuffix }} проходить тест…</p>
+        <p class="status-line">{{ i18n.t('testResultCard.statusPending', { suffix: feminineSuffix }) }}</p>
       } @else if (test.status === 'failed') {
-        <p class="status-line danger">Не вдалось отримати відповіді (AI повернула некоректний формат)</p>
+        <p class="status-line danger">{{ i18n.t('testResultCard.failedAnswers') }}</p>
       } @else {
         <div class="severity-row">
           <span class="severity-label" [class]="'severity-' + (severityColor() || 'neutral')">
@@ -47,9 +48,9 @@ import { PsychTestSummary, SessionTest } from './api.service';
 
         <button type="button" class="toggle-answers" (click)="toggleAnswers()">
           @if (answersOpen()) {
-            × Сховати відповіді
+            {{ i18n.t('testResultCard.hideAnswers') }}
           } @else {
-            Показати відповіді ({{ test.answers?.length || 0 }})
+            {{ i18n.t('testResultCard.showAnswers', { count: test.answers?.length || 0 }) }}
           }
         </button>
 
@@ -211,6 +212,8 @@ import { PsychTestSummary, SessionTest } from './api.service';
   `],
 })
 export class TestResultCardComponent {
+  protected readonly i18n = inject(I18nService);
+
   @Input({ required: true }) test!: SessionTest;
   @Input() summary: PsychTestSummary | null = null;
   @Input() feminineSuffix: string = 'ка'; // "Пацієнтка" / "Пацієнт"

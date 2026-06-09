@@ -41,11 +41,10 @@ import { IconComponent } from '../icon.component';
   template: `
     <div class="cohorts-page fx-fade-up">
       <header class="page-head">
-        <a routerLink="/" class="back">← {{ tr('На головну', 'Home') }}</a>
-        <h1>{{ tr('Групи', 'Cohorts') }}</h1>
+        <a routerLink="/" class="back">← {{ i18n.t('cohorts.backHome') }}</a>
+        <h1>{{ i18n.t('cohorts.title') }}</h1>
         <p class="sub">
-          {{ tr('Навчальні групи: інструктор бачить прогрес студентів',
-                'Teaching groups: instructors see student progress') }}
+          {{ i18n.t('cohorts.subtitle') }}
         </p>
       </header>
 
@@ -57,7 +56,7 @@ import { IconComponent } from '../icon.component';
       } @else if (error()) {
         <div class="panel callout panel-soft">
           <p class="err">{{ error() }}</p>
-          <button class="ghost small" (click)="reload()">{{ tr('Спробувати знову', 'Retry') }}</button>
+          <button class="ghost small" (click)="reload()">{{ i18n.t('cohorts.retry') }}</button>
         </div>
       } @else {
        @if (data(); as d) {
@@ -65,7 +64,7 @@ import { IconComponent } from '../icon.component';
         <!-- ── Instructor: create + owned groups ─────────────────────── -->
         @if (isInstructor()) {
           <section class="panel panel-soft frame-bordered block">
-            <span class="section-label"><app-icon name="flag" /> {{ tr('Інструктор', 'Instructor') }}</span>
+            <span class="section-label"><app-icon name="flag" /> {{ i18n.t('cohorts.instructor') }}</span>
 
             <form class="create-row" (submit)="create($event)">
               <input
@@ -75,14 +74,14 @@ import { IconComponent } from '../icon.component';
                 (ngModelChange)="newName.set($event)"
                 name="cohortName"
                 maxlength="80"
-                [placeholder]="tr('Назва нової групи (напр. «Потік 2026»)', 'New group name (e.g. Cohort 2026)')" />
+                [placeholder]="i18n.t('cohorts.newGroupPlaceholder')" />
               <button type="submit" class="primary small" [disabled]="creating() || !newName().trim()">
-                {{ creating() ? '…' : tr('Створити', 'Create') }}
+                {{ creating() ? '…' : i18n.t('cohorts.create') }}
               </button>
             </form>
 
             @if (d.owned.length === 0) {
-              <p class="empty-hint">{{ tr('Ще немає створених груп.', 'No groups yet.') }}</p>
+              <p class="empty-hint">{{ i18n.t('cohorts.noGroupsYet') }}</p>
             } @else {
               <ul class="cohort-list">
                 @for (c of d.owned; track c.id) {
@@ -96,20 +95,20 @@ import { IconComponent } from '../icon.component';
                       </div>
                       <div class="cohort-tools">
                         <button class="code-chip" (click)="copyCode(c.inviteCode)"
-                                [title]="tr('Скопіювати код запрошення', 'Copy invite code')">
+                                [title]="i18n.t('cohorts.copyInviteCode')">
                           <app-icon name="link" />
                           <code>{{ c.inviteCode }}</code>
                           @if (copiedCode() === c.inviteCode) { <span class="copied">✓</span> }
                         </button>
                         <button class="link-btn" (click)="copyLink(c.inviteCode)"
-                                [title]="tr('Скопіювати посилання-запрошення', 'Copy invite link')">
-                          {{ copiedLink() === c.inviteCode ? tr('скопійовано ✓', 'copied ✓') : tr('лінк', 'link') }}
+                                [title]="i18n.t('cohorts.copyInviteLink')">
+                          {{ copiedLink() === c.inviteCode ? i18n.t('cohorts.copiedLink') : i18n.t('cohorts.link') }}
                         </button>
                         <button class="link-btn" (click)="toggleDetail(c)">
-                          {{ selectedId() === c.id ? tr('Згорнути', 'Close') : tr('Студенти →', 'Students →') }}
+                          {{ selectedId() === c.id ? i18n.t('cohorts.collapse') : i18n.t('cohorts.studentsArrow') }}
                         </button>
                         <button class="link-btn danger" [disabled]="deletingId() === c.id" (click)="deleteCohort(c)">
-                          {{ deletingId() === c.id ? '…' : tr('видалити', 'delete') }}
+                          {{ deletingId() === c.id ? '…' : i18n.t('cohorts.delete') }}
                         </button>
                       </div>
                     </div>
@@ -121,18 +120,18 @@ import { IconComponent } from '../icon.component';
                        @if (detail(); as det) {
                         <div class="students">
                           @if (det.students.length === 0) {
-                            <p class="empty-hint">{{ tr('Ще ніхто не приєднався.', 'No one has joined yet.') }}</p>
+                            <p class="empty-hint">{{ i18n.t('cohorts.noOneJoined') }}</p>
                           } @else {
                             <table class="data-table board-table">
                               <thead>
                                 <tr>
-                                  <th>{{ tr('Студент', 'Student') }}</th>
-                                  <th>{{ tr('Рівень', 'Stage') }}</th>
-                                  <th class="num">{{ tr('Компет.', 'Comp.') }}</th>
-                                  <th class="num">{{ tr('Сесій', 'Sessions') }}</th>
-                                  <th class="num">{{ tr('Бейджів', 'Badges') }}</th>
-                                  <th class="num">{{ tr('Пацієнтів', 'Patients') }}</th>
-                                  <th class="num">{{ tr('Активність', 'Active') }}</th>
+                                  <th>{{ i18n.t('cohorts.colStudent') }}</th>
+                                  <th>{{ i18n.t('cohorts.colStage') }}</th>
+                                  <th class="num">{{ i18n.t('cohorts.colCompetency') }}</th>
+                                  <th class="num">{{ i18n.t('cohorts.colSessions') }}</th>
+                                  <th class="num">{{ i18n.t('cohorts.colBadges') }}</th>
+                                  <th class="num">{{ i18n.t('cohorts.colPatients') }}</th>
+                                  <th class="num">{{ i18n.t('cohorts.colActive') }}</th>
                                   <th></th>
                                 </tr>
                               </thead>
@@ -150,7 +149,7 @@ import { IconComponent } from '../icon.component';
                                     <td class="num">
                                       {{ s.patients }}
                                       @if (s.lapsed > 0) {
-                                        <span class="lapsed-tag" [title]="tr('Покинуто (≥6 тиж.)', 'Lapsed (≥6 wk)')">
+                                        <span class="lapsed-tag" [title]="i18n.t('cohorts.lapsedTitle')">
                                           <span class="lapsed-dot"></span>{{ s.lapsed }}
                                         </span>
                                       }
@@ -158,14 +157,14 @@ import { IconComponent } from '../icon.component';
                                     <td class="num dim">{{ s.lastActiveAt ? (s.lastActiveAt | date: 'dd.MM.yy') : '—' }}</td>
                                     <td class="num actions-cell">
                                       @if (s.sharing) {
-                                        <button class="link-btn" (click)="openStudent(det, s)">{{ tr('сесії →', 'sessions →') }}</button>
+                                        <button class="link-btn" (click)="openStudent(det, s)">{{ i18n.t('cohorts.sessionsArrow') }}</button>
                                       } @else {
-                                        <span class="dim no-access" [title]="tr('Студент не надав доступу до сесій', 'No session access')">
+                                        <span class="dim no-access" [title]="i18n.t('cohorts.noSessionAccess')">
                                           <app-icon name="lock" />
                                         </span>
                                       }
                                       <button class="link-btn danger" [disabled]="memberBusy() === s.userId" (click)="removeStudent(det, s)">
-                                        {{ memberBusy() === s.userId ? '…' : tr('видалити', 'remove') }}
+                                        {{ memberBusy() === s.userId ? '…' : i18n.t('cohorts.remove') }}
                                       </button>
                                     </td>
                                   </tr>
@@ -186,13 +185,12 @@ import { IconComponent } from '../icon.component';
 
         <!-- ── Student: join + joined groups ─────────────────────────── -->
         <section class="panel panel-soft frame-bordered block">
-          <span class="section-label"><app-icon name="users" /> {{ tr('Мої групи', 'My groups') }}</span>
+          <span class="section-label"><app-icon name="users" /> {{ i18n.t('cohorts.myGroups') }}</span>
 
           @if (viaInvite()) {
             <p class="invite-note">
               <app-icon name="link" />
-              {{ tr('Тебе запросили до групи. Натисни «Приєднатись», щоб підтвердити.',
-                    'You have been invited to a group. Tap Join to confirm.') }}
+              {{ i18n.t('cohorts.inviteNote') }}
             </p>
           }
 
@@ -205,15 +203,14 @@ import { IconComponent } from '../icon.component';
               name="joinCode"
               maxlength="6"
               autocapitalize="characters"
-              [placeholder]="tr('Код запрошення', 'Invite code')" />
+              [placeholder]="i18n.t('cohorts.inviteCodePlaceholder')" />
             <button type="submit" class="primary small" [disabled]="joining() || joinCode().trim().length < 4">
-              {{ joining() ? '…' : tr('Приєднатись', 'Join') }}
+              {{ joining() ? '…' : i18n.t('cohorts.join') }}
             </button>
           </form>
 
           @if (d.joined.length === 0) {
-            <p class="empty-hint">{{ tr('Ти ще не в жодній групі. Введи код від інструктора.',
-                                        'You are not in any group yet. Enter a code from your instructor.') }}</p>
+            <p class="empty-hint">{{ i18n.t('cohorts.notInAnyGroup') }}</p>
           } @else {
             <ul class="cohort-list">
               @for (c of d.joined; track c.id) {
@@ -227,15 +224,14 @@ import { IconComponent } from '../icon.component';
                         <app-icon name="flag" />{{ c.instructor }}
                       </span>
                       <button class="link-btn danger" [disabled]="leaveBusy() === c.id" (click)="leave(c)">
-                        {{ leaveBusy() === c.id ? '…' : tr('вийти', 'leave') }}
+                        {{ leaveBusy() === c.id ? '…' : i18n.t('cohorts.leave') }}
                       </button>
                     </div>
                   </div>
                   <label class="consent-toggle">
                     <input type="checkbox" [checked]="c.shareSessions"
                            [disabled]="consentBusy() === c.id" (change)="setConsent(c, $event)" />
-                    <span>{{ tr('Дозволити інструктору переглядати мої сесії — текст розмов і фідбек',
-                              'Let the instructor view my sessions — transcripts and feedback') }}</span>
+                    <span>{{ i18n.t('cohorts.consentToggle') }}</span>
                   </label>
                 </li>
               }
@@ -243,8 +239,7 @@ import { IconComponent } from '../icon.component';
 
             <p class="consent-note">
               <app-icon name="shield-check" />
-              {{ tr('Інструктор групи бачить твій навчальний прогрес: рівень, компетенцію, кількість сесій, бейджі та стан пацієнтів. Зміст самих сесій залишається приватним.',
-                    'Your group instructor can see your training progress — stage, competency, session count, badges, and patient health. The content of your sessions stays private.') }}
+              {{ i18n.t('cohorts.consentNote') }}
             </p>
           }
         </section>
@@ -256,11 +251,11 @@ import { IconComponent } from '../icon.component';
             <div class="drill-head">
               <div class="drill-head-left">
                 @if (drillDetail() || drillDetailLoading()) {
-                  <button class="link-btn" (click)="backToList()">← {{ tr('до списку', 'back') }}</button>
+                  <button class="link-btn" (click)="backToList()">← {{ i18n.t('cohorts.backToList') }}</button>
                 }
                 <span class="drill-title">{{ ds.row.displayName || ds.row.email }}</span>
               </div>
-              <button class="x-btn" (click)="closeStudent()" [attr.aria-label]="tr('Закрити','Close')">✕</button>
+              <button class="x-btn" (click)="closeStudent()" [attr.aria-label]="i18n.t('cohorts.close')">✕</button>
             </div>
 
             @if (drillDetailLoading()) {
@@ -274,12 +269,12 @@ import { IconComponent } from '../icon.component';
                   </div>
                   @if (sd.feedback) {
                     <div class="sd-block">
-                      <span class="section-label">{{ tr('Фідбек супервізора', 'Supervisor feedback') }}</span>
+                      <span class="section-label">{{ i18n.t('cohorts.supervisorFeedback') }}</span>
                       <pre class="fb-text">{{ sd.feedback }}</pre>
                     </div>
                   }
                   <div class="sd-block">
-                    <span class="section-label">{{ tr('Транскрипт', 'Transcript') }}</span>
+                    <span class="section-label">{{ i18n.t('cohorts.transcript') }}</span>
                     <div class="transcript">
                       @for (m of sd.messages; track $index) {
                         <div class="msg" [class.mine]="m.role === 'user'">
@@ -297,7 +292,7 @@ import { IconComponent } from '../icon.component';
                   } @else {
                     @if (drillSessions(); as rows) {
                     @if (rows.length === 0) {
-                      <p class="empty-hint">{{ tr('У студента ще немає завершених сесій.', 'No completed sessions yet.') }}</p>
+                      <p class="empty-hint">{{ i18n.t('cohorts.noCompletedSessions') }}</p>
                     } @else {
                       <ul class="sess-list">
                         @for (r of rows; track r.id) {
@@ -305,8 +300,8 @@ import { IconComponent } from '../icon.component';
                             <button class="sess-row" (click)="openSession(r.id)">
                               <span class="sess-char">{{ r.character }}</span>
                               <span class="dim">{{ r.startedAt | date: 'dd.MM.yy' }}</span>
-                              <span class="dim sess-msgs">{{ r.messageCount }} {{ tr('реплік', 'msgs') }}</span>
-                              @if (!r.hasFeedback) { <span class="dim">· {{ tr('без фідбеку', 'no feedback') }}</span> }
+                              <span class="dim sess-msgs">{{ r.messageCount }} {{ i18n.t('cohorts.msgs') }}</span>
+                              @if (!r.hasFeedback) { <span class="dim">· {{ i18n.t('cohorts.noFeedback') }}</span> }
                               <span class="sess-go">→</span>
                             </button>
                           </li>
@@ -323,8 +318,7 @@ import { IconComponent } from '../icon.component';
 
         @if (!isInstructor()) {
           <p class="footnote">
-            {{ tr('Хочеш вести власну групу? Інструкторський доступ надає адміністратор.',
-                  'Want to run your own group? Instructor access is granted by an admin.') }}
+            {{ i18n.t('cohorts.instructorAccessFootnote') }}
           </p>
         }
        }
@@ -594,17 +588,13 @@ export class CohortsComponent {
     void this.reload();
   }
 
-  tr(uk: string, en: string): string {
-    return this.i18n.isEn ? en : uk;
-  }
-
   async reload() {
     this.loading.set(true);
     this.error.set(null);
     try {
       this.data.set(await this.api.listCohorts());
     } catch (e: unknown) {
-      this.error.set(this.msg(e, this.tr('Не вдалось завантажити групи.', 'Failed to load cohorts.')));
+      this.error.set(this.msg(e, this.i18n.t('cohorts.errLoadCohorts')));
     } finally {
       this.loading.set(false);
     }
@@ -623,7 +613,7 @@ export class CohortsComponent {
       );
       this.newName.set('');
     } catch (e: unknown) {
-      alert(this.msg(e, this.tr('Не вдалось створити групу.', 'Failed to create cohort.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errCreateCohort')));
     } finally {
       this.creating.set(false);
     }
@@ -642,7 +632,7 @@ export class CohortsComponent {
       // if they were already in it).
       await this.reload();
     } catch (e: unknown) {
-      alert(this.msg(e, this.tr('Не вдалось приєднатись.', 'Failed to join.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errJoin')));
     } finally {
       this.joining.set(false);
     }
@@ -650,7 +640,7 @@ export class CohortsComponent {
 
   /** Student leaves a group; drop it from the joined list on success. */
   async leave(c: JoinedCohort) {
-    if (!confirm(this.tr(`Вийти з групи «${c.name}»?`, `Leave the group "${c.name}"?`))) return;
+    if (!confirm(this.i18n.t('cohorts.confirmLeave', { name: c.name }))) return;
     this.leaveBusy.set(c.id);
     try {
       await this.api.leaveCohort(c.id);
@@ -658,7 +648,7 @@ export class CohortsComponent {
         d ? { ...d, joined: d.joined.filter((x) => x.id !== c.id) } : d,
       );
     } catch (e: unknown) {
-      alert(this.msg(e, this.tr('Не вдалось вийти з групи.', 'Failed to leave.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errLeave')));
     } finally {
       this.leaveBusy.set(null);
     }
@@ -666,10 +656,7 @@ export class CohortsComponent {
 
   /** Instructor deletes a whole cohort: drop it from the owned list. */
   async deleteCohort(c: OwnedCohort) {
-    if (!confirm(this.tr(
-      `Видалити групу «${c.name}»? Усіх учасників буде відключено.`,
-      `Delete the group "${c.name}"? All members will be removed.`,
-    ))) return;
+    if (!confirm(this.i18n.t('cohorts.confirmDeleteGroup', { name: c.name }))) return;
     this.deletingId.set(c.id);
     try {
       await this.api.deleteCohort(c.id);
@@ -681,7 +668,7 @@ export class CohortsComponent {
         d ? { ...d, owned: d.owned.filter((x) => x.id !== c.id) } : d,
       );
     } catch (e: unknown) {
-      alert(this.msg(e, this.tr('Не вдалось видалити групу.', 'Failed to delete group.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errDeleteGroup')));
     } finally {
       this.deletingId.set(null);
     }
@@ -701,7 +688,7 @@ export class CohortsComponent {
       );
     } catch (e: unknown) {
       input.checked = !share; // revert on failure
-      alert(this.msg(e, this.tr('Не вдалось змінити налаштування.', 'Failed to update setting.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errUpdateSetting')));
     } finally {
       this.consentBusy.set(null);
     }
@@ -716,7 +703,7 @@ export class CohortsComponent {
     try {
       this.drillSessions.set(await this.api.getStudentSessions(det.id, row.userId));
     } catch (e: unknown) {
-      alert(this.msg(e, this.tr('Не вдалось завантажити сесії.', 'Failed to load sessions.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errLoadSessions')));
       this.closeStudent();
     } finally {
       this.drillLoading.set(false);
@@ -741,7 +728,7 @@ export class CohortsComponent {
     try {
       this.drillDetail.set(await this.api.getStudentSession(ds.cohortId, ds.row.userId, sessionId));
     } catch (e: unknown) {
-      alert(this.msg(e, this.tr('Не вдалось завантажити сесію.', 'Failed to load session.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errLoadSession')));
     } finally {
       this.drillDetailLoading.set(false);
     }
@@ -749,15 +736,15 @@ export class CohortsComponent {
 
   /** Map a stored message role to a display label. */
   roleLabel(role: string): string {
-    if (role === 'user') return this.tr('Терапевт', 'Therapist');
-    if (role === 'assistant') return this.tr('Пацієнт', 'Patient');
+    if (role === 'user') return this.i18n.t('cohorts.roleTherapist');
+    if (role === 'assistant') return this.i18n.t('cohorts.rolePatient');
     return role;
   }
 
   /** Instructor removes a student: drop the row + decrement member count. */
   async removeStudent(det: CohortDetail, s: CohortStudentRow) {
     const name = s.displayName || s.email;
-    if (!confirm(this.tr(`Видалити ${name} з групи?`, `Remove ${name} from the group?`))) return;
+    if (!confirm(this.i18n.t('cohorts.confirmRemoveStudent', { name }))) return;
     this.memberBusy.set(s.userId);
     try {
       await this.api.removeCohortMember(det.id, s.userId);
@@ -777,7 +764,7 @@ export class CohortsComponent {
           : data,
       );
     } catch (e: unknown) {
-      alert(this.msg(e, this.tr('Не вдалось видалити студента.', 'Failed to remove student.')));
+      alert(this.msg(e, this.i18n.t('cohorts.errRemoveStudent')));
     } finally {
       this.memberBusy.set(null);
     }
@@ -795,7 +782,7 @@ export class CohortsComponent {
     try {
       this.detail.set(await this.api.getCohort(c.id));
     } catch (e: unknown) {
-      this.error.set(this.msg(e, this.tr('Не вдалось завантажити студентів.', 'Failed to load students.')));
+      this.error.set(this.msg(e, this.i18n.t('cohorts.errLoadStudents')));
       this.selectedId.set(null);
     } finally {
       this.detailLoading.set(false);

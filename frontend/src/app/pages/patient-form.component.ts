@@ -10,6 +10,7 @@ import {
   ModalityInfo,
 } from '../api.service';
 import { IconComponent } from '../icon.component';
+import { I18nService } from '../i18n.service';
 
 type Mode = 'create' | 'edit';
 
@@ -31,20 +32,16 @@ const THEME_OPTIONS = [
   imports: [CommonModule, FormsModule, RouterLink, DatePipe, IconComponent],
   template: `
     <header class="page-header">
-      <a routerLink="/" class="back">← На головну</a>
+      <a routerLink="/" class="back">← {{ i18n.t('patientForm.backToHome') }}</a>
       <h1>
         @if (mode() === 'create') {
-          {{ form.gender === 'female' ? 'Створити пацієнтку' : 'Створити пацієнта' }}
+          {{ form.gender === 'female' ? i18n.t('patientForm.createPatientFemale') : i18n.t('patientForm.createPatientMale') }}
         } @else {
-          Редагувати: {{ form.displayName }}
+          {{ i18n.t('patientForm.editTitle', { name: form.displayName }) }}
         }
       </h1>
       <p class="hint">
-        Опиши клінічний випадок коротко, потім модель розгорне у повний
-        8-секційний профіль. Можна відредагувати markdown вручну перед
-        збереженням. <strong>Біля кожного поля є <code>✨</code></strong>
-        — тицни, і ШІ запропонує значення, узгоджене з тим, що вже
-        заповнено. Тисни ще раз — отримаєш іншу варіацію.
+        {{ i18n.t('patientForm.headerHintBefore') }} <strong>{{ i18n.t('patientForm.headerHintBadge') }} <code>✨</code></strong>{{ i18n.t('patientForm.headerHintAfter') }}
       </p>
     </header>
 
@@ -55,37 +52,37 @@ const THEME_OPTIONS = [
     @if (pendingDraft(); as d) {
       <div class="draft-banner">
         <div class="draft-banner-body">
-          <strong>Знайдено незбережену чернетку</strong>
+          <strong>{{ i18n.t('patientForm.draftFoundTitle') }}</strong>
           <span class="draft-banner-meta">
-            від {{ d.ts | date: 'dd.MM.yyyy HH:mm' }}@if (d.form.displayName) {, «{{ d.form.displayName }}»}
+            {{ i18n.t('patientForm.draftFrom') }} {{ d.ts | date: 'dd.MM.yyyy HH:mm' }}@if (d.form.displayName) {, «{{ d.form.displayName }}»}
           </span>
         </div>
         <div class="draft-banner-actions">
-          <button type="button" class="primary tight" (click)="restoreDraft()">Відновити</button>
-          <button type="button" class="ghost tight" (click)="discardDraft()">Почати з нуля</button>
+          <button type="button" class="primary tight" (click)="restoreDraft()">{{ i18n.t('patientForm.restore') }}</button>
+          <button type="button" class="ghost tight" (click)="discardDraft()">{{ i18n.t('patientForm.startFromScratch') }}</button>
         </div>
       </div>
     } @else if (draftSavedAt()) {
       <p class="draft-status">
-        💾 Чернетка зберігається автоматично · останнє збереження
+        💾 {{ i18n.t('patientForm.draftAutosaved') }}
         {{ draftSavedAt() | date: 'HH:mm:ss' }}
         @if (mode() === 'create') {
-          <button type="button" class="link-btn" (click)="discardDraft()">скинути</button>
+          <button type="button" class="link-btn" (click)="discardDraft()">{{ i18n.t('patientForm.reset') }}</button>
         }
       </p>
     }
 
     <section class="form-section">
-      <h2>1. Хто це</h2>
+      <h2>{{ i18n.t('patientForm.section1Title') }}</h2>
 
       <div class="row">
         <div class="field">
           <div class="label-row">
-            <label for="displayName">Ім'я *</label>
+            <label for="displayName">{{ i18n.t('patientForm.nameLabel') }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('displayName')"
-                    title="Згенерувати ім'я через ШІ">
+                    [title]="i18n.t('patientForm.generateNameTitle')">
               @if (aiBusy('displayName')) { ⏳ } @else { ✨ }
             </button>
           </div>
@@ -94,11 +91,11 @@ const THEME_OPTIONS = [
         </div>
         <div class="field narrow">
           <div class="label-row">
-            <label for="age">Вік</label>
+            <label for="age">{{ i18n.t('patientForm.ageLabel') }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('age')"
-                    title="Згенерувати вік через ШІ">
+                    [title]="i18n.t('patientForm.generateAgeTitle')">
               @if (aiBusy('age')) { ⏳ } @else { ✨ }
             </button>
           </div>
@@ -106,15 +103,15 @@ const THEME_OPTIONS = [
                  [(ngModel)]="form.age" name="age" />
         </div>
         <div class="field narrow">
-          <label>Стать *</label>
+          <label>{{ i18n.t('patientForm.genderLabel') }}</label>
           <div class="radio-group">
             <label class="radio">
               <input type="radio" name="gender" value="female"
-                     [(ngModel)]="form.gender" /> Жіноча
+                     [(ngModel)]="form.gender" /> {{ i18n.t('patientForm.genderFemale') }}
             </label>
             <label class="radio">
               <input type="radio" name="gender" value="male"
-                     [(ngModel)]="form.gender" /> Чоловіча
+                     [(ngModel)]="form.gender" /> {{ i18n.t('patientForm.genderMale') }}
             </label>
           </div>
         </div>
@@ -123,25 +120,25 @@ const THEME_OPTIONS = [
       <div class="row">
         <div class="field">
           <div class="label-row">
-            <label for="city">Місто/район</label>
+            <label for="city">{{ i18n.t('patientForm.cityLabel') }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('city')"
-                    title="Згенерувати місто через ШІ">
+                    [title]="i18n.t('patientForm.generateCityTitle')">
               @if (aiBusy('city')) { ⏳ } @else { ✨ }
             </button>
           </div>
           <input id="city" type="text" maxlength="120"
                  [(ngModel)]="form.city" name="city"
-                 placeholder="Київ, Поділ" />
+                 [placeholder]="i18n.t('patientForm.cityPlaceholder')" />
         </div>
         <div class="field">
           <div class="label-row">
-            <label for="profession">Професія/контекст</label>
+            <label for="profession">{{ i18n.t('patientForm.professionLabel') }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('profession')"
-                    title="Згенерувати професію через ШІ">
+                    [title]="i18n.t('patientForm.generateProfessionTitle')">
               @if (aiBusy('profession')) { ⏳ } @else { ✨ }
             </button>
           </div>
@@ -153,11 +150,11 @@ const THEME_OPTIONS = [
     </section>
 
     <section class="form-section">
-      <h2>2. Клінічна рамка</h2>
+      <h2>{{ i18n.t('patientForm.section2Title') }}</h2>
 
       <div class="field">
-        <label>Модальність терапії *</label>
-        <div class="modality-chips" role="radiogroup" aria-label="Модальність">
+        <label>{{ i18n.t('patientForm.modalityLabel') }}</label>
+        <div class="modality-chips" role="radiogroup" [attr.aria-label]="i18n.t('patientForm.modalityAriaLabel')">
           @for (m of modalities(); track m.key) {
             <button type="button"
                     class="modality-chip"
@@ -179,76 +176,76 @@ const THEME_OPTIONS = [
       <div class="row">
         <div class="field">
           <div class="label-row">
-            <label for="diagnosis">Діагноз українською</label>
+            <label for="diagnosis">{{ i18n.t('patientForm.diagnosisLabel') }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('diagnosis')"
-                    title="Згенерувати діагноз через ШІ">
+                    [title]="i18n.t('patientForm.generateDiagnosisTitle')">
               @if (aiBusy('diagnosis')) { ⏳ } @else { ✨ }
             </button>
           </div>
           <input id="diagnosis" type="text" maxlength="200"
                  [(ngModel)]="form.diagnosis" name="diagnosis"
-                 placeholder="Соціальна тривога з уникненням" />
+                 [placeholder]="i18n.t('patientForm.diagnosisPlaceholder')" />
         </div>
         <div class="field">
           <div class="label-row">
-            <label for="diagnosisCode">Шифр (МКХ-10 / DSM-5)</label>
+            <label for="diagnosisCode">{{ i18n.t('patientForm.diagnosisCodeLabel') }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('diagnosisCode')"
-                    title="Згенерувати шифр через ШІ">
+                    [title]="i18n.t('patientForm.generateDiagnosisCodeTitle')">
               @if (aiBusy('diagnosisCode')) { ⏳ } @else { ✨ }
             </button>
           </div>
           <input id="diagnosisCode" type="text" maxlength="200"
                  [(ngModel)]="form.diagnosisCode" name="diagnosisCode"
-                 placeholder="F40.1 (МКХ-10) / 300.23 (DSM-5)" />
+                 [placeholder]="i18n.t('patientForm.diagnosisCodePlaceholder')" />
         </div>
       </div>
 
       <div class="row">
         <div class="field narrow">
           <div class="label-row">
-            <label>Поведінкова складність: {{ form.difficulty }}</label>
+            <label>{{ i18n.t('patientForm.difficultyLabel', { value: form.difficulty }) }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('difficulty')"
-                    title="Підібрати складність через ШІ">
+                    [title]="i18n.t('patientForm.generateDifficultyTitle')">
               @if (aiBusy('difficulty')) { ⏳ } @else { ✨ }
             </button>
           </div>
           <input type="range" min="1" max="5" step="1"
                  [(ngModel)]="form.difficulty" name="difficulty" />
-          <span class="hint">1 = відкрита, 5 = глухий опір</span>
+          <span class="hint">{{ i18n.t('patientForm.difficultyScale') }}</span>
         </div>
         <div class="field narrow">
           <div class="label-row">
-            <label>Клінічна тяжкість: {{ form.complexity }}</label>
+            <label>{{ i18n.t('patientForm.complexityLabel', { value: form.complexity }) }}</label>
             <button type="button" class="ai-mini"
                     [disabled]="aiBlocked()"
                     (click)="fillField('complexity')"
-                    title="Підібрати тяжкість через ШІ">
+                    [title]="i18n.t('patientForm.generateComplexityTitle')">
               @if (aiBusy('complexity')) { ⏳ } @else { ✨ }
             </button>
           </div>
           <input type="range" min="1" max="5" step="1"
                  [(ngModel)]="form.complexity" name="complexity" />
-          <span class="hint">1 = легка, 5 = гостра небезпека</span>
+          <span class="hint">{{ i18n.t('patientForm.complexityScale') }}</span>
         </div>
       </div>
     </section>
 
     <section class="form-section">
-      <h2>3. Випадок</h2>
+      <h2>{{ i18n.t('patientForm.section3Title') }}</h2>
 
       <div class="field">
         <div class="label-row">
-          <label for="brief">Що з нею відбувається (2-3 речення)</label>
+          <label for="brief">{{ i18n.t('patientForm.briefLabel') }}</label>
           <button type="button" class="ai-mini"
                   [disabled]="aiBlocked()"
                   (click)="fillField('brief')"
-                  title="Згенерувати опис випадку через ШІ">
+                  [title]="i18n.t('patientForm.generateBriefTitle')">
             @if (aiBusy('brief')) { ⏳ } @else { ✨ }
           </button>
         </div>
@@ -259,26 +256,26 @@ const THEME_OPTIONS = [
 
       <div class="field">
         <div class="label-row">
-          <label for="hiddenLayerHint">Прихований шар (1-2 речення, що насправді відбувається)</label>
+          <label for="hiddenLayerHint">{{ i18n.t('patientForm.hiddenLayerLabel') }}</label>
           <button type="button" class="ai-mini"
                   [disabled]="aiBlocked()"
                   (click)="fillField('hiddenLayerHint')"
-                  title="Згенерувати прихований шар через ШІ">
+                  [title]="i18n.t('patientForm.generateHiddenLayerTitle')">
             @if (aiBusy('hiddenLayerHint')) { ⏳ } @else { ✨ }
           </button>
         </div>
         <textarea id="hiddenLayerHint" rows="2" maxlength="500"
                   [(ngModel)]="form.hiddenLayerHint" name="hiddenLayerHint"
-                  placeholder="Контракт умовної любові з мамою + криза кар'єрного стелі = панічна атака як легітимний спосіб зупинитись."></textarea>
+                  [placeholder]="i18n.t('patientForm.hiddenLayerPlaceholder')"></textarea>
       </div>
 
       <div class="field">
         <div class="label-row">
-          <label for="voiceNotes">Особливості мовлення</label>
+          <label for="voiceNotes">{{ i18n.t('patientForm.voiceNotesLabel') }}</label>
           <button type="button" class="ai-mini"
                   [disabled]="aiBlocked()"
                   (click)="fillField('voiceNotes')"
-                  title="Згенерувати опис мовлення через ШІ">
+                  [title]="i18n.t('patientForm.generateVoiceNotesTitle')">
             @if (aiBusy('voiceNotes')) { ⏳ } @else { ✨ }
           </button>
         </div>
@@ -289,11 +286,11 @@ const THEME_OPTIONS = [
 
       <div class="field">
         <div class="label-row">
-          <label>Спеціальні теми (необов'язково)</label>
+          <label>{{ i18n.t('patientForm.themesLabel') }}</label>
           <button type="button" class="ai-mini"
                   [disabled]="aiBlocked()"
                   (click)="fillField('themes')"
-                  title="Підібрати теми через ШІ">
+                  [title]="i18n.t('patientForm.generateThemesTitle')">
             @if (aiBusy('themes')) { ⏳ } @else { ✨ }
           </button>
         </div>
@@ -309,19 +306,19 @@ const THEME_OPTIONS = [
     </section>
 
     <section class="form-section">
-      <h2>4. Згенерувати профіль</h2>
+      <h2>{{ i18n.t('patientForm.section4Title') }}</h2>
 
       <div class="actions">
         <button type="button" class="primary" (click)="generateProfile()"
                 [disabled]="aiBlocked() || !canGenerate()">
           @if (generating()) {
-            🪄 Генерую…
+            🪄 {{ i18n.t('patientForm.generating') }}
           } @else if (aiBlocked()) {
-            ⏳ Чекаю поки інша AI-операція завершиться…
+            ⏳ {{ i18n.t('patientForm.waitingForAi') }}
           } @else if (form.profileText) {
-            🔄 Перегенерувати
+            🔄 {{ i18n.t('patientForm.regenerate') }}
           } @else {
-            ✨ Згенерувати профіль
+            ✨ {{ i18n.t('patientForm.generateProfile') }}
           }
         </button>
         @if (generateError()) {
@@ -331,19 +328,18 @@ const THEME_OPTIONS = [
 
       @if (!canGenerate() && !form.profileText) {
         <p class="hint">
-          Заповни принаймні <strong>Ім'я</strong> і <strong>Що з нею/ним
-          відбувається</strong> — модель потребує цей мінімум контексту.
+          {{ i18n.t('patientForm.minContextHintBefore') }} <strong>{{ i18n.t('patientForm.minContextHintName') }}</strong> {{ i18n.t('patientForm.minContextHintAnd') }} <strong>{{ i18n.t('patientForm.minContextHintBrief') }}</strong>{{ i18n.t('patientForm.minContextHintAfter') }}
         </p>
       }
 
       @if (form.profileText) {
         <div class="field">
           <label for="profileText">
-            Markdown профілю (можна редагувати вручну)
+            {{ i18n.t('patientForm.profileMarkdownLabel') }}
           </label>
           <textarea id="profileText" rows="20"
                     [(ngModel)]="form.profileText" name="profileText"></textarea>
-          <span class="hint char-count">{{ form.profileText.length }} символів</span>
+          <span class="hint char-count">{{ i18n.t('patientForm.charCount', { count: form.profileText.length }) }}</span>
         </div>
       }
     </section>
@@ -353,18 +349,18 @@ const THEME_OPTIONS = [
         <button type="button" class="primary big" (click)="save()"
                 [disabled]="saving() || !form.displayName.trim()">
           @if (saving()) {
-            Зберігаю…
+            {{ i18n.t('patientForm.saving') }}
           } @else if (mode() === 'create') {
-            {{ form.gender === 'female' ? 'Зберегти нову пацієнтку' : 'Зберегти нового пацієнта' }}
+            {{ form.gender === 'female' ? i18n.t('patientForm.saveNewPatientFemale') : i18n.t('patientForm.saveNewPatientMale') }}
           } @else {
-            Зберегти зміни
+            {{ i18n.t('patientForm.saveChanges') }}
           }
         </button>
       }
       @if (saveError()) {
         <span class="danger">{{ saveError() }}</span>
       }
-      <a routerLink="/" class="ghost-link">Скасувати</a>
+      <a routerLink="/" class="ghost-link">{{ i18n.t('patientForm.cancel') }}</a>
     </section>
   `,
   styles: [`
@@ -660,6 +656,7 @@ export class PatientFormComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  protected readonly i18n = inject(I18nService);
 
   mode = signal<Mode>('create');
   private editingId = signal<number | null>(null);
@@ -897,18 +894,18 @@ export class PatientFormComponent implements OnInit, OnDestroy {
    */
   get professionPlaceholder(): string {
     return this.form.gender === 'female'
-      ? 'вчителька, IT-аналітикиня, студентка…'
-      : 'вчитель, IT-аналітик, студент…';
+      ? this.i18n.t('patientForm.professionPlaceholderFemale')
+      : this.i18n.t('patientForm.professionPlaceholderMale');
   }
   get briefPlaceholder(): string {
     return this.form.gender === 'female'
-      ? 'Останні 4 місяці — панічні атаки уночі. Працює, але виснажена. Партнер не знає масштабу.'
-      : 'Останні 4 місяці — панічні атаки уночі. Працює, але виснажений. Дружина не знає масштабу.';
+      ? this.i18n.t('patientForm.briefPlaceholderFemale')
+      : this.i18n.t('patientForm.briefPlaceholderMale');
   }
   get voicePlaceholder(): string {
     return this.form.gender === 'female'
-      ? 'Артикульована, перфекціоністка, іронія як захист. Російську не вживає крім цитування мами.'
-      : 'Артикульований, перфекціоніст, іронія як захист. Російську не вживає крім цитування батька.';
+      ? this.i18n.t('patientForm.voicePlaceholderFemale')
+      : this.i18n.t('patientForm.voicePlaceholderMale');
   }
 
   async ngOnInit() {
@@ -950,7 +947,7 @@ export class PatientFormComponent implements OnInit, OnDestroy {
     } catch (e: unknown) {
       this.loadError.set(
         (e as { error?: { message?: string } })?.error?.message ??
-          'Не вдалось завантажити характер для редагування.',
+          this.i18n.t('patientForm.loadError'),
       );
     }
   }
@@ -970,8 +967,8 @@ export class PatientFormComponent implements OnInit, OnDestroy {
       this.generateError.set(
         httpErr.error?.message ||
           (httpErr.status === 503
-            ? 'Модель тимчасово недоступна (rate-limit). Спробуй за хвилину.'
-            : 'Не вдалось згенерувати профіль.'),
+            ? this.i18n.t('patientForm.modelUnavailableError')
+            : this.i18n.t('patientForm.generateProfileError')),
       );
     } finally {
       this.generating.set(false);
@@ -998,8 +995,8 @@ export class PatientFormComponent implements OnInit, OnDestroy {
       this.generateError.set(
         httpErr.error?.message ||
           (httpErr.status === 503
-            ? 'Модель тимчасово недоступна (rate-limit). Спробуй за хвилину.'
-            : `Не вдалось згенерувати поле «${field}».`),
+            ? this.i18n.t('patientForm.modelUnavailableError')
+            : this.i18n.t('patientForm.fillFieldError', { field })),
       );
     } finally {
       this.aiBusyMap.update((curr) => ({ ...curr, [field]: false }));
@@ -1102,7 +1099,7 @@ export class PatientFormComponent implements OnInit, OnDestroy {
     } catch (e: unknown) {
       this.saveError.set(
         (e as { error?: { message?: string } })?.error?.message ??
-          'Не вдалось зберегти.',
+          this.i18n.t('patientForm.saveError'),
       );
     } finally {
       this.saving.set(false);

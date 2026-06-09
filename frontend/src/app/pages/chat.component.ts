@@ -38,7 +38,7 @@ interface SelectionAnchor {
       <div class="left">
         <span class="timer"
               [class.warn]="elapsedMin() >= 35"
-              [title]="elapsedMin() >= 35 ? 'Орієнтовний час закриття інтейк-сесії' : 'Час сесії'">
+              [title]="elapsedMin() >= 35 ? i18n.t('chat.timer_closing') : i18n.t('chat.timer_session')">
           <app-icon name="clock" /> {{ elapsedDisplay() }}
         </span>
       </div>
@@ -68,19 +68,19 @@ interface SelectionAnchor {
                     [attr.aria-label]="i18n.t('chat.hint_label')"><app-icon name="lightbulb" /></button>
           }
           <div class="vtile-name">
-            <span>{{ state.characterDisplayName() ?? 'Клієнт' }}</span>
+            <span>{{ state.characterDisplayName() ?? i18n.t('chat.client_fallback') }}</span>
             @if (voice.speaking()) {
               <span class="speaking-eq" aria-hidden="true"><i></i><i></i><i></i></span>
             }
           </div>
           @if (sending()) {
-            <div class="vtile-typing">{{ (state.characterDisplayName() ?? 'Клієнт') }} відповідає…</div>
+            <div class="vtile-typing">{{ i18n.t('chat.typing', { name: state.characterDisplayName() ?? i18n.t('chat.client_fallback') }) }}</div>
           }
         </div>
 
         @if (captionsOn() && lastLine(); as line) {
           <div class="captions" [class.mine]="line.role === 'user'">
-            <span class="cap-who">{{ line.role === 'user' ? 'Ти' : (state.characterDisplayName() ?? 'Клієнт') }}</span>
+            <span class="cap-who">{{ line.role === 'user' ? i18n.t('chat.you') : (state.characterDisplayName() ?? i18n.t('chat.client_fallback')) }}</span>
             <p>{{ line.content }}</p>
           </div>
         }
@@ -88,31 +88,31 @@ interface SelectionAnchor {
         @if (videoComposerOpen()) {
           <form class="vcomposer" (ngSubmit)="send(); videoComposerOpen.set(false)">
             <input type="text" [(ngModel)]="draft" name="vdraft" autocomplete="off"
-                   placeholder="Напишіть повідомлення…" />
+                   [placeholder]="i18n.t('chat.message_placeholder')" />
             <button type="submit" class="vsend" [disabled]="sending() || !draft.trim()">→</button>
           </form>
         }
 
-        <div class="vbar" role="toolbar" aria-label="Керування дзвінком">
+        <div class="vbar" role="toolbar" [attr.aria-label]="i18n.t('chat.call_controls')">
           @if (recognition.supported) {
             <button class="vbtn" [class.live]="recognition.listening()" (click)="videoMic()"
-                    [title]="recognition.listening() ? 'Стоп і надіслати' : 'Говорити'"
-                    [attr.aria-label]="recognition.listening() ? 'Стоп і надіслати' : 'Говорити'">
+                    [title]="recognition.listening() ? i18n.t('chat.mic_stop_send') : i18n.t('chat.mic_speak')"
+                    [attr.aria-label]="recognition.listening() ? i18n.t('chat.mic_stop_send') : i18n.t('chat.mic_speak')">
               <app-icon [name]="recognition.listening() ? 'square' : 'mic'" />
             </button>
           }
           <button class="vbtn" [class.off]="voice.muted()" (click)="voice.toggleMute()"
-                  [title]="voice.muted() ? 'Увімкнути звук' : 'Вимкнути звук'"
-                  aria-label="Звук пацієнта"><app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" /></button>
+                  [title]="voice.muted() ? i18n.t('chat.unmute') : i18n.t('chat.mute')"
+                  [attr.aria-label]="i18n.t('chat.patient_sound')"><app-icon [name]="voice.muted() ? 'volume-off' : 'volume'" /></button>
           <button class="vbtn" [class.off]="!captionsOn()" (click)="toggleCaptions()"
-                  title="Субтитри" aria-label="Субтитри"><app-icon name="captions" /></button>
+                  [title]="i18n.t('chat.captions')" [attr.aria-label]="i18n.t('chat.captions')"><app-icon name="captions" /></button>
           <button class="vbtn" [class.live]="transcriptOpen()" (click)="toggleTranscript()"
-                  title="Транскрипт і нотатки" aria-label="Транскрипт і нотатки"><app-icon name="pencil" /></button>
+                  [title]="i18n.t('chat.transcript_notes')" [attr.aria-label]="i18n.t('chat.transcript_notes')"><app-icon name="pencil" /></button>
           <button class="vbtn" [class.live]="videoComposerOpen()"
                   (click)="videoComposerOpen.set(!videoComposerOpen())"
-                  title="Написати текстом" aria-label="Написати текстом"><app-icon name="keyboard" /></button>
-          <button class="vbtn end" (click)="openEndDialog()" title="Завершити"
-                  aria-label="Завершити сесію"><app-icon name="phone" /></button>
+                  [title]="i18n.t('chat.type_text')" [attr.aria-label]="i18n.t('chat.type_text')"><app-icon name="keyboard" /></button>
+          <button class="vbtn end" (click)="openEndDialog()" [title]="i18n.t('chat.end_short')"
+                  [attr.aria-label]="i18n.t('chat.end_session')"><app-icon name="phone" /></button>
         </div>
 
         <!-- Hint coach — a card centred over the call stage. Reuses the same
@@ -120,13 +120,13 @@ interface SelectionAnchor {
              ⌨ composer (which opens) so the student edits before sending. -->
         @if (hintsOpen()) {
           <div class="vhints-backdrop" (click)="hintsOpen.set(false)" aria-hidden="true"></div>
-          <div class="vhints" role="dialog" aria-label="Підказки" (click)="$event.stopPropagation()">
+          <div class="vhints" role="dialog" [attr.aria-label]="i18n.t('chat.hints_title_full')" (click)="$event.stopPropagation()">
             <header class="hints-head">
-              <span class="hints-title"><app-icon name="lightbulb" /> Що спитати?</span>
-              <button class="hints-close" type="button" (click)="hintsOpen.set(false)" aria-label="Закрити">×</button>
+              <span class="hints-title"><app-icon name="lightbulb" /> {{ i18n.t('chat.hints_what_to_ask') }}</span>
+              <button class="hints-close" type="button" (click)="hintsOpen.set(false)" [attr.aria-label]="i18n.t('general.close')">×</button>
             </header>
             @if (hintsLoading()) {
-              <p class="hints-status">Готую варіанти…</p>
+              <p class="hints-status">{{ i18n.t('chat.hints_loading') }}</p>
             } @else if (hintsError()) {
               <p class="hints-status danger">{{ hintsError() }}</p>
             } @else if (hints().length) {
@@ -143,10 +143,10 @@ interface SelectionAnchor {
                 }
               </ul>
               <p class="hints-foot">
-                Натисни варіант — він підставиться у поле, ти зможеш відредагувати перед надсиланням.
+                {{ i18n.t('chat.hints_foot') }}
               </p>
             } @else {
-              <p class="hints-status">Не вдалось підготувати варіанти. Спробуй ще раз.</p>
+              <p class="hints-status">{{ i18n.t('chat.hints_empty') }}</p>
             }
           </div>
         }
@@ -160,11 +160,11 @@ interface SelectionAnchor {
           <div class="vdrawer-backdrop" (click)="closeTranscript()" aria-hidden="true"></div>
         }
         <aside class="vdrawer" [class.open]="transcriptOpen()"
-               role="dialog" aria-label="Транскрипт розмови і нотатки">
+               role="dialog" [attr.aria-label]="i18n.t('chat.transcript_drawer_label')">
           <header class="vdrawer-head">
-            <h3>Транскрипт</h3>
+            <h3>{{ i18n.t('chat.transcript') }}</h3>
             <button class="vdrawer-close" type="button"
-                    (click)="closeTranscript()" aria-label="Закрити">×</button>
+                    (click)="closeTranscript()" [attr.aria-label]="i18n.t('general.close')">×</button>
           </header>
 
           <div class="vdrawer-body">
@@ -174,14 +174,14 @@ interface SelectionAnchor {
                   @if (!b.pending) {
                     <div class="vline" [class.mine]="b.role === 'user'">
                       <span class="vline-who">
-                        {{ b.role === 'user' ? 'Ти' : (state.characterDisplayName() ?? 'Клієнт') }}
+                        {{ b.role === 'user' ? i18n.t('chat.you') : (state.characterDisplayName() ?? i18n.t('chat.client_fallback')) }}
                       </span>
                       <p class="vline-text">{{ b.content }}</p>
                     </div>
                   }
                 }
                 @if (lastLine() === null) {
-                  <p class="vdrawer-empty">Розмова ще не почалась.</p>
+                  <p class="vdrawer-empty">{{ i18n.t('chat.conversation_empty') }}</p>
                 }
               </div>
             </section>
@@ -197,12 +197,12 @@ interface SelectionAnchor {
                       <blockquote class="vnote-anchor">«{{ n.anchorText }}»</blockquote>
                     }
                     <p class="vnote-body">{{ n.noteText }}</p>
-                    <button class="vnote-delete" type="button" title="Видалити нотатку"
-                            (click)="deleteNote(n.id)" aria-label="Видалити нотатку">✕</button>
+                    <button class="vnote-delete" type="button" [title]="i18n.t('chat.delete_note')"
+                            (click)="deleteNote(n.id)" [attr.aria-label]="i18n.t('chat.delete_note')">✕</button>
                   </li>
                 }
                 @if (notes().length === 0) {
-                  <li class="vnote-empty">Поки порожньо.</li>
+                  <li class="vnote-empty">{{ i18n.t('chat.notes_empty') }}</li>
                 }
               </ul>
               <form class="vnote-form" (ngSubmit)="saveNote()">
@@ -1755,7 +1755,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       const res = await this.api.requestHint(this.sessionId);
       this.hints.set(res.suggestions ?? []);
       if ((res.suggestions ?? []).length === 0) {
-        this.hintsError.set('Модель не повернула жодного варіанту.');
+        this.hintsError.set(this.i18n.t('chat.hints_err_no_variants'));
       }
     } catch (e: unknown) {
       // HttpClient errors come back as HttpErrorResponse — Angular's default
@@ -1766,10 +1766,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       const msg =
         httpErr.error?.message ||
         (httpErr.status === 503
-          ? 'Модель тимчасово недоступна (rate-limit OpenRouter). Зачекай 30s і спробуй ще.'
+          ? this.i18n.t('chat.hints_err_rate_limit')
           : null) ||
         httpErr.message ||
-        'Не вдалось отримати підказку.';
+        this.i18n.t('chat.hints_err_generic');
       this.hintsError.set(msg);
     } finally {
       this.hintsLoading.set(false);
@@ -1808,10 +1808,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       'open-question': 'Open question',
       'reflection': 'Reflection',
       'summary': 'Summary',
-      'screening': 'Скринінг',
+      'screening': this.i18n.t('chat.hint_kind_screening'),
       'here-and-now': 'Here-and-now',
-      'psychoeducation': 'Психоосвіта',
-      'closing': 'Закриття',
+      'psychoeducation': this.i18n.t('chat.hint_kind_psychoeducation'),
+      'closing': this.i18n.t('chat.hint_kind_closing'),
       'other': '·',
     }[k] ?? '·';
   }
@@ -1971,7 +1971,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         this.closeNotes();
       }
     } catch {
-      alert('Не вдалося зберегти нотатку.');
+      alert(this.i18n.t('chat.note_save_failed'));
     } finally {
       this.savingNote.set(false);
     }
@@ -2101,7 +2101,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       void this.router.navigate(['/']);
     } catch {
       this.discarding.set(false);
-      alert('Не вдалось видалити сесію. Спробуй ще раз або вийди вручну.');
+      alert(this.i18n.t('chat.discard_failed'));
     }
   }
 }

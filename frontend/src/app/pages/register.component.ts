@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
 import { AnalyticsService } from '../analytics.service';
+import { I18nService } from '../i18n.service';
 import { LogoComponent } from '../logo.component';
 
 @Component({
@@ -13,7 +14,7 @@ import { LogoComponent } from '../logo.component';
     <section class="auth-panel synapse-panel">
       <header class="auth-header">
         <app-logo />
-        <h1>Створити акаунт</h1>
+        <h1>{{ i18n.t('register.title') }}</h1>
       </header>
 
       <form class="auth-form" (ngSubmit)="submit()">
@@ -22,42 +23,42 @@ import { LogoComponent } from '../logo.component';
           <input type="email" name="email" [(ngModel)]="email" required autocomplete="email" />
         </label>
         <label>
-          <span>Ім'я (як до тебе звертатись)</span>
+          <span>{{ i18n.t('register.nameLabel') }}</span>
           <input type="text" name="displayName" [(ngModel)]="displayName" autocomplete="name" />
         </label>
         <label>
-          <span>Пароль (мінімум 8 символів)</span>
+          <span>{{ i18n.t('register.passwordLabel') }}</span>
           <input type="password" name="password" [(ngModel)]="password" minlength="8" required autocomplete="new-password" />
         </label>
         @if (error()) {
           <p class="hint danger">{{ error() }}</p>
         }
         <button class="primary" type="submit" [disabled]="loading()">
-          {{ loading() ? 'Створюю…' : 'Зареєструватись' }}
+          {{ loading() ? i18n.t('register.submitting') : i18n.t('register.submit') }}
         </button>
       </form>
 
       @if (auth.providers().google || auth.providers().facebook) {
-        <div class="separator"><span>або</span></div>
+        <div class="separator"><span>{{ i18n.t('register.or') }}</span></div>
         <div class="oauth-buttons">
           @if (auth.providers().google) {
             <button class="oauth google" (click)="oauth('google')">
-              <span class="logo">G</span> Через Google
+              <span class="logo">G</span> {{ i18n.t('register.viaGoogle') }}
             </button>
           }
           @if (auth.providers().facebook) {
             <button class="oauth facebook" (click)="oauth('facebook')">
-              <span class="logo">f</span> Через Facebook
+              <span class="logo">f</span> {{ i18n.t('register.viaFacebook') }}
             </button>
           }
         </div>
       }
 
       <p class="link-row">
-        Уже маєш акаунт? <a routerLink="/login">Увійти</a>
+        {{ i18n.t('register.haveAccount') }} <a routerLink="/login">{{ i18n.t('register.login') }}</a>
       </p>
       <p class="link-row demo-row">
-        Спершу подивись <a routerLink="/demo">приклад фідбеку →</a>
+        {{ i18n.t('register.seeFirst') }} <a routerLink="/demo">{{ i18n.t('register.demoLink') }}</a>
       </p>
     </section>
   `,
@@ -106,6 +107,7 @@ import { LogoComponent } from '../logo.component';
 })
 export class RegisterComponent implements OnInit {
   protected auth = inject(AuthService);
+  protected readonly i18n = inject(I18nService);
   private router = inject(Router);
   private analytics = inject(AnalyticsService);
 
@@ -129,7 +131,7 @@ export class RegisterComponent implements OnInit {
       void this.router.navigate(['/']);
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      this.error.set(Array.isArray(msg) ? msg.join('. ') : (msg ?? 'Не вдалося зареєструватись'));
+      this.error.set(Array.isArray(msg) ? msg.join('. ') : (msg ?? this.i18n.t('register.errorFailed')));
     } finally {
       this.loading.set(false);
     }

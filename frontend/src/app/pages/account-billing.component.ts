@@ -2,6 +2,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService, BillingStatus } from '../api.service';
+import { I18nService } from '../i18n.service';
 
 /**
  * Self-service billing page for logged-in users.
@@ -19,21 +20,21 @@ import { ApiService, BillingStatus } from '../api.service';
   imports: [CommonModule, RouterLink, DatePipe],
   template: `
     @if (loading()) {
-      <p class="loading">Завантаження…</p>
+      <p class="loading">{{ i18n.t('accountBilling.loading') }}</p>
     } @else {
       @if (status(); as s) {
       <div class="billing-page">
         <header>
-          <h1>Підписка</h1>
+          <h1>{{ i18n.t('accountBilling.title') }}</h1>
           <p class="hint">
-            <a routerLink="/pricing">Порівняти всі тарифи →</a>
+            <a routerLink="/pricing">{{ i18n.t('accountBilling.compareAllPlans') }}</a>
           </p>
         </header>
 
         <section class="plan-card">
           <div class="plan-head">
             <div>
-              <div class="plan-label">Поточний план</div>
+              <div class="plan-label">{{ i18n.t('accountBilling.currentPlan') }}</div>
               <h2>{{ s.config.name }}</h2>
               <p class="tagline">{{ s.config.tagline }}</p>
             </div>
@@ -45,13 +46,13 @@ import { ApiService, BillingStatus } from '../api.service';
           <div class="plan-meta">
             @if (s.plan === 'trial') {
               <div class="meta-row">
-                <span>Trial завершується:</span>
+                <span>{{ i18n.t('accountBilling.trialEnds') }}</span>
                 <strong>{{ s.currentPeriodEnd | date: 'd MMM y' }}</strong>
-                <span class="meta-aux">(через {{ s.daysUntilPeriodEnd }} дн.)</span>
+                <span class="meta-aux">{{ i18n.t('accountBilling.inDays', { days: s.daysUntilPeriodEnd }) }}</span>
               </div>
             } @else if (s.status === 'active') {
               <div class="meta-row">
-                <span>Наступне списання:</span>
+                <span>{{ i18n.t('accountBilling.nextCharge') }}</span>
                 <strong>{{ s.currentPeriodEnd | date: 'd MMM y' }}</strong>
                 @if (s.config.priceUah > 0) {
                   <span class="meta-aux">{{ s.config.priceUah }} ₴</span>
@@ -59,20 +60,20 @@ import { ApiService, BillingStatus } from '../api.service';
               </div>
             } @else if (s.status === 'paused') {
               <div class="meta-row">
-                <span>Пауза з:</span>
+                <span>{{ i18n.t('accountBilling.pausedSince') }}</span>
                 <strong>{{ s.pausedAt | date: 'd MMM y' }}</strong>
                 @if (s.resumesAt) {
                   <span class="meta-aux">
-                    автопоновлення {{ s.resumesAt | date: 'd MMM y' }}
+                    {{ i18n.t('accountBilling.autoResume') }} {{ s.resumesAt | date: 'd MMM y' }}
                   </span>
                 }
               </div>
             } @else if (s.status === 'canceled') {
               <div class="meta-row">
-                <span>Скасовано:</span>
+                <span>{{ i18n.t('accountBilling.canceledLabel') }}</span>
                 <strong>{{ s.canceledAt | date: 'd MMM y' }}</strong>
                 <span class="meta-aux">
-                  доступ до {{ s.currentPeriodEnd | date: 'd MMM y' }}
+                  {{ i18n.t('accountBilling.accessUntil') }} {{ s.currentPeriodEnd | date: 'd MMM y' }}
                 </span>
               </div>
             }
@@ -80,7 +81,7 @@ import { ApiService, BillingStatus } from '../api.service';
 
           <div class="usage">
             <div class="usage-head">
-              <span>Сесій у цьому періоді</span>
+              <span>{{ i18n.t('accountBilling.sessionsThisPeriod') }}</span>
               @if (s.sessionLimit !== null) {
                 <strong>{{ s.sessionsUsed }} / {{ s.sessionLimit }}</strong>
               } @else if (s.softCap) {
@@ -102,66 +103,65 @@ import { ApiService, BillingStatus } from '../api.service';
               </div>
               @if (s.sessionsRemaining === 0) {
                 <p class="warn">
-                  Ліміт вичерпано. Сесії будуть доступні з {{ s.currentPeriodEnd | date: 'd MMM y' }}, або оновіться до Pro для необмеженого доступу.
+                  {{ i18n.t('accountBilling.limitReachedBefore') }} {{ s.currentPeriodEnd | date: 'd MMM y' }}{{ i18n.t('accountBilling.limitReachedAfter') }}
                 </p>
               }
             } @else if (s.softCap && s.sessionsUsed >= s.softCap * 0.8) {
               <p class="warn">
-                Інтенсивно використовуєш — наближається soft cap.
-                <a routerLink="/pricing">Подивись Master tier →</a>
+                {{ i18n.t('accountBilling.softCapNearing') }}
+                <a routerLink="/pricing">{{ i18n.t('accountBilling.seeMasterTier') }}</a>
               </p>
             }
           </div>
         </section>
 
         <section class="actions">
-          <h3>Управління підпискою</h3>
+          <h3>{{ i18n.t('accountBilling.manageSubscription') }}</h3>
           <div class="action-grid">
             @if (s.plan === 'trial' || s.status === 'expired') {
               <a [href]="upgradeLink('pro')" target="_blank" class="btn btn-primary">
-                Перейти на Pro
+                {{ i18n.t('accountBilling.switchToPro') }}
               </a>
               <a [href]="upgradeLink('lite')" target="_blank" class="btn btn-secondary">
-                Або Lite (10 сесій / міс)
+                {{ i18n.t('accountBilling.orLite') }}
               </a>
             } @else if (s.plan === 'lite' && s.status === 'active') {
               <a [href]="upgradeLink('pro')" target="_blank" class="btn btn-primary">
-                Upgrade до Pro
+                {{ i18n.t('accountBilling.upgradeToPro') }}
               </a>
               <button (click)="pause(30)" class="btn btn-ghost">
-                Пауза на 30 днів
+                {{ i18n.t('accountBilling.pause30Days') }}
               </button>
               <button (click)="cancel()" class="btn btn-ghost">
-                Скасувати
+                {{ i18n.t('accountBilling.cancel') }}
               </button>
             } @else if (s.plan === 'pro' && s.status === 'active') {
               <a [href]="upgradeLink('master')" target="_blank" class="btn btn-primary">
-                Upgrade до Master
+                {{ i18n.t('accountBilling.upgradeToMaster') }}
               </a>
               <button (click)="pause(30)" class="btn btn-ghost">
-                Пауза на 30 днів
+                {{ i18n.t('accountBilling.pause30Days') }}
               </button>
               <button (click)="cancel()" class="btn btn-ghost">
-                Скасувати
+                {{ i18n.t('accountBilling.cancel') }}
               </button>
             } @else if (s.plan === 'master' && s.status === 'active') {
               <button (click)="pause(30)" class="btn btn-ghost">
-                Пауза на 30 днів
+                {{ i18n.t('accountBilling.pause30Days') }}
               </button>
               <button (click)="cancel()" class="btn btn-ghost">
-                Скасувати
+                {{ i18n.t('accountBilling.cancel') }}
               </button>
             } @else if (s.status === 'paused') {
               <button (click)="resume()" class="btn btn-primary">
-                Поновити підписку
+                {{ i18n.t('accountBilling.resumeSubscription') }}
               </button>
             } @else if (s.status === 'canceled') {
               <p class="hint">
-                Підписка скасована, доступ діє до {{ s.currentPeriodEnd | date: 'd MMM y' }}.
-                Хочеш відновити?
+                {{ i18n.t('accountBilling.canceledAccessBefore') }} {{ s.currentPeriodEnd | date: 'd MMM y' }}{{ i18n.t('accountBilling.canceledAccessAfter') }}
               </p>
               <a [href]="upgradeLink(planSlug())" target="_blank" class="btn btn-primary">
-                Відновити підписку
+                {{ i18n.t('accountBilling.restoreSubscription') }}
               </a>
             }
           </div>
@@ -171,7 +171,7 @@ import { ApiService, BillingStatus } from '../api.service';
         </section>
       </div>
       } @else {
-        <p class="loading">Не вдалось завантажити підписку.</p>
+        <p class="loading">{{ i18n.t('accountBilling.loadFailed') }}</p>
       }
     }
   `,
@@ -305,6 +305,7 @@ import { ApiService, BillingStatus } from '../api.service';
 })
 export class AccountBillingComponent implements OnInit {
   private api = inject(ApiService);
+  protected readonly i18n = inject(I18nService);
 
   status = signal<BillingStatus | null>(null);
   loading = signal(true);
@@ -329,10 +330,10 @@ export class AccountBillingComponent implements OnInit {
 
   statusLabel(s: string): string {
     return ({
-      active: 'Активна',
-      paused: 'Пауза',
-      canceled: 'Скасовано',
-      expired: 'Завершена',
+      active: this.i18n.t('accountBilling.statusActive'),
+      paused: this.i18n.t('accountBilling.statusPaused'),
+      canceled: this.i18n.t('accountBilling.statusCanceled'),
+      expired: this.i18n.t('accountBilling.statusExpired'),
     } as Record<string, string>)[s] ?? s;
   }
 
@@ -343,7 +344,7 @@ export class AccountBillingComponent implements OnInit {
 
   upgradeLink(planId: string): string {
     const text = encodeURIComponent(
-      `Хочу перейти на тариф ${planId.toUpperCase()} у Reflect. Як оплатити?`,
+      this.i18n.t('accountBilling.upgradeMessage', { plan: planId.toUpperCase() }),
     );
     return `https://t.me/reflect_support?text=${text}`;
   }
@@ -351,31 +352,31 @@ export class AccountBillingComponent implements OnInit {
   async pause(days: number) {
     try {
       await this.api.pauseSubscription(days);
-      this.actionMessage.set(`Підписку поставлено на паузу до ${this.formatFutureDate(days)}.`);
+      this.actionMessage.set(this.i18n.t('accountBilling.pauseSuccess', { date: this.formatFutureDate(days) }));
       await this.reload();
     } catch {
-      this.actionMessage.set('Не вдалося поставити на паузу. Спробуй пізніше.');
+      this.actionMessage.set(this.i18n.t('accountBilling.pauseError'));
     }
   }
 
   async resume() {
     try {
       await this.api.resumeSubscription();
-      this.actionMessage.set('Підписка поновлена.');
+      this.actionMessage.set(this.i18n.t('accountBilling.resumeSuccess'));
       await this.reload();
     } catch {
-      this.actionMessage.set('Не вдалося поновити підписку.');
+      this.actionMessage.set(this.i18n.t('accountBilling.resumeError'));
     }
   }
 
   async cancel() {
-    if (!confirm('Скасувати підписку? Доступ збережеться до кінця оплаченого періоду.')) return;
+    if (!confirm(this.i18n.t('accountBilling.cancelConfirm'))) return;
     try {
       await this.api.cancelSubscription();
-      this.actionMessage.set('Підписку скасовано. Доступ до кінця періоду.');
+      this.actionMessage.set(this.i18n.t('accountBilling.cancelSuccess'));
       await this.reload();
     } catch {
-      this.actionMessage.set('Не вдалося скасувати.');
+      this.actionMessage.set(this.i18n.t('accountBilling.cancelError'));
     }
   }
 

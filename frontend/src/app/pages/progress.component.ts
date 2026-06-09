@@ -28,9 +28,9 @@ import { IconComponent } from '../icon.component';
   template: `
     <div class="progress-page fx-fade-up">
       <header class="page-head">
-        <a routerLink="/" class="back">← {{ tr('На головну', 'Home') }}</a>
-        <h1>{{ tr('Прогрес', 'Progress') }}</h1>
-        <p class="sub">{{ tr('Твій шлях розвитку як терапевта', 'Your growth as a therapist') }}</p>
+        <a routerLink="/" class="back">← {{ i18n.t('progress.back_home') }}</a>
+        <h1>{{ i18n.t('progress.title') }}</h1>
+        <p class="sub">{{ i18n.t('progress.subtitle') }}</p>
       </header>
 
       @if (loading()) {
@@ -42,7 +42,7 @@ import { IconComponent } from '../icon.component';
       } @else if (error()) {
         <div class="panel callout panel-soft">
           <p class="err">{{ error() }}</p>
-          <button class="ghost small" (click)="reload()">{{ tr('Спробувати знову', 'Retry') }}</button>
+          <button class="ghost small" (click)="reload()">{{ i18n.t('progress.retry') }}</button>
         </div>
       } @else {
        @if (data(); as d) {
@@ -50,7 +50,7 @@ import { IconComponent } from '../icon.component';
         <!-- ── Hero: stage + headline facts ─────────────────────────── -->
         <section class="panel panel-soft frame-bordered hero">
           <div class="hero-stage">
-            <span class="section-label">{{ tr('Рівень', 'Stage') }}</span>
+            <span class="section-label">{{ i18n.t('progress.stage_label') }}</span>
             <div class="stage-name">{{ stageLabel(d.stage) }}</div>
             <div class="stage-track" role="list">
               @for (s of stageView(); track s.key) {
@@ -68,15 +68,15 @@ import { IconComponent } from '../icon.component';
           </div>
           <div class="facts-row hero-facts">
             <div class="facts-cell">
-              <span class="facts-label">{{ tr('Середня компетенція', 'Mean competency') }}</span>
+              <span class="facts-label">{{ i18n.t('progress.mean_competency') }}</span>
               <span class="facts-value">{{ d.meanCompetency }}<small>/100</small></span>
             </div>
             <div class="facts-cell">
-              <span class="facts-label">{{ tr('Сесій з фідбеком', 'Scored sessions') }}</span>
+              <span class="facts-label">{{ i18n.t('progress.scored_sessions') }}</span>
               <span class="facts-value">{{ d.sessionsCompleted }}</span>
             </div>
             <div class="facts-cell">
-              <span class="facts-label">{{ tr('Бейджів', 'Badges') }}</span>
+              <span class="facts-label">{{ i18n.t('progress.badges_count_label') }}</span>
               <span class="facts-value">{{ earnedCount() }}<small>/{{ awardableCount() }}</small></span>
             </div>
           </div>
@@ -85,20 +85,19 @@ import { IconComponent } from '../icon.component';
         <!-- ── Radar: 4 competencies ────────────────────────────────── -->
         <section class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">{{ tr('Компетенції', 'Competencies') }}</h2>
-            <span class="panel-meta">{{ tr('останні / усе', 'recent / all-time') }}</span>
+            <h2 class="panel-title">{{ i18n.t('progress.competencies') }}</h2>
+            <span class="panel-meta">{{ i18n.t('progress.recent_all_time') }}</span>
           </div>
 
           @if (d.sessionsCompleted === 0) {
             <p class="empty">
-              {{ tr('Проведи першу сесію й отримай фідбек — тут зʼявиться твій профіль компетенцій.',
-                    'Run your first session and get feedback — your competency profile will appear here.') }}
+              {{ i18n.t('progress.competencies_empty') }}
             </p>
           } @else {
            @if (radar(); as r) {
             <div class="radar-wrap">
               <svg class="radar" [attr.viewBox]="r.viewBox" role="img"
-                   [attr.aria-label]="tr('Радар компетенцій', 'Competency radar')">
+                   [attr.aria-label]="i18n.t('progress.radar_aria')">
                 <!-- grid rings -->
                 @for (ring of r.rings; track $index) {
                   <polygon class="grid-ring" [attr.points]="ring" />
@@ -151,8 +150,8 @@ import { IconComponent } from '../icon.component';
         @if (d.specialisations.length) {
           <section class="panel">
             <div class="panel-head">
-              <h2 class="panel-title">{{ tr('Спеціалізації', 'Specialisations') }}</h2>
-              <span class="panel-meta">{{ tr('сильні сесії за напрямом', 'strong sessions by domain') }}</span>
+              <h2 class="panel-title">{{ i18n.t('progress.specialisations') }}</h2>
+              <span class="panel-meta">{{ i18n.t('progress.strong_by_domain') }}</span>
             </div>
             <ul class="spec-list">
               @for (s of d.specialisations; track s.key) {
@@ -163,19 +162,18 @@ import { IconComponent } from '../icon.component';
                   </div>
                   <div class="spec-bar"><span class="spec-fill" [style.width.%]="specPct(s)"></span></div>
                   <div class="spec-meta">
-                    {{ s.strong }} {{ tr('сильних', 'strong') }} / {{ s.sessions }}
+                    {{ s.strong }} {{ i18n.t('progress.strong') }} / {{ s.sessions }}
                     @if (s.nextAt !== null) {
-                      · {{ tr('до наступного', 'next at') }} {{ s.nextAt }}
+                      · {{ i18n.t('progress.next_at') }} {{ s.nextAt }}
                     } @else {
-                      · {{ tr('максимум', 'maxed') }}
+                      · {{ i18n.t('progress.maxed') }}
                     }
                   </div>
                 </li>
               }
             </ul>
             <p class="spec-note">
-              {{ tr('Горизонтальний шлях: після рівнів — поглиблення в напрямах, а не стеля.',
-                    'A horizontal path: beyond the stages, depth in domains — not a ceiling.') }}
+              {{ i18n.t('progress.spec_note') }}
             </p>
           </section>
         }
@@ -183,7 +181,7 @@ import { IconComponent } from '../icon.component';
         <!-- ── Badges ───────────────────────────────────────────────── -->
         <section class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">{{ tr('Бейджі', 'Badges') }}</h2>
+            <h2 class="panel-title">{{ i18n.t('progress.badges') }}</h2>
             <span class="panel-meta">{{ earnedCount() }} / {{ awardableCount() }}</span>
           </div>
           <div class="badge-grid fx-stagger">
@@ -204,17 +202,16 @@ import { IconComponent } from '../icon.component';
                   @if (b.earned && b.earnedAt) {
                     <div class="badge-foot earned-on">{{ b.earnedAt | date: 'dd.MM.yy' }}</div>
                   } @else if (b.comingSoon) {
-                    <div class="badge-foot"><span class="tag soon-tag">{{ tr('скоро', 'soon') }}</span></div>
+                    <div class="badge-foot"><span class="tag soon-tag">{{ i18n.t('progress.soon') }}</span></div>
                   } @else {
-                    <div class="badge-foot"><span class="tag locked-tag">{{ tr('не відкрито', 'locked') }}</span></div>
+                    <div class="badge-foot"><span class="tag locked-tag">{{ i18n.t('progress.locked') }}</span></div>
                   }
                 </div>
               </div>
             }
           </div>
           <p class="badge-note">
-            {{ tr('Бейджі за справжнє клінічне вміння (тихий сигнал, відновлення альянсу, заземлення травми) зʼявляться, щойно тренажер почне фіксувати ці сигнали по сесіях.',
-                  'Badges for genuine clinical skill (quiet signal, alliance repair, trauma grounding) unlock once the simulator records those signals per session.') }}
+            {{ i18n.t('progress.badge_note') }}
           </p>
         </section>
        }
@@ -452,10 +449,15 @@ export class ProgressComponent {
   protected error = signal<string | null>(null);
   protected data = signal<ProgressData | null>(null);
 
-  /** UK stage order → localized labels for the 4-pip track. */
+  /** UK stage order (matches the backend's `stage` value) → i18n keys for
+   *  the 4-pip track. The UK strings stay as the lookup keys; display goes
+   *  through i18n so the labels localize for uk/en/fr. */
   private readonly STAGE_KEYS = ['Стажер', 'Практик', 'Досвідчений', 'Майстер'];
-  private readonly STAGE_EN: Record<string, string> = {
-    'Стажер': 'Trainee', 'Практик': 'Practitioner', 'Досвідчений': 'Experienced', 'Майстер': 'Master',
+  private readonly STAGE_I18N: Record<string, string> = {
+    'Стажер': 'progress.stage_trainee',
+    'Практик': 'progress.stage_practitioner',
+    'Досвідчений': 'progress.stage_experienced',
+    'Майстер': 'progress.stage_master',
   };
 
   /** Per-badge icon name (see icon.component's ICONS map). Backend doesn't
@@ -555,12 +557,9 @@ export class ProgressComponent {
     void this.reload();
   }
 
-  protected tr(uk: string, en: string): string {
-    return this.i18n.isEn ? en : uk;
-  }
-
   protected stageLabel(stage: string): string {
-    return this.i18n.isEn ? (this.STAGE_EN[stage] ?? stage) : stage;
+    const key = this.STAGE_I18N[stage];
+    return key ? this.i18n.t(key) : stage;
   }
 
   protected glyph(key: string): string {
@@ -578,7 +577,7 @@ export class ProgressComponent {
     try {
       this.data.set(await this.api.getProgress());
     } catch {
-      this.error.set(this.tr('Не вдалося завантажити прогрес.', 'Could not load progress.'));
+      this.error.set(this.i18n.t('progress.load_error'));
     } finally {
       this.loading.set(false);
     }

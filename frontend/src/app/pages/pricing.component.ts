@@ -28,25 +28,8 @@ import { I18nService } from '../i18n.service';
     <div class="pricing-page">
       <header class="hero">
         <h1>{{ i18n.t('pricing.title') }}</h1>
-        <p class="subtitle">
-          @if (i18n.isEn) {
-            A training simulator for therapists-in-training. The AI supervisor
-            analyses every session across 8 canonical intake dimensions —
-            from alliance to closure.
-          } @else {
-            Тренувальник для майбутніх психотерапевтів. AI-супервізор
-            розбирає кожну твою сесію за 8 канонічними вимірами інтейку —
-            від альянсу до закриття.
-          }
-        </p>
-        <p class="hint">
-          @if (i18n.isEn) {
-            Transparent pricing in GBP, no hidden charges. Cancel any time.
-          } @else {
-            Прозоро: усі ціни в гривнях, без прихованих платежів. Скасуй у
-            будь-який момент.
-          }
-        </p>
+        <p class="subtitle">{{ i18n.t('pricing.subtitle') }}</p>
+        <p class="hint">{{ i18n.t('pricing.hint') }}</p>
       </header>
 
       <div class="tiers">
@@ -58,7 +41,7 @@ import { I18nService } from '../i18n.service';
           >
             @if (plan.id === 'pro') {
               <span class="badge-popular">
-                {{ i18n.isEn ? 'Most popular' : 'Найпопулярніший' }}
+                {{ i18n.t('pricing.popular') }}
               </span>
             }
             @if (isCurrent(plan.id)) {
@@ -79,12 +62,12 @@ import { I18nService } from '../i18n.service';
                 <span class="price-period">{{ i18n.t('pricing.monthly') }}</span>
                 @if (!i18n.isEn && plan.annualPriceUah) {
                   <span class="price-annual">
-                    або {{ plan.annualPriceUah }} ₴{{ i18n.t('pricing.annual') }} (–17%)
+                    {{ i18n.t('pricing.orAnnualUah', { amount: plan.annualPriceUah }) }}
                   </span>
                 }
                 @if (!i18n.isEn && plan.semesterPriceUah) {
                   <span class="price-annual">
-                    семестр (4 міс): {{ plan.semesterPriceUah }} ₴
+                    {{ i18n.t('pricing.semesterUah', { amount: plan.semesterPriceUah }) }}
                   </span>
                 }
               }
@@ -99,15 +82,15 @@ import { I18nService } from '../i18n.service';
             <div class="cta">
               @if (!isLoggedIn()) {
                 <a routerLink="/register" class="btn btn-primary">
-                  {{ i18n.isEn ? 'Start free' : 'Спробувати безкоштовно' }}
+                  {{ i18n.t('pricing.startFree') }}
                 </a>
               } @else if (isCurrent(plan.id)) {
                 <a routerLink="/account/billing" class="btn btn-secondary">
-                  {{ i18n.isEn ? 'Manage subscription' : 'Управляти підпискою' }}
+                  {{ i18n.t('pricing.manage') }}
                 </a>
               } @else if (plan.id === 'trial') {
                 <a routerLink="/account/billing" class="btn btn-secondary">
-                  {{ i18n.isEn ? 'Trial visible in dashboard' : 'Поточний trial видно в кабінеті' }}
+                  {{ i18n.t('pricing.trialInDashboard') }}
                 </a>
               } @else {
                 <a
@@ -125,95 +108,33 @@ import { I18nService } from '../i18n.service';
       </div>
 
       <section class="addons">
-        <h3>{{ i18n.isEn ? 'Add-on (sold separately)' : 'Add-on (купується окремо)' }}</h3>
+        <h3>{{ i18n.t('pricing.addonTitle') }}</h3>
         <div class="addon">
           <div>
-            @if (i18n.isEn) {
-              <strong>Human Supervisor Review — £33</strong>
-              <p>
-                A practising Ukrainian supervisor reviews your session + AI feedback
-                and gives a 200-word written comment. One-time purchase on any plan.
-              </p>
-            } @else {
-              <strong>Human Supervisor Review — 800 ₴</strong>
-              <p>
-                Український практикуючий супервізор переглядає твою сесію + AI-фідбек,
-                дає 200-словний коментар. Купуєш разово на будь-якому тарифі.
-              </p>
-            }
+            <strong>{{ i18n.t('pricing.addonName') }}</strong>
+            <p>{{ i18n.t('pricing.addonDesc') }}</p>
           </div>
         </div>
       </section>
 
       <section class="faq">
-        <h3>{{ i18n.isEn ? 'FAQ' : 'Часті запитання' }}</h3>
-        @if (i18n.isEn) {
-          <details>
-            <summary>How does the trial work?</summary>
-            <p>
-              14 days free, 3 sessions with basic feedback (Sonnet reviewer).
-              No card required. After day 14 sessions stop being created —
-              your previous sessions remain accessible.
-            </p>
-          </details>
-          <details>
-            <summary>What's the difference between Pro and Master?</summary>
-            <p>
-              Pro — unlimited sessions with the best supervisor (Opus). Master
-              adds custom characters (build your own client), advanced analytics,
-              Notion export, and early access to new characters.
-            </p>
-          </details>
-          <details>
-            <summary>How do I pay?</summary>
-            <p>
-              Cards (Visa/Mastercard), Apple/Google Pay. The Pro semester bundle
-              can be paid in a single transfer.
-            </p>
-          </details>
-          <details>
-            <summary>What happens to my data if I stop?</summary>
-            <p>
-              You can pause your subscription (up to 6 months) — data is kept,
-              no charges. Or cancel entirely — access until end of paid period,
-              then read-only.
-            </p>
-          </details>
-        } @else {
-          <details>
-            <summary>Як працює trial?</summary>
-            <p>
-              14 днів безкоштовно, 3 сесії з базовим фідбеком (Sonnet
-              reviewer). Без карти. Після 14-го дня сесії перестають
-              створюватись — твої попередні сесії зберігаються.
-            </p>
-          </details>
-          <details>
-            <summary>Чим різниця між Pro і Master?</summary>
-            <p>
-              Pro — необмежені сесії з найкращим супервізором (Opus). Master
-              додає custom characters (створи власного пацієнта), advanced
-              analytics, експорт у Notion та early access до нових
-              персонажів.
-            </p>
-          </details>
-          <details>
-            <summary>Що з оплатою? Картка тільки?</summary>
-            <p>
-              Карти (Visa/Mastercard), Apple/Google Pay, а також разові
-              гривневі платежі через LiqPay. Семестровий пакет на Pro можна
-              оплатити одним переказом.
-            </p>
-          </details>
-          <details>
-            <summary>Якщо вирішу зупинити — що з даними?</summary>
-            <p>
-              Можна паузнути підписку (до 6 місяців) — дані зберігаються,
-              оплат немає. Або скасувати повністю — доступ до сесій до
-              кінця оплаченого періоду, потім read-only.
-            </p>
-          </details>
-        }
+        <h3>{{ i18n.t('pricing.faqTitle') }}</h3>
+        <details>
+          <summary>{{ i18n.t('pricing.faqTrialQ') }}</summary>
+          <p>{{ i18n.t('pricing.faqTrialA') }}</p>
+        </details>
+        <details>
+          <summary>{{ i18n.t('pricing.faqProMasterQ') }}</summary>
+          <p>{{ i18n.t('pricing.faqProMasterA') }}</p>
+        </details>
+        <details>
+          <summary>{{ i18n.t('pricing.faqPayQ') }}</summary>
+          <p>{{ i18n.t('pricing.faqPayA') }}</p>
+        </details>
+        <details>
+          <summary>{{ i18n.t('pricing.faqStopQ') }}</summary>
+          <p>{{ i18n.t('pricing.faqStopA') }}</p>
+        </details>
       </section>
     </div>
   `,
@@ -443,7 +364,7 @@ export class PricingComponent implements OnInit {
     if (this.i18n.isEn) {
       return { trial: 'Free', lite: '£6', pro: '£14.50', master: '£36.50' };
     }
-    return { trial: 'Безкоштовно', lite: '₴249', pro: '₴599', master: '₴1499' };
+    return { trial: this.i18n.t('pricing.free'), lite: '₴249', pro: '₴599', master: '₴1499' };
   }
 
   async ngOnInit() {
@@ -474,9 +395,7 @@ export class PricingComponent implements OnInit {
 
   upgradeContactLink(planId: string): string {
     // Until Stripe wired, we direct upgrade-intent to support DM.
-    const msg = this.i18n.isEn
-      ? `I'd like to upgrade to the ${planId.toUpperCase()} plan on Reflect. How do I pay?`
-      : `Хочу перейти на тариф ${planId.toUpperCase()} у Reflect. Як оплатити?`;
+    const msg = this.i18n.t('pricing.upgradeMsg', { plan: planId.toUpperCase() });
     return `https://t.me/reflect_support?text=${encodeURIComponent(msg)}`;
   }
 }

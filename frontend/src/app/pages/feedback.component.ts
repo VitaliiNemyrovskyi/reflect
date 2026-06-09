@@ -25,10 +25,10 @@ const THERAPIST_RUBRIC: Array<{
   label: string;
   hint: string;
 }> = [
-  { key: 'empathy', label: 'Емпатія', hint: 'Чи передаєш відчуття того, що тебе по-справжньому почули' },
-  { key: 'collaboration', label: 'Співпраця', hint: 'Чи рухаєшся з клієнтом разом, без диктату' },
-  { key: 'guidedDiscovery', label: 'Скеровані відкриття', hint: 'Чи допомагаєш клієнту самому дійти інсайтів через сократичні запитання' },
-  { key: 'strategyForChange', label: 'Стратегія змін', hint: 'Чи маєш чітку гіпотезу і план, як вести сесію' },
+  { key: 'empathy', label: 'feedback.rubricEmpathy', hint: 'feedback.rubricEmpathyHint' },
+  { key: 'collaboration', label: 'feedback.rubricCollaboration', hint: 'feedback.rubricCollaborationHint' },
+  { key: 'guidedDiscovery', label: 'feedback.rubricGuidedDiscovery', hint: 'feedback.rubricGuidedDiscoveryHint' },
+  { key: 'strategyForChange', label: 'feedback.rubricStrategyForChange', hint: 'feedback.rubricStrategyForChangeHint' },
 ];
 
 /** Patient state metrics — 1-10 scale, clinical readout (not therapist
@@ -41,11 +41,11 @@ const PATIENT_METRICS: Array<{
   /** When true, HIGH score = bad (e.g. symptom severity 9 is concerning) */
   highIsBad: boolean;
 }> = [
-  { key: 'symptomSeverity', label: 'Симптомна тяжкість', highIsBad: true },
-  { key: 'insight', label: 'Інсайт', highIsBad: false },
-  { key: 'alliance', label: 'Альянс', highIsBad: false },
-  { key: 'defensiveness', label: 'Захисність', highIsBad: true },
-  { key: 'hopefulness', label: 'Надія', highIsBad: false },
+  { key: 'symptomSeverity', label: 'feedback.metricSymptomSeverity', highIsBad: true },
+  { key: 'insight', label: 'feedback.metricInsight', highIsBad: false },
+  { key: 'alliance', label: 'feedback.metricAlliance', highIsBad: false },
+  { key: 'defensiveness', label: 'feedback.metricDefensiveness', highIsBad: true },
+  { key: 'hopefulness', label: 'feedback.metricHopefulness', highIsBad: false },
 ];
 
 // Configure marked once at module load. We trust the supervisor LLM output
@@ -62,10 +62,10 @@ marked.setOptions({
   standalone: true,
   template: `
     <header class="header">
-      <h2>Фідбек супервізора</h2>
+      <h2>{{ i18n.t('feedback.title') }}</h2>
       @if (streaming()) {
         <span class="streaming-badge" aria-live="polite">
-          <span class="dot"></span> Генерується…
+          <span class="dot"></span> {{ i18n.t('feedback.generating') }}
         </span>
       }
     </header>
@@ -78,9 +78,9 @@ marked.setOptions({
                 [disabled]="retrying()"
                 (click)="retryFeedback()">
           @if (retrying()) {
-            Генерую…
+            {{ i18n.t('feedback.retrying') }}
           } @else {
-            ↻ Спробувати ще раз
+            ↻ {{ i18n.t('feedback.retryAgain') }}
           }
         </button>
       </div>
@@ -101,17 +101,17 @@ marked.setOptions({
            Therapist competencies (0-6) live on top — that's the trainee
            scorecard. Patient state (1-10) lives below for context. -->
       @if (assessment(); as a) {
-        <section class="rubric" aria-label="Оцінка сесії">
+        <section class="rubric" [attr.aria-label]="i18n.t('feedback.rubricAriaLabel')">
           @if (a.therapist) {
             <div class="rubric-group">
-              <h3 class="rubric-title">Твоя робота</h3>
-              <p class="rubric-sub">Шкала 0–6 по чотирьох ключових компетенціях терапевта</p>
+              <h3 class="rubric-title">{{ i18n.t('feedback.therapistGroupTitle') }}</h3>
+              <p class="rubric-sub">{{ i18n.t('feedback.therapistGroupSub') }}</p>
               <dl class="rubric-bars">
                 @for (item of therapistRubric; track item.key) {
                   @let s = scoreFor('therapist', item.key);
                   <div class="rubric-row" [class.unmeasured]="s == null"
-                       [title]="item.hint">
-                    <dt class="rubric-label">{{ item.label }}</dt>
+                       [title]="i18n.t(item.hint)">
+                    <dt class="rubric-label">{{ i18n.t(item.label) }}</dt>
                     <dd class="rubric-value">
                       @if (s != null) { <strong>{{ s }}</strong><span>/6</span> }
                       @else { <span class="dim">—</span> }
@@ -129,13 +129,13 @@ marked.setOptions({
           }
           @if (a.patient) {
             <div class="rubric-group">
-              <h3 class="rubric-title">Клінічний стан</h3>
-              <p class="rubric-sub">Шкала 1–10 — стан клієнта, а не оцінка твоєї роботи</p>
+              <h3 class="rubric-title">{{ i18n.t('feedback.patientGroupTitle') }}</h3>
+              <p class="rubric-sub">{{ i18n.t('feedback.patientGroupSub') }}</p>
               <dl class="rubric-bars">
                 @for (item of patientMetrics; track item.key) {
                   @let s = scoreFor('patient', item.key);
                   <div class="rubric-row" [class.unmeasured]="s == null">
-                    <dt class="rubric-label">{{ item.label }}</dt>
+                    <dt class="rubric-label">{{ i18n.t(item.label) }}</dt>
                     <dd class="rubric-value">
                       @if (s != null) { <strong>{{ s }}</strong><span>/10</span> }
                       @else { <span class="dim">—</span> }
@@ -163,16 +163,16 @@ marked.setOptions({
     <div class="actions">
       <button class="primary" [disabled]="streaming()" (click)="back()">
         @if (streaming()) {
-          Зачекай завершення…
+          {{ i18n.t('feedback.waitForFinish') }}
         } @else {
-          Зберегти і повернутися
+          {{ i18n.t('feedback.saveAndReturn') }}
         }
       </button>
       @if (feedback() && !streaming()) {
         <button class="ghost"
                 type="button"
                 (click)="downloadMarkdown()"
-                title="Завантажити фідбек як markdown-файл для портфоліо чи супервізора-людини">
+                [title]="i18n.t('feedback.downloadTitle')">
           ↓ Markdown
         </button>
       }
@@ -672,7 +672,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     const sessionId = Number(this.route.snapshot.paramMap.get('sessionId'));
     if (!sessionId) {
-      this.error.set('Невідома сесія.');
+      this.error.set(this.i18n.t('feedback.unknownSession'));
       this.waiting.set(false);
       return;
     }
@@ -760,7 +760,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
             this.streaming.set(false);
             return;
           case 'error':
-            this.error.set(event.data.message || 'Не вдалося завершити фідбек.');
+            this.error.set(event.data.message || this.i18n.t('feedback.errorFinish'));
             this.streaming.set(false);
             return;
         }
@@ -769,7 +769,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
       this.streaming.set(false);
     } catch (e: unknown) {
       if ((e as { name?: string })?.name === 'AbortError') return;
-      const msg = (e as { message?: string })?.message || 'Не вдалося завантажити фідбек.';
+      const msg = (e as { message?: string })?.message || this.i18n.t('feedback.errorLoad');
       this.error.set(msg);
       this.streaming.set(false);
     } finally {
@@ -800,8 +800,8 @@ export class FeedbackComponent implements OnInit, OnDestroy {
     const date = new Date().toISOString().slice(0, 10);
     const rubric = this.formatRubricMarkdown();
     const body = [
-      `# Reflect — фідбек ${sid != null ? '(сесія #' + sid + ')' : ''}`,
-      `_Згенеровано ${date}_`,
+      `# ${this.i18n.t('feedback.exportTitle')}${sid != null ? ' ' + this.i18n.t('feedback.exportSessionSuffix', { id: sid }) : ''}`,
+      `_${this.i18n.t('feedback.exportGenerated', { date })}_`,
       '',
       rubric,
       this.feedback(),
@@ -829,19 +829,31 @@ export class FeedbackComponent implements OnInit, OnDestroy {
     if (a.therapist) {
       const rows = THERAPIST_RUBRIC.map((it) => {
         const v = this.scoreFor('therapist', it.key);
-        return `| ${it.label} | ${v != null ? v + ' / 6' : '—'} |`;
+        return `| ${this.i18n.t(it.label)} | ${v != null ? v + ' / 6' : '—'} |`;
       }).join('\n');
       sections.push(
-        ['## Твоя робота (компетенції)', '', '| Параметр | Оцінка |', '|---|---|', rows].join('\n'),
+        [
+          `## ${this.i18n.t('feedback.exportTherapistHeading')}`,
+          '',
+          `| ${this.i18n.t('feedback.exportColParameter')} | ${this.i18n.t('feedback.exportColScore')} |`,
+          '|---|---|',
+          rows,
+        ].join('\n'),
       );
     }
     if (a.patient) {
       const rows = PATIENT_METRICS.map((it) => {
         const v = this.scoreFor('patient', it.key);
-        return `| ${it.label} | ${v != null ? v + ' / 10' : '—'} |`;
+        return `| ${this.i18n.t(it.label)} | ${v != null ? v + ' / 10' : '—'} |`;
       }).join('\n');
       sections.push(
-        ['## Клінічний стан клієнта', '', '| Параметр | Оцінка |', '|---|---|', rows].join('\n'),
+        [
+          `## ${this.i18n.t('feedback.exportPatientHeading')}`,
+          '',
+          `| ${this.i18n.t('feedback.exportColParameter')} | ${this.i18n.t('feedback.exportColScore')} |`,
+          '|---|---|',
+          rows,
+        ].join('\n'),
       );
     }
     return sections.join('\n\n');

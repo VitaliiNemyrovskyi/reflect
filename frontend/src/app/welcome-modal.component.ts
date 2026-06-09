@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
 import { AnalyticsService } from './analytics.service';
+import { I18nService } from './i18n.service';
 
 /**
  * First-time onboarding modal — shown on the very first visit to the
@@ -36,42 +37,38 @@ import { AnalyticsService } from './analytics.service';
         @case (0) {
           <div class="slide">
             <div class="badge">Reflect</div>
-            <h2 id="welcome-title">Це <em>не</em> справжня терапія</h2>
+            <h2 id="welcome-title">{{ i18n.t('welcomeModal.slide0TitlePart1') }} <em>{{ i18n.t('welcomeModal.slide0TitleEmphasis') }}</em> {{ i18n.t('welcomeModal.slide0TitlePart2') }}</h2>
             <p>
-              Reflect — AI-симулятор для тренування навичок інтейку.
-              Усі пацієнти — синтетичні композити з клінічної літератури.
-              Тут можна помилятись без шкоди для будь-кого реального.
+              {{ i18n.t('welcomeModal.slide0Body') }}
             </p>
             <p class="hint">
-              Тренувальний майданчик, не клінічна практика. Не використовуй
-              для роботи з реальними клієнтами.
+              {{ i18n.t('welcomeModal.slide0Hint') }}
             </p>
           </div>
         }
         @case (1) {
           <div class="slide">
-            <div class="badge">Як це працює</div>
-            <h2>Сесія — фідбек — повтор</h2>
+            <div class="badge">{{ i18n.t('welcomeModal.slide1Badge') }}</div>
+            <h2>{{ i18n.t('welcomeModal.slide1Title') }}</h2>
             <ol class="flow">
-              <li><strong>Обери пацієнта</strong> з картотеки нижче</li>
-              <li><strong>Проведи сесію</strong> 20-30 хвилин — пиши як терапевт, у ролі</li>
-              <li><strong>Натисни «Отримати фідбек»</strong> — Opus-супервізор розбере твою сесію за 8 канонічними вимірами</li>
-              <li><strong>Поверни через тиждень</strong> — пацієнт памʼятає попередні сесії</li>
+              <li><strong>{{ i18n.t('welcomeModal.slide1Step1Strong') }}</strong> {{ i18n.t('welcomeModal.slide1Step1Rest') }}</li>
+              <li><strong>{{ i18n.t('welcomeModal.slide1Step2Strong') }}</strong> {{ i18n.t('welcomeModal.slide1Step2Rest') }}</li>
+              <li><strong>{{ i18n.t('welcomeModal.slide1Step3Strong') }}</strong> {{ i18n.t('welcomeModal.slide1Step3Rest') }}</li>
+              <li><strong>{{ i18n.t('welcomeModal.slide1Step4Strong') }}</strong> {{ i18n.t('welcomeModal.slide1Step4Rest') }}</li>
             </ol>
           </div>
         }
         @case (2) {
           <div class="slide">
-            <div class="badge">Безпека</div>
-            <h2>Твоя практика — твої дані</h2>
+            <div class="badge">{{ i18n.t('welcomeModal.slide2Badge') }}</div>
+            <h2>{{ i18n.t('welcomeModal.slide2Title') }}</h2>
             <ul class="safety-list">
-              <li>Сесії <strong>не передаються</strong> третім особам</li>
-              <li>Транскрипти доступні <strong>лише тобі</strong></li>
-              <li>В кризі — кнопка «Безпека та кризові ресурси» внизу будь-якої сторінки</li>
+              <li>{{ i18n.t('welcomeModal.slide2Item1Pre') }} <strong>{{ i18n.t('welcomeModal.slide2Item1Strong') }}</strong> {{ i18n.t('welcomeModal.slide2Item1Post') }}</li>
+              <li>{{ i18n.t('welcomeModal.slide2Item2Pre') }} <strong>{{ i18n.t('welcomeModal.slide2Item2Strong') }}</strong></li>
+              <li>{{ i18n.t('welcomeModal.slide2Item3Pre') }} <strong>{{ i18n.t('welcomeModal.slide2Item3Strong') }}</strong> {{ i18n.t('welcomeModal.slide2Item3Post') }}</li>
             </ul>
             <p class="hint">
-              Якщо ти сам зараз у важкому стані — Reflect <em>не</em> заміна
-              справжньому терапевту. Розглянь розділ кризових ресурсів першим.
+              {{ i18n.t('welcomeModal.slide2HintPart1') }} <em>{{ i18n.t('welcomeModal.slide2HintEmphasis') }}</em> {{ i18n.t('welcomeModal.slide2HintPart2') }}
             </p>
           </div>
         }
@@ -79,12 +76,12 @@ import { AnalyticsService } from './analytics.service';
 
       <div class="actions">
         @if (step() > 0) {
-          <button class="ghost" (click)="prev()">Назад</button>
+          <button class="ghost" (click)="prev()">{{ i18n.t('welcomeModal.back') }}</button>
         }
         @if (step() < slides.length - 1) {
-          <button class="primary" (click)="next()">Далі</button>
+          <button class="primary" (click)="next()">{{ i18n.t('welcomeModal.next') }}</button>
         } @else {
-          <button class="primary" (click)="dismiss()">Зрозуміло</button>
+          <button class="primary" (click)="dismiss()">{{ i18n.t('welcomeModal.gotIt') }}</button>
         }
       </div>
     </div>
@@ -253,6 +250,7 @@ import { AnalyticsService } from './analytics.service';
 })
 export class WelcomeModalComponent {
   @Output() dismissed = new EventEmitter<void>();
+  protected readonly i18n = inject(I18nService);
   private analytics = inject(AnalyticsService);
 
   /** Slide index (0-based). Three slides total. */

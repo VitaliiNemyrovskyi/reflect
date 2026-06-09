@@ -33,13 +33,13 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
   template: `
     <section class="wrap">
       @if (loading()) {
-        <p class="muted">{{ tr('Завантаження…', 'Loading…') }}</p>
+        <p class="muted">{{ i18n.t('courses.loading') }}</p>
       } @else if (error()) {
         <p class="danger">{{ error() }}</p>
       } @else {
         @if (detail(); as d) {
         <!-- ── Course view ── -->
-        <a routerLink="/courses" class="back">← {{ tr('Усі курси', 'All courses') }}</a>
+        <a routerLink="/courses" class="back">← {{ i18n.t('courses.allCourses') }}</a>
         <header class="track-head">
           <h1>{{ i18n.isEn ? d.titleEn : d.titleUk }}</h1>
           <p class="muted">{{ i18n.isEn ? d.descEn : d.descUk }}</p>
@@ -47,20 +47,20 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
             <div class="cp-bar"><span [style.width.%]="coursePct()"></span></div>
             <span class="cp-label">
               @if (d.completed) {
-                <app-icon name="shield-check" /> {{ tr('Курс пройдено', 'Course complete') }}
+                <app-icon name="shield-check" /> {{ i18n.t('courses.courseComplete') }}
               } @else {
-                {{ tr('Пройдено', 'Done') }} {{ courseDone() }} / {{ courseTotal() }} {{ tr('кроків', 'steps') }}
+                {{ i18n.t('courses.done') }} {{ courseDone() }} / {{ courseTotal() }} {{ i18n.t('courses.steps') }}
               }
             </span>
           </div>
           <button type="button" class="link-btn expand-all" (click)="expandAll.set(!expandAll())">
-            {{ expandAll() ? tr('Згорнути всі уроки', 'Collapse all lessons') : tr('Розгорнути всі уроки', 'Expand all lessons') }}
+            {{ expandAll() ? i18n.t('courses.collapseAllLessons') : i18n.t('courses.expandAllLessons') }}
           </button>
         </header>
 
         @if (aboutBlocks().length) {
           <section class="about">
-            <h2>{{ tr('Про курс', 'About this course') }}</h2>
+            <h2>{{ i18n.t('courses.aboutThisCourse') }}</h2>
             <div class="lesson">
               @for (b of aboutBlocks(); track $index) {
                 @switch (b.type) {
@@ -84,7 +84,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
           <section class="module">
             <div class="module-head">
               <div class="module-eyebrow-row">
-                <span class="module-eyebrow">{{ tr('Модуль', 'Module') }} {{ m.order + 1 }}</span>
+                <span class="module-eyebrow">{{ i18n.t('courses.module') }} {{ m.order + 1 }}</span>
                 <span class="module-progress" [class.done]="moduleDone(m) === m.steps.length">
                   {{ moduleDone(m) }} / {{ m.steps.length }}
                 </span>
@@ -92,7 +92,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
               <h2>{{ i18n.isEn ? m.titleEn : m.titleUk }}</h2>
               @if (objectivesOf(m).length) {
                 <div class="objectives">
-                  <span class="obj-label">{{ tr('Чого навчишся', 'What you will learn') }}</span>
+                  <span class="obj-label">{{ i18n.t('courses.whatYouWillLearn') }}</span>
                   <ul>
                     @for (o of objectivesOf(m); track $index) { <li>{{ o }}</li> }
                   </ul>
@@ -116,18 +116,18 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                     </div>
 
                     @if (!s.available && !s.done) {
-                      <p class="step-status muted">{{ tr('Відкриється після попереднього кроку', 'Unlocks after the previous step') }}</p>
+                      <p class="step-status muted">{{ i18n.t('courses.unlocksAfterPreviousStep') }}</p>
                     } @else {
                       @if (s.done) {
                         <div class="done-head">
-                          <span class="step-status ok">✓ {{ tr('Зараховано', 'Completed') }}</span>
+                          <span class="step-status ok">✓ {{ i18n.t('courses.completed') }}</span>
                           @if (s.kind === 'practice') {
                             @if (s.sessionId) {
-                              <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ tr('Відкрити сесію', 'Open session') }}</a>
+                              <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ i18n.t('courses.openSession') }}</a>
                             }
                           } @else {
                             <button type="button" class="link-btn" (click)="toggleReview(s.id)">
-                              {{ isReviewing(s.id) ? tr('Згорнути', 'Collapse') : tr('Переглянути', 'Review') }}
+                              {{ isReviewing(s.id) ? i18n.t('courses.collapse') : i18n.t('courses.review') }}
                             </button>
                           }
                         </div>
@@ -158,7 +158,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                                 @case ('figure') { <app-course-figure [name]="b.figure || ''" [caption]="b.caption" /> }
                                 @case ('sources') {
                                   <div class="lesson-sources">
-                                    <span class="ls-title">{{ tr('Джерела', 'Sources') }}</span>
+                                    <span class="ls-title">{{ i18n.t('courses.sources') }}</span>
                                     <ul>
                                       @for (src of (b.sources ?? []); track $index) {
                                         <li><a [href]="src.url" target="_blank" rel="noopener noreferrer">{{ src.label }}</a></li>
@@ -174,7 +174,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
 
                         @if (lessonTerms(s).length) {
                           <details class="lesson-terms">
-                            <summary><app-icon name="book" /> {{ tr('Терміни в цьому уроці', 'Terms in this lesson') }} ({{ lessonTerms(s).length }})</summary>
+                            <summary><app-icon name="book" /> {{ i18n.t('courses.termsInThisLesson') }} ({{ lessonTerms(s).length }})</summary>
                             <dl>
                               @for (t of lessonTerms(s); track t.slug) {
                                 <div>
@@ -183,7 +183,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                                 </div>
                               }
                             </dl>
-                            <a routerLink="/glossary" class="lt-all">{{ tr('Повний словник →', 'Full glossary →') }}</a>
+                            <a routerLink="/glossary" class="lt-all">{{ i18n.t('courses.fullGlossary') }}</a>
                           </details>
                         }
 
@@ -226,18 +226,18 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                               }
                               @if (!isChecked(s.id)) {
                                 <button class="primary" [disabled]="!quizComplete(s) || busy() === s.id" (click)="checkQuiz(s)">
-                                  {{ tr('Перевірити', 'Check answers') }}
+                                  {{ i18n.t('courses.checkAnswers') }}
                                 </button>
                               } @else {
                                 <p class="quiz-score">{{ quizScoreLabel(s) }}</p>
-                                <button class="primary" (click)="retryQuiz(s)">{{ tr('Спробувати ще раз', 'Try again') }}</button>
+                                <button class="primary" (click)="retryQuiz(s)">{{ i18n.t('courses.tryAgain') }}</button>
                               }
                             </div>
                           }
                         } @else if (s.kind === 'lesson') {
                           @if (!s.done) {
                             <button class="primary" [disabled]="busy() === s.id" (click)="finishStep(s)">
-                              {{ busy() === s.id ? '…' : tr('Зрозуміло, далі', 'Got it, next') }}
+                              {{ busy() === s.id ? '…' : i18n.t('courses.gotItNext') }}
                             </button>
                           }
                         } @else {
@@ -250,13 +250,13 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                                 </span>
                               }
                               <button class="primary" [disabled]="busy() === s.id" (click)="startPractice(s)">
-                                {{ busy() === s.id ? '…' : tr('Почати практику', 'Start practice') }}
+                                {{ busy() === s.id ? '…' : i18n.t('courses.startPractice') }}
                               </button>
                               @if (s.sessionId) {
-                                <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ tr('Продовжити сесію', 'Resume session') }}</a>
+                                <a class="ghost-link" [routerLink]="['/session', s.sessionId]">{{ i18n.t('courses.resumeSession') }}</a>
                               }
                             </div>
-                            <p class="hint">{{ tr('Крок зараховується після того, як завершиш сесію й отримаєш фідбек.', 'The step is credited once you finish the session and get feedback.') }}</p>
+                            <p class="hint">{{ i18n.t('courses.practiceHint') }}</p>
                           }
                         }
                       }
@@ -270,7 +270,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
 
         @if (d.glossary.length) {
           <section class="glossary-section">
-            <h2>{{ tr('Словник курсу', 'Course glossary') }}</h2>
+            <h2>{{ i18n.t('courses.courseGlossary') }}</h2>
             <dl class="g-terms">
               @for (t of d.glossary; track t.slug) {
                 <div class="g-term">
@@ -279,19 +279,19 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                 </div>
               }
             </dl>
-            <a routerLink="/glossary" class="g-all">{{ tr('Повний словник →', 'Full glossary →') }}</a>
+            <a routerLink="/glossary" class="g-all">{{ i18n.t('courses.fullGlossary') }}</a>
           </section>
         }
       } @else {
         <!-- ── Catalog ── -->
-        <a routerLink="/dashboard" class="back">← {{ tr('На головну', 'Home') }}</a>
+        <a routerLink="/dashboard" class="back">← {{ i18n.t('courses.home') }}</a>
         <header class="cat-head">
-          <h1>{{ tr('Курси', 'Courses') }}</h1>
-          <p class="muted">{{ tr('Повноцінні курси: модулі з теорією → квізи → практика з AI-пацієнтом і фідбек.', 'Full courses: modules of theory → quizzes → practice with an AI patient and feedback.') }}</p>
+          <h1>{{ i18n.t('courses.title') }}</h1>
+          <p class="muted">{{ i18n.t('courses.catalogIntro') }}</p>
         </header>
 
         @if (list().length === 0) {
-          <p class="muted">{{ tr('Курсів поки немає.', 'No courses yet.') }}</p>
+          <p class="muted">{{ i18n.t('courses.noCoursesYet') }}</p>
         } @else {
           <div class="cards">
             @for (c of list(); track c.key) {
@@ -300,8 +300,8 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
                 <p class="muted">{{ i18n.isEn ? c.descEn : c.descUk }}</p>
                 <div class="bar"><span [style.width.%]="pct(c)"></span></div>
                 <span class="bar-label">
-                  {{ c.doneSteps }} / {{ c.totalSteps }} {{ tr('кроків', 'steps') }}
-                  · {{ c.moduleCount }} {{ tr('модулів', 'modules') }}
+                  {{ c.doneSteps }} / {{ c.totalSteps }} {{ i18n.t('courses.steps') }}
+                  · {{ c.moduleCount }} {{ i18n.t('courses.modules') }}
                 </span>
               </a>
             }
@@ -315,7 +315,7 @@ import { buildLinker, linkify, Linker } from '../glossary-link.util';
         <div class="term-pop" [style.left.px]="popX()" [style.top.px]="popY()" role="dialog">
           <strong>{{ i18n.isEn ? t.termEn : t.termUk }}</strong>
           <p>{{ i18n.isEn ? t.defEn : t.defUk }}</p>
-          <a routerLink="/glossary" (click)="closeTerm()">{{ tr('Відкрити словник →', 'Open glossary →') }}</a>
+          <a routerLink="/glossary" (click)="closeTerm()">{{ i18n.t('courses.openGlossary') }}</a>
         </div>
       }
     </section>
@@ -622,9 +622,9 @@ export class CoursesComponent implements OnInit, OnDestroy {
 
   protected kindLabel(s: CourseStep): string {
     switch (s.kind) {
-      case 'practice': return this.tr('Практика', 'Practice');
-      case 'quiz': return this.tr('Квіз', 'Quiz');
-      default: return this.tr('Урок', 'Lesson');
+      case 'practice': return this.i18n.t('courses.kindPractice');
+      case 'quiz': return this.i18n.t('courses.kindQuiz');
+      default: return this.i18n.t('courses.kindLesson');
     }
   }
 
@@ -682,8 +682,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
   protected quizScoreLabel(s: CourseStep): string {
     const total = this.quizFor(s).length;
     const correct = this.quizCorrectCount(s);
-    return this.tr(`Правильно ${correct} з ${total}. Спробуй ще раз, щоб пройти.`,
-      `${correct} of ${total} correct. Try again to pass.`);
+    return this.i18n.t('courses.quizScore', { correct, total });
   }
   protected retryQuiz(s: CourseStep): void {
     this.checkedSteps.update((ids) => ids.filter((id) => id !== s.id));
@@ -707,7 +706,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
     try {
       this.list.set(await this.api.listCourses());
     } catch {
-      this.error.set(this.tr('Не вдалося завантажити курси.', 'Failed to load courses.'));
+      this.error.set(this.i18n.t('courses.failedToLoadCourses'));
     } finally {
       this.loading.set(false);
     }
@@ -720,7 +719,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
     try {
       this.detail.set(await this.api.courseDetail(key));
     } catch {
-      this.error.set(this.tr('Курс не знайдено.', 'Course not found.'));
+      this.error.set(this.i18n.t('courses.courseNotFound'));
     } finally {
       if (!silent) this.loading.set(false);
     }
@@ -734,7 +733,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
       await this.api.completeCourseStep(s.id);
       await this.loadDetail(d.key, true);
     } catch {
-      this.error.set(this.tr('Не вдалося зберегти прогрес.', 'Failed to save progress.'));
+      this.error.set(this.i18n.t('courses.failedToSaveProgress'));
     } finally {
       this.busy.set(null);
     }
@@ -748,7 +747,7 @@ export class CoursesComponent implements OnInit, OnDestroy {
       void this.router.navigate(['/session', sessionId]);
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string } })?.error?.message;
-      this.error.set(msg ?? this.tr('Не вдалося почати практику.', 'Failed to start practice.'));
+      this.error.set(msg ?? this.i18n.t('courses.failedToStartPractice'));
       this.busy.set(null);
     }
   }

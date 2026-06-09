@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, OnInit, Output, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService, PsychTestSummary } from './api.service';
+import { I18nService } from './i18n.service';
 
 /**
  * Modal for picking a psychological test to administer during a chat
@@ -21,15 +22,15 @@ import { ApiService, PsychTestSummary } from './api.service';
     <div class="modal-backdrop" (click)="onBackdropClick($event)">
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="test-modal-title">
         <header class="modal-head">
-          <h2 id="test-modal-title">📋 Запропонувати тест</h2>
-          <button class="ghost icon" type="button" (click)="close.emit()" aria-label="Закрити">×</button>
+          <h2 id="test-modal-title">📋 {{ i18n.t('testModal.title') }}</h2>
+          <button class="ghost icon" type="button" (click)="close.emit()" [attr.aria-label]="i18n.t('testModal.closeAria')">×</button>
         </header>
 
         <div class="modal-controls">
           <input
             type="search"
             class="search-input"
-            placeholder="Пошук: депресія, тривога, PHQ, GAD…"
+            [placeholder]="i18n.t('testModal.searchPlaceholder')"
             [(ngModel)]="searchQ"
             (ngModelChange)="onSearchChange()"
             autofocus />
@@ -39,7 +40,7 @@ import { ApiService, PsychTestSummary } from './api.service';
                 type="button"
                 class="domain-chip"
                 [class.active]="activeDomain() === null"
-                (click)="setDomain(null)">Усі</button>
+                (click)="setDomain(null)">{{ i18n.t('testModal.domainAll') }}</button>
               @for (d of domains(); track d) {
                 <button
                   type="button"
@@ -53,16 +54,16 @@ import { ApiService, PsychTestSummary } from './api.service';
 
         <div class="modal-body">
           @if (loading()) {
-            <p class="hint">Завантаження каталогу…</p>
+            <p class="hint">{{ i18n.t('testModal.loading') }}</p>
           } @else if (filtered().length === 0) {
-            <p class="hint">Нічого не знайдено за запитом «{{ searchQ }}».</p>
+            <p class="hint">{{ i18n.t('testModal.emptyResult', { query: searchQ }) }}</p>
           } @else {
             <ul class="test-list">
               @for (t of filtered(); track t.key) {
                 <li class="test-card" (click)="pick(t.key)">
                   <div class="test-name-row">
                     <span class="test-name">{{ t.name }}</span>
-                    <span class="test-time">{{ t.timeMinutes }} хв · {{ t.itemCount }} п.</span>
+                    <span class="test-time">{{ i18n.t('testModal.testMeta', { minutes: t.timeMinutes, items: t.itemCount }) }}</span>
                   </div>
                   <div class="test-full">{{ t.fullNameUa }}</div>
                   <div class="test-desc">{{ t.descriptionUa }}</div>
@@ -79,10 +80,7 @@ import { ApiService, PsychTestSummary } from './api.service';
         </div>
 
         <footer class="modal-foot">
-          <p class="footnote">
-            Тести призначені для тренування адміністрування і інтерпретації.
-            Українські формулювання — авторські, не для клінічної діагностики.
-          </p>
+          <p class="footnote">{{ i18n.t('testModal.footnote') }}</p>
         </footer>
       </div>
     </div>
@@ -222,6 +220,7 @@ import { ApiService, PsychTestSummary } from './api.service';
 })
 export class TestModalComponent implements OnInit {
   private api = inject(ApiService);
+  protected readonly i18n = inject(I18nService);
 
   @Output() picked = new EventEmitter<string>();
   @Output() close = new EventEmitter<void>();
@@ -252,20 +251,21 @@ export class TestModalComponent implements OnInit {
     });
   });
 
-  /** Maps domain key → Ukrainian display label. */
-  private static readonly DOMAIN_LABELS: Record<string, string> = {
-    depression: 'Депресія',
-    anxiety: 'Тривога',
-    stress: 'Стрес',
-    wellbeing: 'Благополуччя',
-    substance: 'Залежність',
-    trauma: 'Травма',
-    suicide: 'Ризик суїциду',
-    adhd: 'СДУГ',
-    eating: 'Харч. поведінка',
+  /** Maps domain key → i18n key for the display label. */
+  private static readonly DOMAIN_LABEL_KEYS: Record<string, string> = {
+    depression: 'testModal.domain.depression',
+    anxiety: 'testModal.domain.anxiety',
+    stress: 'testModal.domain.stress',
+    wellbeing: 'testModal.domain.wellbeing',
+    substance: 'testModal.domain.substance',
+    trauma: 'testModal.domain.trauma',
+    suicide: 'testModal.domain.suicide',
+    adhd: 'testModal.domain.adhd',
+    eating: 'testModal.domain.eating',
   };
   domainLabel(d: string): string {
-    return TestModalComponent.DOMAIN_LABELS[d] ?? d;
+    const key = TestModalComponent.DOMAIN_LABEL_KEYS[d];
+    return key ? this.i18n.t(key) : d;
   }
 
   async ngOnInit() {

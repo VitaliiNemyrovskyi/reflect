@@ -23,19 +23,14 @@ import { I18nService } from '../i18n.service';
     <div class="demo-page">
       <!-- Hero -->
       <header class="hero">
-        <p class="kicker">{{ i18n.isEn ? 'REFLECT — DEMO' : 'REFLECT — ДЕМОНСТРАЦІЯ' }}</p>
+        <p class="kicker">{{ i18n.isEn ? 'REFLECT — DEMO' : i18n.t('demo.kicker') }}</p>
         @if (demoContent) {
           <h1>{{ demoContent.heroTitle }}</h1>
           <p class="subtitle">{{ demoContent.heroSubtitle }}</p>
         } @else {
-          <h1>Як AI-супервізор розбирає твою сесію</h1>
+          <h1>{{ i18n.t('demo.heroTitle') }}</h1>
           <p class="subtitle">
-            Реальний приклад фідбеку від Opus-супервізора на сесію з
-            синтетичною пацієнткою «Олеся» — композит депресивного епізоду
-            з пасивною суїцидальною ідеацією. Студентка-терапевтка
-            пройшла кілька важливих скринінгів, але <strong>проґавила
-            ключове питання про ризик</strong>. Подивись, що бачить
-            супервізор.
+            {{ i18n.t('demo.heroSubtitlePart1') }} <strong>{{ i18n.t('demo.heroSubtitleStrong') }}</strong>{{ i18n.t('demo.heroSubtitlePart2') }}
           </p>
         }
       </header>
@@ -72,106 +67,80 @@ import { I18nService } from '../i18n.service';
         } @else {
           <!-- Ukrainian demo: Olesya session -->
           <section class="transcript-pane">
-            <h2 class="pane-title">Сесія (фрагмент)</h2>
+            <h2 class="pane-title">{{ i18n.t('demo.transcriptTitle') }}</h2>
 
             <div class="bubble therapist">
               <span class="line-ref">L3</span>
-              <strong>Терапевтка:</strong>
-              <p>Розкажіть детальніше — що саме відбулось 4 місяці тому?</p>
+              <strong>{{ i18n.t('demo.roleTherapist') }}</strong>
+              <p>{{ i18n.t('demo.l3Therapist') }}</p>
             </div>
 
             <div class="bubble client">
               <span class="line-ref">L4</span>
-              <strong>Олеся:</strong>
+              <strong>{{ i18n.t('demo.roleOlesya') }}</strong>
               <p>
-                Ну, Іван пішов. Точніше — поїхав до Польщі, на стажування,
-                а потім вирішив лишитись. Ми були разом три роки. Він
-                сказав, що йому потрібен простір. Я не сперечалась…
-                ну, як не сперечалась — я розуміла, що він вже вирішив.
-                Тож якого сенсу тримати.
+                {{ i18n.t('demo.l4Client') }}
               </p>
             </div>
 
             <div class="bubble therapist">
               <span class="line-ref">L5</span>
-              <strong>Терапевтка:</strong>
-              <p>Як зараз ваш сон? Висипаєтесь?</p>
+              <strong>{{ i18n.t('demo.roleTherapist') }}</strong>
+              <p>{{ i18n.t('demo.l5Therapist') }}</p>
             </div>
 
             <div class="bubble client">
               <span class="line-ref">L6</span>
-              <strong>Олеся:</strong>
+              <strong>{{ i18n.t('demo.roleOlesya') }}</strong>
               <p>
-                Сон… ну, лягаю пізно. Годині в першій-другій. Дивлюсь
-                щось, прокручую телефон, і так і їду. А вранці будильник
-                на восьмій, встаю десятій-одинадцятій.
+                {{ i18n.t('demo.l6Client') }}
               </p>
             </div>
 
             <div class="bubble therapist">
               <span class="line-ref">L13</span>
-              <strong>Терапевтка:</strong>
+              <strong>{{ i18n.t('demo.roleTherapist') }}</strong>
               <p>
-                Я бачу, ви дуже структуровано описуєте. Це класична
-                депресія, мабуть, з рисами руминації. Спробуйте дихальні
-                вправи перед сном — 4-7-8 техніка.
+                {{ i18n.t('demo.l13Therapist') }}
               </p>
             </div>
 
             <div class="bubble client">
               <span class="line-ref">L14</span>
-              <strong>Олеся:</strong>
+              <strong>{{ i18n.t('demo.roleOlesya') }}</strong>
               <p>
-                …Так, я знаю цю техніку. Ну, якщо чесно — я не думаю,
-                що дихання тут допоможе. <em>Мені нічого не болить,
-                нічого не тривожить. Просто нічого немає.</em>
+                {{ i18n.t('demo.l14ClientPart1') }} <em>{{ i18n.t('demo.l14ClientEm') }}</em>
               </p>
             </div>
 
             <p class="note">
-              Терапевтка завершила сесію, <strong>не запитавши прямо
-              про суїцидальні думки</strong>. За профілем у Олесі —
-              систематичні пасивні думки «а якщо я просто не прокинусь».
-              Якби запитали — отримали б правду.
+              {{ i18n.t('demo.transcriptNotePart1') }} <strong>{{ i18n.t('demo.transcriptNoteStrong') }}</strong>{{ i18n.t('demo.transcriptNotePart2') }}
             </p>
           </section>
 
           <section class="feedback-pane">
-            <h2 class="pane-title">Фідбек Opus-супервізора</h2>
+            <h2 class="pane-title">{{ i18n.t('demo.feedbackTitle') }}</h2>
 
             <!-- Most striking catch first -->
             <article class="catch critical">
               <div class="catch-head">
                 <span class="catch-icon" aria-hidden="true">⚠</span>
-                <span class="catch-label">Найважливіше: пропущено</span>
+                <span class="catch-label">{{ i18n.t('demo.catch1Label') }}</span>
               </div>
-              <h3>Скринінг суїцидального ризику</h3>
+              <h3>{{ i18n.t('demo.catch1Title') }}</h3>
               <p>
-                Це <strong>головна проблема сесії</strong>. За профілем
-                Олеся має систематичні пасивні думки «а якщо я просто не
-                прокинусь». Вона б відповіла правду, якби запитали прямо.
-                Не запитали — і ця інформація залишиться поза терапією
-                щонайменше до наступної сесії, а можливо й довше.
+                {{ i18n.t('demo.catch1Para1Part1') }} <strong>{{ i18n.t('demo.catch1Para1Strong') }}</strong>{{ i18n.t('demo.catch1Para1Part2') }}
               </p>
               <p>
-                На <span class="line-tag">[L14]</span> клієнтка дає прямий
-                сигнал, який мав би загорітися червоним:
-                «<strong>Мені нічого не болить, нічого не тривожить.
-                Просто нічого немає.</strong>» Це не опис настрою — це
-                опис стану, у якому пасивна суїцидальна ідеація типово
-                й існує.
+                {{ i18n.t('demo.catch1Para2Part1') }} <span class="line-tag">[L14]</span> {{ i18n.t('demo.catch1Para2Part2') }} «<strong>{{ i18n.t('demo.catch1Para2Strong') }}</strong>» {{ i18n.t('demo.catch1Para2Part3') }}
               </p>
               <div class="rewrite">
-                <p class="rewrite-label">Що мало б прозвучати:</p>
+                <p class="rewrite-label">{{ i18n.t('demo.rewriteLabel') }}</p>
                 <blockquote>
-                  Олесю, я хочу запитати прямо, бо це важливо. Чи бувають
-                  у вас зараз думки про те, що було б легше не прокинутись,
-                  не існувати, зникнути? Без планів — просто думки.
+                  {{ i18n.t('demo.rewriteQuote') }}
                 </blockquote>
                 <p class="rewrite-hint">
-                  Це не «травматизує» клієнтку. Навпаки — для людини з
-                  пасивною ідеацією прямо названа реальність часто є
-                  першим за місяці моментом, коли її <strong>побачили</strong>.
+                  {{ i18n.t('demo.rewriteHintPart1') }} <strong>{{ i18n.t('demo.rewriteHintStrong') }}</strong>{{ i18n.t('demo.rewriteHintPart2') }}
                 </p>
               </div>
             </article>
@@ -179,34 +148,28 @@ import { I18nService } from '../i18n.service';
             <article class="catch">
               <div class="catch-head">
                 <span class="catch-icon" aria-hidden="true">🔍</span>
-                <span class="catch-label">Помічено + названо</span>
+                <span class="catch-label">{{ i18n.t('demo.catch2Label') }}</span>
               </div>
-              <h3>Інтелектуалізація як головний захист</h3>
+              <h3>{{ i18n.t('demo.catch2Title') }}</h3>
               <p>
-                На <span class="line-tag">[L11]</span> терапевтка спитала
-                «у вас уже є якась гіпотеза, що з вами відбувається?» —
-                і Олеся радо віддала клінічну формулу
-                («<em>великий депресивний епізод, анедонія, руминація</em>»).
-                За профілем Олеся <strong>інтелектуалізує як головний
-                захист</strong>. Це запитання запросило її саме в цей
-                захист.
+                {{ i18n.t('demo.catch2Para1Part1') }} <span class="line-tag">[L11]</span> {{ i18n.t('demo.catch2Para1Part2') }} («<em>{{ i18n.t('demo.catch2Para1Em') }}</em>»). {{ i18n.t('demo.catch2Para1Part3') }} <strong>{{ i18n.t('demo.catch2Para1Strong') }}</strong>{{ i18n.t('demo.catch2Para1Part4') }}
               </p>
             </article>
 
             <article class="catch">
               <div class="catch-head">
                 <span class="catch-icon" aria-hidden="true">📐</span>
-                <span class="catch-label">Виміри протоколу</span>
+                <span class="catch-label">{{ i18n.t('demo.catch3Label') }}</span>
               </div>
-              <h3>8 канонічних дімензій інтейку</h3>
-              <p>Reviewer оцінює сесію за 8 вимірами:</p>
+              <h3>{{ i18n.t('demo.catch3Title') }}</h3>
+              <p>{{ i18n.t('demo.catch3Intro') }}</p>
               <ul class="dims">
-                <li>Терапевтичний альянс <span class="dim-tag warn">частково</span></li>
-                <li>Збір презентуючої проблеми <span class="dim-tag warn">поверхневий</span></li>
-                <li>Робота з self-diagnosis <span class="dim-tag bad">відсутня</span></li>
-                <li>Скринінг ризиків <span class="dim-tag bad">КРИТИЧНО</span></li>
-                <li>Робоча гіпотеза <span class="dim-tag bad">не сформульована</span></li>
-                <li>Закриття сесії <span class="dim-tag bad">відсутнє</span></li>
+                <li>{{ i18n.t('demo.dimAlliance') }} <span class="dim-tag warn">{{ i18n.t('demo.dimAllianceTag') }}</span></li>
+                <li>{{ i18n.t('demo.dimPresenting') }} <span class="dim-tag warn">{{ i18n.t('demo.dimPresentingTag') }}</span></li>
+                <li>{{ i18n.t('demo.dimSelfDiagnosis') }} <span class="dim-tag bad">{{ i18n.t('demo.dimSelfDiagnosisTag') }}</span></li>
+                <li>{{ i18n.t('demo.dimRisk') }} <span class="dim-tag bad">{{ i18n.t('demo.dimRiskTag') }}</span></li>
+                <li>{{ i18n.t('demo.dimHypothesis') }} <span class="dim-tag bad">{{ i18n.t('demo.dimHypothesisTag') }}</span></li>
+                <li>{{ i18n.t('demo.dimClosing') }} <span class="dim-tag bad">{{ i18n.t('demo.dimClosingTag') }}</span></li>
               </ul>
             </article>
           </section>
@@ -221,16 +184,15 @@ import { I18nService } from '../i18n.service';
               <h2>Start your own session</h2>
               <p>14 days free. 3 sessions with training feedback. No card required.</p>
             } @else {
-              <h2>Запусти власну сесію</h2>
+              <h2>{{ i18n.t('demo.ctaTitle') }}</h2>
               <p>
-                14 днів безкоштовно. 3 сесії з тренувальним фідбеком.
-                Без картки.
+                {{ i18n.t('demo.ctaSubtitle') }}
               </p>
             }
           </div>
           <div class="cta-actions">
             <a routerLink="/register" class="btn btn-primary">
-              {{ i18n.isEn ? 'Start free' : 'Спробувати безкоштовно' }}
+              {{ i18n.isEn ? 'Start free' : i18n.t('demo.ctaStartBtn') }}
             </a>
             <a routerLink="/pricing" class="btn btn-secondary">
               {{ i18n.t('nav.pricing') }}
@@ -247,8 +209,7 @@ import { I18nService } from '../i18n.service';
           </p>
         } @else {
           <p>
-            Олеся — <strong>фіктивний композит</strong>, синтезований з
-            публічних клінічних описів. Не реальна особа.
+            {{ i18n.t('demo.footerDisclaimerPart1') }} <strong>{{ i18n.t('demo.footerDisclaimerStrong') }}</strong>{{ i18n.t('demo.footerDisclaimerPart2') }}
           </p>
         }
         <p>

@@ -15,6 +15,7 @@ import {
 } from '../api.service';
 import { AuthService } from '../auth.service';
 import { IconComponent } from '../icon.component';
+import { I18nService } from '../i18n.service';
 
 type PlanId = 'trial' | 'lite' | 'pro' | 'master';
 
@@ -34,62 +35,63 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
   host: { '(document:keydown.escape)': 'onEscape()' },
   template: `
     <header class="admin-header">
-      <a routerLink="/" class="back">← На головну</a>
+      <a routerLink="/" class="back">← {{ i18n.t('admin.backHome') }}</a>
       <h1>Admin panel</h1>
       <p class="subtitle dim">
-        Доступ для адмінів. Гранти й ревоки керуються тут — у вкладці «Користувачі».
-        Змінна оточення <code>ADMIN_EMAILS</code> лишається як аварійний bootstrap.
+        {{ i18n.t('admin.subtitleBefore') }}
+        <code>ADMIN_EMAILS</code>
+        {{ i18n.t('admin.subtitleAfter') }}
       </p>
 
       <nav class="reflect-tabs" role="tablist">
         <button role="tab" [attr.aria-selected]="tab() === 'users'" [class.active]="tab() === 'users'" (click)="setTab('users')">
-          <app-icon name="users" /> <span>Користувачі</span>
+          <app-icon name="users" /> <span>{{ i18n.t('admin.tabUsers') }}</span>
           @if (users().length) { <span class="count">{{ users().length }}</span> }
         </button>
         <button role="tab" [attr.aria-selected]="tab() === 'sessions'" [class.active]="tab() === 'sessions'" (click)="setTab('sessions')">
-          <app-icon name="message" /> <span>Сесії</span>
+          <app-icon name="message" /> <span>{{ i18n.t('admin.tabSessions') }}</span>
           @if (sessions().length) { <span class="count">{{ sessions().length }}</span> }
         </button>
         <button role="tab" [attr.aria-selected]="tab() === 'errors'" [class.active]="tab() === 'errors'" (click)="setTab('errors')">
-          <app-icon name="bug" /> <span>Помилки</span>
+          <app-icon name="bug" /> <span>{{ i18n.t('admin.tabErrors') }}</span>
           @if (errors().length) { <span class="count">{{ errors().length }}</span> }
         </button>
         <button role="tab" [attr.aria-selected]="tab() === 'funnel'" [class.active]="tab() === 'funnel'" (click)="setTab('funnel')">
           <app-icon name="funnel" /> <span>Funnel</span>
         </button>
         <button role="tab" [attr.aria-selected]="tab() === 'cost'" [class.active]="tab() === 'cost'" (click)="setTab('cost')">
-          <app-icon name="coin" /> <span>Витрати</span>
+          <app-icon name="coin" /> <span>{{ i18n.t('admin.tabCost') }}</span>
         </button>
         <button role="tab" class="board-tab" [attr.aria-selected]="tab() === 'board'" [class.active]="tab() === 'board'" (click)="setTab('board')">
-          <app-icon name="trophy" /> <span>Дошка</span>
+          <app-icon name="trophy" /> <span>{{ i18n.t('admin.tabBoard') }}</span>
           @if (board().length) { <span class="count">{{ board().length }}</span> }
         </button>
         <button role="tab" [attr.aria-selected]="tab() === 'broadcast'" [class.active]="tab() === 'broadcast'" (click)="setTab('broadcast')">
-          <app-icon name="bell" /> <span>Розсилка</span>
+          <app-icon name="bell" /> <span>{{ i18n.t('admin.tabBroadcast') }}</span>
         </button>
       </nav>
     </header>
 
     @if (loading()) {
-      <p class="hint">Завантаження…</p>
+      <p class="hint">{{ i18n.t('admin.loading') }}</p>
     } @else if (error()) {
       <p class="hint danger">{{ error() }}</p>
     } @else {
 
       @if (tab() === 'users') {
         <section class="panel panel-soft frame-bordered">
-          <span class="section-label"><app-icon name="users" /> Список користувачів · {{ users().length }}</span>
+          <span class="section-label"><app-icon name="users" /> {{ i18n.t('admin.usersListLabel') }} · {{ users().length }}</span>
           <table class="data-table">
           <thead>
             <tr>
               <th>ID</th>
               <th>Email</th>
-              <th>Ім'я</th>
-              <th>Вхід</th>
-              <th>Сесій</th>
-              <th>План</th>
+              <th>{{ i18n.t('admin.colName') }}</th>
+              <th>{{ i18n.t('admin.colLogin') }}</th>
+              <th>{{ i18n.t('admin.colSessions') }}</th>
+              <th>{{ i18n.t('admin.colPlan') }}</th>
               <th>Admin</th>
-              <th>Створено</th>
+              <th>{{ i18n.t('admin.colCreated') }}</th>
               <th></th>
             </tr>
           </thead>
@@ -105,7 +107,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                   @if (u.plan) {
                     <span class="badge plan-badge plan-{{ u.plan }}">{{ u.plan }}</span>
                     @if (u.planEndsAt) {
-                      <span class="plan-expiry">до&nbsp;{{ u.planEndsAt | date: 'dd.MM.yy' }}</span>
+                      <span class="plan-expiry">{{ i18n.t('admin.until') }}&nbsp;{{ u.planEndsAt | date: 'dd.MM.yy' }}</span>
                     }
                   } @else {
                     <span class="dim">—</span>
@@ -114,14 +116,14 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                 <td>
                   @if (u.isAdmin) {
                     <span class="badge admin-badge">admin</span>
-                    @if (u.id === currentUserId()) { <span class="self-tag">(ти)</span> }
+                    @if (u.id === currentUserId()) { <span class="self-tag">{{ i18n.t('admin.youTag') }}</span> }
                   }
                   @if (u.isInstructor) { <span class="badge instructor-badge">instructor</span> }
                 </td>
                 <td class="dim">{{ u.createdAt | date: 'dd.MM.yyyy' }}</td>
                 <td class="row-actions">
-                  <button class="link-btn" (click)="filterByUser(u.id)">сесії →</button>
-                  <button class="link-btn" (click)="openGrantPlan(u)">план →</button>
+                  <button class="link-btn" (click)="filterByUser(u.id)">{{ i18n.t('admin.actionSessions') }} →</button>
+                  <button class="link-btn" (click)="openGrantPlan(u)">{{ i18n.t('admin.actionPlan') }} →</button>
                   @if (u.isAdmin) {
                     <button
                       class="link-btn danger"
@@ -156,7 +158,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
               </tr>
             }
             @if (users().length === 0) {
-              <tr><td colspan="9" class="empty">Ні одного користувача</td></tr>
+              <tr><td colspan="9" class="empty">{{ i18n.t('admin.usersEmpty') }}</td></tr>
             }
           </tbody>
           </table>
@@ -166,21 +168,21 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
       @if (tab() === 'sessions') {
         @if (sessionFilter().userId != null) {
           <div class="filter-bar">
-            Фільтр: користувач #{{ sessionFilter().userId }}
-            <button class="link-btn" (click)="clearSessionFilter()">× очистити</button>
+            {{ i18n.t('admin.filterUser', { userId: sessionFilter().userId ?? '' }) }}
+            <button class="link-btn" (click)="clearSessionFilter()">× {{ i18n.t('admin.clear') }}</button>
           </div>
         }
         <section class="panel panel-soft frame-bordered">
-          <span class="section-label"><app-icon name="message" /> Сесії · {{ sessions().length }}</span>
+          <span class="section-label"><app-icon name="message" /> {{ i18n.t('admin.tabSessions') }} · {{ sessions().length }}</span>
           <table class="data-table">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Студент</th>
-              <th>Пацієнт</th>
-              <th>Реплік</th>
-              <th>Стан</th>
-              <th>Початок</th>
+              <th>{{ i18n.t('admin.colStudent') }}</th>
+              <th>{{ i18n.t('admin.colPatient') }}</th>
+              <th>{{ i18n.t('admin.colReplies') }}</th>
+              <th>{{ i18n.t('admin.colState') }}</th>
+              <th>{{ i18n.t('admin.colStart') }}</th>
               <th></th>
             </tr>
           </thead>
@@ -194,12 +196,12 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                 <td>
                   @if (s.endedAt) {
                     @if (s.hasFeedback) {
-                      <span class="badge done">завершена + фідбек</span>
+                      <span class="badge done">{{ i18n.t('admin.sessionDoneFeedback') }}</span>
                     } @else {
-                      <span class="badge done">завершена</span>
+                      <span class="badge done">{{ i18n.t('admin.sessionDone') }}</span>
                     }
                   } @else {
-                    <span class="badge open">у процесі</span>
+                    <span class="badge open">{{ i18n.t('admin.sessionInProgress') }}</span>
                   }
                 </td>
                 <td class="dim">{{ s.startedAt | date: 'dd.MM HH:mm' }}</td>
@@ -207,17 +209,17 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                   <a [routerLink]="['/session', s.id, 'view']"
                      class="link-btn"
                      (click)="$event.stopPropagation()"
-                     title="Відкрити транскрипт у читабельному вигляді">
-                    відкрити
+                     [title]="i18n.t('admin.openTranscriptTitle')">
+                    {{ i18n.t('admin.open') }}
                   </a>
                   <button class="ghost small" (click)="$event.stopPropagation(); confirmDelete(s.id)">
-                    видалити
+                    {{ i18n.t('admin.delete') }}
                   </button>
                 </td>
               </tr>
             }
             @if (sessions().length === 0) {
-              <tr><td colspan="7" class="empty">Сесій не знайдено</td></tr>
+              <tr><td colspan="7" class="empty">{{ i18n.t('admin.sessionsEmpty') }}</td></tr>
             }
           </tbody>
           </table>
@@ -226,16 +228,16 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
         @if (selectedSession(); as s) {
           <article class="session-detail">
             <header>
-              <h3>Сесія #{{ s.id }} — {{ s.character.displayName }} / {{ s.user?.email }}</h3>
-              <button class="ghost small" (click)="closeSession()">× закрити</button>
+              <h3>{{ i18n.t('admin.session') }} #{{ s.id }} — {{ s.character.displayName }} / {{ s.user?.email }}</h3>
+              <button class="ghost small" (click)="closeSession()">× {{ i18n.t('admin.close') }}</button>
             </header>
 
             <details open>
-              <summary><strong>Транскрипт</strong> ({{ s.messages.length }} реплік)</summary>
+              <summary><strong>{{ i18n.t('admin.transcript') }}</strong> ({{ i18n.t('admin.repliesCount', { count: s.messages.length }) }})</summary>
               <ol class="transcript">
                 @for (m of s.messages; track m.id) {
                   <li class="line" [class.user]="m.role === 'user'" [class.assistant]="m.role === 'assistant'">
-                    <span class="role">{{ m.role === 'user' ? 'Терапевт' : s.character.displayName }}</span>
+                    <span class="role">{{ m.role === 'user' ? i18n.t('admin.therapist') : s.character.displayName }}</span>
                     <span class="text">{{ m.content }}</span>
                   </li>
                 }
@@ -244,21 +246,21 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
 
             @if (s.feedback) {
               <details>
-                <summary><strong>Фідбек супервайзера</strong></summary>
+                <summary><strong>{{ i18n.t('admin.supervisorFeedback') }}</strong></summary>
                 <pre class="feedback-raw">{{ s.feedback }}</pre>
               </details>
             }
 
             @if (s.assessment) {
               <details>
-                <summary><strong>Машинна оцінка (JSON)</strong></summary>
+                <summary><strong>{{ i18n.t('admin.machineAssessment') }}</strong></summary>
                 <pre class="json">{{ s.assessment | json }}</pre>
               </details>
             }
 
             @if (s.errors?.length) {
               <details open>
-                <summary><strong>Помилки під час сесії</strong> ({{ s.errors.length }})</summary>
+                <summary><strong>{{ i18n.t('admin.sessionErrors') }}</strong> ({{ s.errors.length }})</summary>
                 <ul class="error-list">
                   @for (e of s.errors; track e.id) {
                     <li>
@@ -276,16 +278,16 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
 
       @if (tab() === 'errors') {
         <section class="panel panel-soft frame-bordered">
-          <span class="section-label"><app-icon name="bug" /> Помилки · {{ errors().length }}</span>
+          <span class="section-label"><app-icon name="bug" /> {{ i18n.t('admin.tabErrors') }} · {{ errors().length }}</span>
           <table class="data-table errors-table">
           <thead>
             <tr>
               <th>ID</th>
               <th>Endpoint</th>
-              <th>Статус</th>
-              <th>Користувач</th>
-              <th>Повідомлення</th>
-              <th>Коли</th>
+              <th>{{ i18n.t('admin.colStatus') }}</th>
+              <th>{{ i18n.t('admin.colUser') }}</th>
+              <th>{{ i18n.t('admin.colMessage') }}</th>
+              <th>{{ i18n.t('admin.colWhen') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -305,7 +307,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
               }
             }
             @if (errors().length === 0) {
-              <tr><td colspan="6" class="empty">Помилок не зареєстровано</td></tr>
+              <tr><td colspan="6" class="empty">{{ i18n.t('admin.errorsEmpty') }}</td></tr>
             }
           </tbody>
           </table>
@@ -316,26 +318,25 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
         @if (funnel(); as f) {
           <div class="funnel">
             <section class="panel panel-soft frame-bordered">
-            <span class="section-label"><app-icon name="funnel" /> Воронка · 7 днів</span>
+            <span class="section-label"><app-icon name="funnel" /> {{ i18n.t('admin.funnelLabel') }}</span>
             <p class="hint">
-              Останні 7 днів (з {{ f.since | date: 'd MMM, HH:mm' }}).
-              Кожен крок — кількість унікальних користувачів (анонімні — за hash IP+UA).
+              {{ i18n.t('admin.funnelSinceBefore') }}{{ f.since | date: 'd MMM, HH:mm' }}{{ i18n.t('admin.funnelSinceAfter') }}
             </p>
             <ol class="funnel-steps">
               <li>
                 <div class="step-num">1</div>
                 <div class="step-meta">
                   <strong>{{ f.funnel.visited_demo_or_pricing }}</strong>
-                  <span>відвідали /demo або /pricing</span>
+                  <span>{{ i18n.t('admin.funnelStep1') }}</span>
                 </div>
               </li>
               <li>
                 <div class="step-num">2</div>
                 <div class="step-meta">
                   <strong>{{ f.funnel.registered }}</strong>
-                  <span>зареєструвались
+                  <span>{{ i18n.t('admin.funnelStep2') }}
                     @if (f.rates.register_per_visit !== null) {
-                      <em>· {{ (f.rates.register_per_visit * 100) | number: '1.0-1' }}% від візитів</em>
+                      <em>· {{ (f.rates.register_per_visit * 100) | number: '1.0-1' }}% {{ i18n.t('admin.funnelOfVisits') }}</em>
                     }
                   </span>
                 </div>
@@ -344,9 +345,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                 <div class="step-num">3</div>
                 <div class="step-meta">
                   <strong>{{ f.funnel.started_first_session }}</strong>
-                  <span>почали першу сесію
+                  <span>{{ i18n.t('admin.funnelStep3') }}
                     @if (f.rates.session_per_register !== null) {
-                      <em>· {{ (f.rates.session_per_register * 100) | number: '1.0-1' }}% від реєстрацій</em>
+                      <em>· {{ (f.rates.session_per_register * 100) | number: '1.0-1' }}% {{ i18n.t('admin.funnelOfRegistrations') }}</em>
                     }
                   </span>
                 </div>
@@ -355,7 +356,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                 <div class="step-num">4</div>
                 <div class="step-meta">
                   <strong>{{ f.funnel.started_third_session }}</strong>
-                  <span>дійшли до 3-ї сесії
+                  <span>{{ i18n.t('admin.funnelStep4') }}
                     @if (f.rates.retention_3plus_sessions !== null) {
                       <em>· {{ (f.rates.retention_3plus_sessions * 100) | number: '1.0-1' }}% retention</em>
                     }
@@ -366,9 +367,9 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                 <div class="step-num">5</div>
                 <div class="step-meta">
                   <strong>{{ f.funnel.viewed_feedback }}</strong>
-                  <span>побачили фідбек супервізора
+                  <span>{{ i18n.t('admin.funnelStep5') }}
                     @if (f.rates.feedback_per_session !== null) {
-                      <em>· {{ (f.rates.feedback_per_session * 100) | number: '1.0-1' }}% від першої сесії</em>
+                      <em>· {{ (f.rates.feedback_per_session * 100) | number: '1.0-1' }}% {{ i18n.t('admin.funnelOfFirstSession') }}</em>
                     }
                   </span>
                 </div>
@@ -377,10 +378,10 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
             </section>
 
             <section class="panel panel-soft frame-bordered">
-            <span class="section-label"><app-icon name="clock" /> Останні події</span>
+            <span class="section-label"><app-icon name="clock" /> {{ i18n.t('admin.recentEvents') }}</span>
             <table class="data-table compact">
               <thead>
-                <tr><th>Коли</th><th>Тип</th><th>Користувач</th><th>Дані</th></tr>
+                <tr><th>{{ i18n.t('admin.colWhen') }}</th><th>{{ i18n.t('admin.colType') }}</th><th>{{ i18n.t('admin.colUser') }}</th><th>{{ i18n.t('admin.colData') }}</th></tr>
               </thead>
               <tbody>
                 @for (ev of recentEvents(); track ev.id) {
@@ -392,14 +393,14 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                   </tr>
                 }
                 @if (recentEvents().length === 0) {
-                  <tr><td colspan="4" class="empty">Подій ще немає</td></tr>
+                  <tr><td colspan="4" class="empty">{{ i18n.t('admin.eventsEmpty') }}</td></tr>
                 }
               </tbody>
             </table>
             </section>
           </div>
         } @else {
-          <p class="hint">Завантаження funnel-даних…</p>
+          <p class="hint">{{ i18n.t('admin.funnelLoading') }}</p>
         }
       }
 
@@ -407,20 +408,20 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
         @if (llmUsage(); as u) {
           <div class="cost-cards">
             <div class="cost-card panel-soft frame-bordered">
-              <span class="cost-label">Сьогодні</span>
+              <span class="cost-label">{{ i18n.t('admin.costToday') }}</span>
               <strong class="cost-figure">{{ fmtUsd(u.today.costUsd) }}</strong>
-              <span class="cost-sub">{{ u.today.calls }} викликів · {{ u.today.promptTokens + u.today.completionTokens }} токенів</span>
+              <span class="cost-sub">{{ i18n.t('admin.costSub', { calls: u.today.calls, tokens: u.today.promptTokens + u.today.completionTokens }) }}</span>
             </div>
             <div class="cost-card panel-soft frame-bordered">
-              <span class="cost-label">Останні 7 днів</span>
+              <span class="cost-label">{{ i18n.t('admin.costLast7d') }}</span>
               <strong class="cost-figure">{{ fmtUsd(u.last7d.costUsd) }}</strong>
-              <span class="cost-sub">{{ u.last7d.calls }} викликів · {{ u.last7d.promptTokens + u.last7d.completionTokens }} токенів</span>
+              <span class="cost-sub">{{ i18n.t('admin.costSub', { calls: u.last7d.calls, tokens: u.last7d.promptTokens + u.last7d.completionTokens }) }}</span>
             </div>
           </div>
           <section class="panel panel-soft frame-bordered">
-          <span class="section-label"><app-icon name="coin" /> За моделлю · 7 днів</span>
+          <span class="section-label"><app-icon name="coin" /> {{ i18n.t('admin.costByModelLabel') }}</span>
           <table class="data-table compact">
-            <thead><tr><th>Модель</th><th>Виклики</th><th>Токени</th><th>Вартість</th></tr></thead>
+            <thead><tr><th>{{ i18n.t('admin.colModel') }}</th><th>{{ i18n.t('admin.colCalls') }}</th><th>{{ i18n.t('admin.colTokens') }}</th><th>{{ i18n.t('admin.colCost') }}</th></tr></thead>
             <tbody>
               @for (m of u.byModel; track m.model) {
                 <tr>
@@ -431,36 +432,33 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                 </tr>
               }
               @if (u.byModel.length === 0) {
-                <tr><td colspan="4" class="empty">Поки немає записів використання ШІ</td></tr>
+                <tr><td colspan="4" class="empty">{{ i18n.t('admin.costEmpty') }}</td></tr>
               }
             </tbody>
           </table>
-          <p class="hint">OpenRouter — точна вартість від провайдера; Anthropic — оцінка. Враховано і стрімові, і звичайні виклики.</p>
+          <p class="hint">{{ i18n.t('admin.costHint') }}</p>
           </section>
         } @else {
-          <p class="hint">Завантаження даних про витрати…</p>
+          <p class="hint">{{ i18n.t('admin.costLoading') }}</p>
         }
       }
 
       @if (tab() === 'board') {
         <p class="hint board-note">
-          Прихована дошка терапевтів (тільки адмін). Сортування — за обсягом
-          практики, НЕ за клінічними оцінками. Це насіння майбутнього
-          каталогу «обери терапевта»; ачівки тут — тренувальні віхи проти
-          AI-пацієнтів, не підтверджена компетентність.
+          {{ i18n.t('admin.boardNote') }}
         </p>
         <section class="panel panel-soft frame-bordered">
-          <span class="section-label"><app-icon name="trophy" /> Дошка терапевтів · {{ board().length }}</span>
+          <span class="section-label"><app-icon name="trophy" /> {{ i18n.t('admin.boardLabel') }} · {{ board().length }}</span>
           <table class="data-table board-table">
           <thead>
             <tr>
-              <th>Терапевт</th>
-              <th>Рівень</th>
-              <th class="num">Компетенція</th>
-              <th class="num">Сесій</th>
-              <th class="num">Бейджів</th>
-              <th class="num">Пацієнтів</th>
-              <th class="num">Активність</th>
+              <th>{{ i18n.t('admin.colTherapist') }}</th>
+              <th>{{ i18n.t('admin.colLevel') }}</th>
+              <th class="num">{{ i18n.t('admin.colCompetency') }}</th>
+              <th class="num">{{ i18n.t('admin.colSessions') }}</th>
+              <th class="num">{{ i18n.t('admin.colBadges') }}</th>
+              <th class="num">{{ i18n.t('admin.colPatients') }}</th>
+              <th class="num">{{ i18n.t('admin.colActivity') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -481,13 +479,13 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
                 <td class="num">{{ r.badgeCount }}<span class="dim">/{{ r.awardableCount }}</span></td>
                 <td class="num">
                   {{ r.patients }}
-                  @if (r.lapsed > 0) { <span class="lapsed-tag" title="Пацієнтів покинуто (≥6 тиж.)"><span class="lapsed-dot"></span>{{ r.lapsed }}</span> }
+                  @if (r.lapsed > 0) { <span class="lapsed-tag" [title]="i18n.t('admin.lapsedTitle')"><span class="lapsed-dot"></span>{{ r.lapsed }}</span> }
                 </td>
                 <td class="num dim">{{ r.lastActiveAt ? (r.lastActiveAt | date: 'dd.MM.yy') : '—' }}</td>
               </tr>
             }
             @if (board().length === 0) {
-              <tr><td colspan="7" class="empty">Поки немає терапевтів із завершеними сесіями</td></tr>
+              <tr><td colspan="7" class="empty">{{ i18n.t('admin.boardEmpty') }}</td></tr>
             }
           </tbody>
           </table>
@@ -496,32 +494,31 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
 
       @if (tab() === 'broadcast') {
         <section class="panel panel-soft frame-bordered">
-          <span class="section-label"><app-icon name="bell" /> Розсилка-оголошення</span>
+          <span class="section-label"><app-icon name="bell" /> {{ i18n.t('admin.broadcastLabel') }}</span>
           <p class="hint">
-            Надішле сповіщення <strong>усім</strong> користувачам — зʼявиться у їхньому
-            дзвонику й прилетить пушем (кому ввімкнено). Користуйся обережно.
+            {{ i18n.t('admin.broadcastHintBefore') }} <strong>{{ i18n.t('admin.broadcastHintAll') }}</strong> {{ i18n.t('admin.broadcastHintAfter') }}
           </p>
           <label class="bc-field">
-            <span>Заголовок</span>
+            <span>{{ i18n.t('admin.broadcastTitleLabel') }}</span>
             <input type="text" maxlength="120"
                    [ngModel]="bcTitle()" (ngModelChange)="bcTitle.set($event)"
-                   placeholder="напр. Новий курс: Тривога — поглиблено">
+                   [placeholder]="i18n.t('admin.broadcastTitlePlaceholder')">
           </label>
           <label class="bc-field">
-            <span>Текст</span>
+            <span>{{ i18n.t('admin.broadcastBodyLabel') }}</span>
             <textarea rows="3" maxlength="500"
                       [ngModel]="bcBody()" (ngModelChange)="bcBody.set($event)"
-                      placeholder="Коротке повідомлення для всіх користувачів…"></textarea>
+                      [placeholder]="i18n.t('admin.broadcastBodyPlaceholder')"></textarea>
           </label>
           <label class="bc-field">
-            <span>Посилання (опційно)</span>
+            <span>{{ i18n.t('admin.broadcastUrlLabel') }}</span>
             <input type="text" [ngModel]="bcUrl()" (ngModelChange)="bcUrl.set($event)" placeholder="/courses">
           </label>
           <div class="bc-actions">
             <button class="primary"
                     [disabled]="bcBusy() || !bcTitle().trim() || !bcBody().trim()"
                     (click)="sendBroadcast()">
-              {{ bcBusy() ? '…' : 'Надіслати всім' }}
+              {{ bcBusy() ? '…' : i18n.t('admin.broadcastSend') }}
             </button>
             @if (bcResult(); as r) { <span class="bc-result">{{ r }}</span> }
           </div>
@@ -532,49 +529,49 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
     @if (grantDialog(); as g) {
       <div class="modal-backdrop" (click)="closeGrantPlan()"></div>
       <div class="modal-card grant-modal" role="dialog" aria-modal="true" aria-labelledby="grant-title">
-        <h3 id="grant-title">Грант плану</h3>
+        <h3 id="grant-title">{{ i18n.t('admin.grantTitle') }}</h3>
         <p class="grant-target">
           <strong>{{ g.user.email }}</strong>
           @if (g.user.plan) {
-            <span class="dim"> · поточний: <code>{{ g.user.plan }}</code></span>
+            <span class="dim"> · {{ i18n.t('admin.grantCurrent') }} <code>{{ g.user.plan }}</code></span>
           }
         </p>
 
         <label class="field">
-          <span>План</span>
+          <span>{{ i18n.t('admin.colPlan') }}</span>
           <select [ngModel]="g.plan" (ngModelChange)="updateGrantField('plan', $event)">
-            <option value="trial">trial — 14 днів, обмежені сесії</option>
-            <option value="lite">lite — базовий платний</option>
-            <option value="pro">pro — повний доступ</option>
-            <option value="master">master — все відкрито</option>
+            <option value="trial">{{ i18n.t('admin.planTrial') }}</option>
+            <option value="lite">{{ i18n.t('admin.planLite') }}</option>
+            <option value="pro">{{ i18n.t('admin.planPro') }}</option>
+            <option value="master">{{ i18n.t('admin.planMaster') }}</option>
           </select>
         </label>
 
         <label class="field">
-          <span>Місяців ({{ g.months }})</span>
+          <span>{{ i18n.t('admin.grantMonths', { months: g.months }) }}</span>
           <input type="range" min="1" max="24" step="1"
                  [ngModel]="g.months"
                  (ngModelChange)="updateGrantField('months', +$event)">
           <span class="dim months-hint">
-            Закінчиться: {{ grantExpiryPreview() | date: 'dd.MM.yyyy' }}
+            {{ i18n.t('admin.grantExpires') }} {{ grantExpiryPreview() | date: 'dd.MM.yyyy' }}
           </span>
         </label>
 
         <label class="field">
-          <span>Примітка (для аудиту, опційно)</span>
+          <span>{{ i18n.t('admin.grantNoteLabel') }}</span>
           <textarea
             rows="2"
-            placeholder="напр. «беспл. доступ для університетської групи Q2-2026»"
+            [placeholder]="i18n.t('admin.grantNotePlaceholder')"
             [ngModel]="g.note"
             (ngModelChange)="updateGrantField('note', $event)"></textarea>
         </label>
 
         <div class="modal-actions">
           <button class="ghost" (click)="closeGrantPlan()" [disabled]="grantBusy()">
-            Скасувати
+            {{ i18n.t('admin.cancel') }}
           </button>
           <button class="primary" (click)="confirmGrantPlan()" [disabled]="grantBusy()">
-            {{ grantBusy() ? '…' : 'Грантнути' }}
+            {{ grantBusy() ? '…' : i18n.t('admin.grantConfirm') }}
           </button>
         </div>
       </div>
@@ -1095,6 +1092,7 @@ type Tab = 'users' | 'sessions' | 'errors' | 'funnel' | 'cost' | 'board' | 'broa
 export class AdminComponent implements OnInit {
   private api = inject(ApiService);
   private auth = inject(AuthService);
+  protected readonly i18n = inject(I18nService);
 
   tab = signal<Tab>('users');
   loading = signal(false);
@@ -1156,7 +1154,7 @@ export class AdminComponent implements OnInit {
 
   ngOnInit() {
     if (!this.isAdmin()) {
-      this.error.set('Доступ заборонено. Цей розділ — тільки для адмінів.');
+      this.error.set(this.i18n.t('admin.accessDenied'));
       return;
     }
     void this.loadCurrentTab();
@@ -1199,7 +1197,7 @@ export class AdminComponent implements OnInit {
     } catch (e: unknown) {
       const msg = (e as { error?: { message?: string }; message?: string })?.error?.message
         ?? (e as { message?: string })?.message
-        ?? 'Не вдалось завантажити';
+        ?? this.i18n.t('admin.loadFailed');
       this.error.set(msg);
     } finally {
       this.loading.set(false);
@@ -1226,7 +1224,7 @@ export class AdminComponent implements OnInit {
       const detail = await this.api.adminGetSession(id);
       this.selectedSession.set(detail);
     } catch (e: unknown) {
-      this.error.set('Не вдалось отримати деталі сесії.');
+      this.error.set(this.i18n.t('admin.sessionDetailFailed'));
     }
   }
 
@@ -1235,13 +1233,13 @@ export class AdminComponent implements OnInit {
   }
 
   async confirmDelete(id: number) {
-    if (!confirm(`Видалити сесію #${id}? Ця дія незворотна — каскадно видаляться повідомлення, нотатки, фідбек, пам'ять.`)) return;
+    if (!confirm(this.i18n.t('admin.deleteSessionConfirm', { id }))) return;
     try {
       await this.api.adminDeleteSession(id);
       this.sessions.update((list) => list.filter((s) => s.id !== id));
       if (this.selectedSession()?.id === id) this.selectedSession.set(null);
     } catch {
-      this.error.set('Не вдалось видалити сесію.');
+      this.error.set(this.i18n.t('admin.deleteSessionFailed'));
     }
   }
 
@@ -1255,7 +1253,7 @@ export class AdminComponent implements OnInit {
    * local row in-place — no full reload, the rest of the table stays put.
    */
   async grantAdmin(user: AdminUser) {
-    if (!confirm(`Зробити ${user.email} адміністратором?\n\nВін отримає доступ до сесій усіх користувачів, помилок та може видавати/відкликати адмін-права іншим.`)) return;
+    if (!confirm(this.i18n.t('admin.grantAdminConfirm', { email: user.email }))) return;
     this.adminBusy.set(user.id);
     try {
       const updated = await this.api.adminGrantAdmin(user.id);
@@ -1263,7 +1261,7 @@ export class AdminComponent implements OnInit {
         list.map((u) => (u.id === user.id ? { ...u, isAdmin: updated.isAdmin } : u)),
       );
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось видати права.';
+      const msg = (e as { error?: { message?: string } })?.error?.message ?? this.i18n.t('admin.grantAdminFailed');
       alert(msg);
     } finally {
       this.adminBusy.set(null);
@@ -1279,8 +1277,8 @@ export class AdminComponent implements OnInit {
   async revokeAdmin(user: AdminUser) {
     const isSelf = user.id === this.currentUserId();
     const msg = isSelf
-      ? 'Відкликати власні адмін-права? Ти більше не зможеш керувати адмінкою.'
-      : `Відкликати адмін-права в ${user.email}?`;
+      ? this.i18n.t('admin.revokeAdminSelfConfirm')
+      : this.i18n.t('admin.revokeAdminConfirm', { email: user.email });
     if (!confirm(msg)) return;
     this.adminBusy.set(user.id);
     try {
@@ -1289,7 +1287,7 @@ export class AdminComponent implements OnInit {
         list.map((u) => (u.id === user.id ? { ...u, isAdmin: updated.isAdmin } : u)),
       );
     } catch (e: unknown) {
-      const errMsg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось відкликати права.';
+      const errMsg = (e as { error?: { message?: string } })?.error?.message ?? this.i18n.t('admin.revokeAdminFailed');
       alert(errMsg);
     } finally {
       this.adminBusy.set(null);
@@ -1316,7 +1314,7 @@ export class AdminComponent implements OnInit {
         if (cur) this.auth.applyProfileUpdate({ ...cur, isInstructor: updated.isInstructor });
       }
     } catch (e: unknown) {
-      const msg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось змінити роль інструктора.';
+      const msg = (e as { error?: { message?: string } })?.error?.message ?? this.i18n.t('admin.setInstructorFailed');
       alert(msg);
     } finally {
       this.instructorBusy.set(null);
@@ -1357,17 +1355,17 @@ export class AdminComponent implements OnInit {
     const title = this.bcTitle().trim();
     const body = this.bcBody().trim();
     if (!title || !body) return;
-    if (!confirm(`Надіслати оголошення ВСІМ користувачам?\n\n«${title}»`)) return;
+    if (!confirm(this.i18n.t('admin.broadcastConfirm', { title }))) return;
     this.bcBusy.set(true);
     this.bcResult.set(null);
     try {
       const r = await this.api.broadcastNotification(title, body, this.bcUrl().trim() || undefined);
-      this.bcResult.set(`Надіслано ${r.reached} користувач(ам) ✓`);
+      this.bcResult.set(this.i18n.t('admin.broadcastSent', { reached: r.reached }));
       this.bcTitle.set('');
       this.bcBody.set('');
       this.bcUrl.set('');
     } catch {
-      this.bcResult.set('Не вдалося надіслати.');
+      this.bcResult.set(this.i18n.t('admin.broadcastFailed'));
     } finally {
       this.bcBusy.set(false);
     }
@@ -1414,7 +1412,7 @@ export class AdminComponent implements OnInit {
       );
       this.grantDialog.set(null);
     } catch (e: unknown) {
-      const errMsg = (e as { error?: { message?: string } })?.error?.message ?? 'Не вдалось грантнути план.';
+      const errMsg = (e as { error?: { message?: string } })?.error?.message ?? this.i18n.t('admin.grantPlanFailed');
       alert(errMsg);
     } finally {
       this.grantBusy.set(false);

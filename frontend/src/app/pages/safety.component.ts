@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { I18nService } from '../i18n.service';
 
 /**
  * Safety + disclaimer page.
@@ -26,82 +27,72 @@ import { RouterLink } from '@angular/router';
   imports: [RouterLink],
   template: `
     <header class="page-head">
-      <a routerLink="/" class="back-link">← На головну</a>
-      <h1>Безпека та обмеження</h1>
+      <a routerLink="/" class="back-link">← {{ i18n.t('safety.backHome') }}</a>
+      <h1>{{ i18n.t('safety.title') }}</h1>
     </header>
 
     <section class="synapse-panel safety-block">
       <span class="section-label">DISCLAIMER</span>
-      <h2>Це навчальний тренажер, не справжня терапія</h2>
-      <p>
-        Reflect — інструмент для відпрацювання терапевтичних навичок із AI-персонажами.
-        Кожен «пацієнт» — це мовна модель, що грає роль за заданим профілем. Розмови з нею:
-      </p>
+      <h2>{{ i18n.t('safety.disclaimerHeading') }}</h2>
+      <p>{{ i18n.t('safety.disclaimerIntro') }}</p>
       <ul>
-        <li>не є клінічною роботою з реальними людьми</li>
-        <li>не замінюють супервізію живою людиною</li>
-        <li>не гарантують, що ефективна стратегія тут спрацює з реальним клієнтом</li>
-        <li>не є оцінкою твоєї професійної придатності</li>
+        <li>{{ i18n.t('safety.disclaimerItem1') }}</li>
+        <li>{{ i18n.t('safety.disclaimerItem2') }}</li>
+        <li>{{ i18n.t('safety.disclaimerItem3') }}</li>
+        <li>{{ i18n.t('safety.disclaimerItem4') }}</li>
       </ul>
-      <p>
-        Якість тренування залежить від твоєї рефлексії та живого супервізора.
-        Reflect — це додатковий простір для практики, не заміна формальної освіти.
-      </p>
+      <p>{{ i18n.t('safety.disclaimerOutro') }}</p>
     </section>
 
     <section class="synapse-panel safety-block">
-      <span class="section-label">ЯКЩО ТОБІ ЗАРАЗ ПОТРІБНА ДОПОМОГА</span>
-      <h2>Контакти кризових служб</h2>
-      <p class="lead">
-        Якщо тобі важко — не справжній «пацієнт», а ти сам/-а: ось де можна
-        отримати реальну допомогу.
-      </p>
+      <span class="section-label">{{ i18n.t('safety.crisisLabel') }}</span>
+      <h2>{{ i18n.t('safety.crisisHeading') }}</h2>
+      <p class="lead">{{ i18n.t('safety.crisisLead') }}</p>
 
-      <h3>Україна</h3>
+      <h3>{{ i18n.t('safety.ukraineHeading') }}</h3>
       <dl class="resources">
         <div class="res-row">
           <dt>Lifeline Ukraine</dt>
           <dd>
-            <a href="tel:7333">7333</a> — безкоштовно з будь-якого номера
+            <a href="tel:7333">7333</a> — {{ i18n.t('safety.lifelineFree') }}
             <br/>
-            <small>Цілодобова лінія психологічної підтримки для громадян та
-            ветеранів</small>
+            <small>{{ i18n.t('safety.lifelineDesc') }}</small>
           </dd>
         </div>
         <div class="res-row">
-          <dt>Безкоштовна лінія МОЗ</dt>
+          <dt>{{ i18n.t('safety.mozTitle') }}</dt>
           <dd>
             <a href="tel:0800600200">0 800 60 02 00</a>
             <br/>
-            <small>Цілодобова, з фіксованих і мобільних</small>
+            <small>{{ i18n.t('safety.mozDesc') }}</small>
           </dd>
         </div>
         <div class="res-row">
-          <dt>Розкажи мені</dt>
+          <dt>{{ i18n.t('safety.rozkazhyTitle') }}</dt>
           <dd>
             <a href="https://rozkazhy.me" target="_blank" rel="noopener noreferrer">rozkazhy.me</a>
             <br/>
-            <small>Безкоштовна онлайн-психологічна підтримка</small>
+            <small>{{ i18n.t('safety.rozkazhyDesc') }}</small>
           </dd>
         </div>
         <div class="res-row">
-          <dt>«Друг» (центр громадського здоров'я)</dt>
+          <dt>{{ i18n.t('safety.drugTitle') }}</dt>
           <dd>
             <a href="tel:0800504201">0 800 50 42 01</a>
             <br/>
-            <small>Психологічна підтримка дітей та підлітків</small>
+            <small>{{ i18n.t('safety.drugDesc') }}</small>
           </dd>
         </div>
       </dl>
 
-      <h3>Міжнародні</h3>
+      <h3>{{ i18n.t('safety.internationalHeading') }}</h3>
       <dl class="resources">
         <div class="res-row">
           <dt>Befrienders Worldwide</dt>
           <dd>
             <a href="https://befrienders.org" target="_blank" rel="noopener noreferrer">befrienders.org</a>
             <br/>
-            <small>Каталог гарячих ліній по країнах</small>
+            <small>{{ i18n.t('safety.befriendersDesc') }}</small>
           </dd>
         </div>
         <div class="res-row">
@@ -109,29 +100,26 @@ import { RouterLink } from '@angular/router';
           <dd>
             <a href="https://www.iasp.info/resources/Crisis_Centres" target="_blank" rel="noopener noreferrer">iasp.info/resources/Crisis_Centres</a>
             <br/>
-            <small>Каталог Міжнародної асоціації запобігання суїцидам</small>
+            <small>{{ i18n.t('safety.iaspDesc') }}</small>
           </dd>
         </div>
       </dl>
     </section>
 
     <section class="synapse-panel safety-block">
-      <span class="section-label">ПРИВАТНІСТЬ</span>
-      <h2>Що ми зберігаємо</h2>
+      <span class="section-label">{{ i18n.t('safety.privacyLabel') }}</span>
+      <h2>{{ i18n.t('safety.privacyHeading') }}</h2>
       <ul>
-        <li>Email і ім'я акаунта (для входу)</li>
-        <li>Профілі пацієнтів, які ти створив/-ла</li>
-        <li>Транскрипти сесій (доступні тільки тобі)</li>
-        <li>Нотатки і фідбеки супервізора-AI</li>
+        <li>{{ i18n.t('safety.privacyItem1') }}</li>
+        <li>{{ i18n.t('safety.privacyItem2') }}</li>
+        <li>{{ i18n.t('safety.privacyItem3') }}</li>
+        <li>{{ i18n.t('safety.privacyItem4') }}</li>
       </ul>
       <p>
-        Сесії <strong>не передаються третім сторонам</strong> крім провайдера LLM
-        (Anthropic API) для генерації відповіді AI-пацієнтки. Anthropic не використовує
-        вміст наших запитів для тренування своїх моделей.
+        {{ i18n.t('safety.privacyShareBefore') }}<strong>{{ i18n.t('safety.privacyShareEmphasis') }}</strong>{{ i18n.t('safety.privacyShareAfter') }}
       </p>
       <p>
-        Видалити акаунт + усі дані можна на сторінці
-        <a routerLink="/profile">профілю</a>.
+        {{ i18n.t('safety.privacyDeleteBefore') }}<a routerLink="/profile">{{ i18n.t('safety.privacyDeleteLink') }}</a>{{ i18n.t('safety.privacyDeleteAfter') }}
       </p>
     </section>
   `,
@@ -245,4 +233,6 @@ import { RouterLink } from '@angular/router';
     }
   `],
 })
-export class SafetyComponent {}
+export class SafetyComponent {
+  protected readonly i18n = inject(I18nService);
+}

@@ -11,9 +11,8 @@ import { IconComponent } from '../icon.component';
  * to know about auth. Fully presentational + SSR-safe (no browser APIs at
  * init): renders identically on the server (prerender) and the client.
  *
- * Copy is Ukrainian-primary (the prerendered language) with an English
- * variant via `tr()`; French falls back to Ukrainian until per-language
- * prerendering lands.
+ * Copy is localised via `i18n.t('landing.*')` (uk/en/fr). Ukrainian is the
+ * prerendered language; other locales swap in on the client.
  */
 @Component({
   selector: 'app-landing',
@@ -25,70 +24,58 @@ import { IconComponent } from '../icon.component';
       <header class="lnav">
         <a routerLink="/" class="lnav-brand" aria-label="Reflect"><app-logo /></a>
         <nav class="lnav-actions">
-          <a routerLink="/login" class="lnav-login">{{ tr('Увійти', 'Sign in') }}</a>
-          <a routerLink="/register" class="cta cta-sm">{{ tr('Спробувати', 'Try it') }}</a>
+          <a routerLink="/login" class="lnav-login">{{ i18n.t('landing.signIn') }}</a>
+          <a routerLink="/register" class="cta cta-sm">{{ i18n.t('landing.tryIt') }}</a>
         </nav>
       </header>
 
       <!-- Hero -->
       <section class="lhero">
-        <span class="eyebrow">{{ tr('AI-тренажер психотерапії', 'AI psychotherapy trainer') }}</span>
-        <h1>{{ tr('Стань кращим терапевтом — сесія за сесією', 'Become a better therapist, session by session') }}</h1>
+        <span class="eyebrow">{{ i18n.t('landing.eyebrow') }}</span>
+        <h1>{{ i18n.t('landing.heroTitle') }}</h1>
         <p class="lead">
-          {{ tr(
-            'Reflect — симулятор для майбутніх психотерапевтів. Проводь реалістичні сесії з AI-клієнтами, отримуй розбір рівня супервізора після кожної та відстежуй свій прогрес.',
-            'Reflect is a simulator for trainee psychotherapists. Run realistic sessions with AI clients, get supervisor-level feedback after each one, and track your growth.'
-          ) }}
+          {{ i18n.t('landing.heroLead') }}
         </p>
         <div class="lcta-row">
-          <a routerLink="/register" class="cta">{{ tr('Спробувати безкоштовно', 'Try it free') }}</a>
-          <a routerLink="/demo" class="cta cta-ghost">{{ tr('Подивитися демо', 'See a demo') }}</a>
+          <a routerLink="/register" class="cta">{{ i18n.t('landing.tryFree') }}</a>
+          <a routerLink="/demo" class="cta cta-ghost">{{ i18n.t('landing.seeDemo') }}</a>
         </div>
-        <p class="lcta-note">{{ tr('3 безкоштовні сесії · без картки', '3 free sessions · no card required') }}</p>
+        <p class="lcta-note">{{ i18n.t('landing.ctaNote') }}</p>
       </section>
 
       <!-- The learn-by-doing loop -->
-      <section class="lsteps" [attr.aria-label]="tr('Як це працює', 'How it works')">
+      <section class="lsteps" [attr.aria-label]="i18n.t('landing.howItWorks')">
         <article class="lstep synapse-panel">
           <span class="lstep-ic"><app-icon name="video" /></span>
-          <h3>{{ tr('Практикуй', 'Practise') }}</h3>
-          <p>{{ tr(
-            'Відеосесія з AI-пацієнтом: живі запити, емоції й спротив. Реалістичні клієнти різної складності та модальностей.',
-            'A video session with an AI patient — real concerns, emotions and resistance. Realistic clients across difficulties and modalities.'
-          ) }}</p>
+          <h3>{{ i18n.t('landing.step1Title') }}</h3>
+          <p>{{ i18n.t('landing.step1Body') }}</p>
         </article>
         <article class="lstep synapse-panel">
           <span class="lstep-ic"><app-icon name="clipboard" /></span>
-          <h3>{{ tr('Отримуй фідбек', 'Get feedback') }}</h3>
-          <p>{{ tr(
-            'AI-супервізор розбирає сесію за 8+ клінічними вимірами — альянс, емпатія, скринінг ризику, формулювання — як справжній наставник.',
-            'An AI supervisor reviews the session across 8+ clinical dimensions — alliance, empathy, risk screening, formulation — like a real mentor.'
-          ) }}</p>
+          <h3>{{ i18n.t('landing.step2Title') }}</h3>
+          <p>{{ i18n.t('landing.step2Body') }}</p>
         </article>
         <article class="lstep synapse-panel">
           <span class="lstep-ic"><app-icon name="chart-up" /></span>
-          <h3>{{ tr('Зростай', 'Grow') }}</h3>
-          <p>{{ tr(
-            'Радар компетенцій, бейджі та спеціалізації показують, де ти сильний і над чим попрацювати. Скоро — курси-скілпаси.',
-            'A competency radar, badges and specialisations show your strengths and what to work on. Skill-path courses coming soon.'
-          ) }}</p>
+          <h3>{{ i18n.t('landing.step3Title') }}</h3>
+          <p>{{ i18n.t('landing.step3Body') }}</p>
         </article>
       </section>
 
       <!-- Trust strip -->
       <section class="ltrust">
-        <div class="ltrust-item"><app-icon name="users" /><span>{{ tr('Реалістичні кейси з Києва, Лондона й Парижа', 'Realistic cases from Kyiv, London and Paris') }}</span></div>
-        <div class="ltrust-item"><app-icon name="clipboard" /><span>{{ tr('Психологічні тести: PHQ-9, GAD-7, WHO-5', 'Built-in screeners: PHQ-9, GAD-7, WHO-5') }}</span></div>
-        <div class="ltrust-item"><app-icon name="shield-check" /><span>{{ tr('Безпечне середовище — це навчання, не справжня терапія', 'A safe space — this is training, not real therapy') }}</span></div>
+        <div class="ltrust-item"><app-icon name="users" /><span>{{ i18n.t('landing.trustCases') }}</span></div>
+        <div class="ltrust-item"><app-icon name="clipboard" /><span>{{ i18n.t('landing.trustScreeners') }}</span></div>
+        <div class="ltrust-item"><app-icon name="shield-check" /><span>{{ i18n.t('landing.trustSafe') }}</span></div>
       </section>
 
       <!-- Pricing teaser + final CTA -->
       <section class="lfinal synapse-panel">
-        <h2>{{ tr('Готовий провести першу сесію?', 'Ready for your first session?') }}</h2>
-        <p>{{ tr('Почни безкоштовно — 3 сесії. Далі від ₴249/міс.', 'Start free — 3 sessions. Then from ₴249/mo.') }}</p>
+        <h2>{{ i18n.t('landing.finalTitle') }}</h2>
+        <p>{{ i18n.t('landing.finalSubtitle') }}</p>
         <div class="lcta-row">
-          <a routerLink="/register" class="cta">{{ tr('Спробувати безкоштовно', 'Try it free') }}</a>
-          <a routerLink="/pricing" class="cta cta-ghost">{{ tr('Дивитися тарифи', 'See pricing') }}</a>
+          <a routerLink="/register" class="cta">{{ i18n.t('landing.tryFree') }}</a>
+          <a routerLink="/pricing" class="cta cta-ghost">{{ i18n.t('landing.seePricing') }}</a>
         </div>
       </section>
     </div>
@@ -176,10 +163,5 @@ import { IconComponent } from '../icon.component';
   `],
 })
 export class LandingComponent {
-  private i18n = inject(I18nService);
-
-  /** uk-primary, en variant; fr falls back to uk for now. */
-  protected tr(uk: string, en: string): string {
-    return this.i18n.isEn ? en : uk;
-  }
+  protected readonly i18n = inject(I18nService);
 }
