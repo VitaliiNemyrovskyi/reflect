@@ -74,7 +74,10 @@ export class TtsController {
     //   1. Explicit dto.voice (full ID or bare lang)
     //   2. Accept-Language header (uk/en/fr)
     //   3. Default 'uk'
-    const voiceOrLang = dto.voice?.trim() || coerceLang(langHeader);
+    // Default language: explicit dto.voice → Accept-Language → 'uk'. This is
+    // the UI/therapist language and is only a fallback — for a known character
+    // we override it with the character's OWN language below.
+    let voiceOrLang = dto.voice?.trim() || coerceLang(langHeader);
 
     // Per-character voice (temperament from the clinical picture). Best-effort
     // — a missing/unknown characterId just leaves `voice` null and we fall
@@ -83,9 +86,18 @@ export class TtsController {
     if (dto.characterId) {
       const ch = await this.prisma.character.findUnique({
         where: { id: dto.characterId },
-        select: { gender: true, diagnosisCode: true, diagnosis: true },
+        select: { gender: true, diagnosisCode: true, diagnosis: true, lang: true },
       });
-      if (ch) voice = voiceForCharacter(ch);
+      if (ch) {
+        voice = voiceForCharacter(ch);
+        // The patient's OWN language drives pronunciation: Emma (en) must be
+        // synthesized in English even when the therapist's UI is Ukrainian.
+        // The frontend sends the UI language, so without this an English line
+        // gets read in 'uk' phonetics and sounds robotic.
+        if (ch.lang === 'uk' || ch.lang === 'en' || ch.lang === 'fr') {
+          voiceOrLang = ch.lang;
+        }
+      }
     }
 
     const { audio, contentType } = await this.tts.synthesize(dto.text, voiceOrLang, {
