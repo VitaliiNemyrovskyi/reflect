@@ -99,8 +99,12 @@ export class TtsService implements OnModuleInit {
         'TTS-сервіс не налаштовано. Frontend має fallback на browser SpeechSynthesis.',
       );
     }
-    const cleaned = stripStageDirections(text);
-    if (!cleaned) {
+    // OmniVoice can voice the supported non-verbal cues ([sigh]/[laughter]),
+    // so keep them for that path; the Gemini/edge sidecar would read them as
+    // words, so it gets the fully-stripped text.
+    const omniText = stripStageDirections(text, { keepOmniTags: true });
+    const sidecarText = stripStageDirections(text);
+    if (!omniText) {
       throw new BadGatewayException('Після очищення тексту нічого не залишилось озвучувати.');
     }
 
@@ -110,7 +114,7 @@ export class TtsService implements OnModuleInit {
     const bareLang = ['uk', 'en', 'fr'].includes(voiceOrLang);
     if (this.omniEnabled && this.omniHealthy && bareLang && Date.now() >= this.omniSkipUntil) {
       try {
-        const out = await this.tryOmnivoice(cleaned, voiceOrLang, opts.gender ?? null, opts.voice ?? null);
+        const out = await this.tryOmnivoice(omniText, voiceOrLang, opts.gender ?? null, opts.voice ?? null);
         this.omniFails = 0;
         this.omniHealthy = true;
         return out;
@@ -140,7 +144,7 @@ export class TtsService implements OnModuleInit {
       res = await fetch(`${this.baseUrl}/tts`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text: cleaned, voice: voiceOrLang, gender: opts.gender ?? null }),
+        body: JSON.stringify({ text: sidecarText, voice: voiceOrLang, gender: opts.gender ?? null }),
         signal: AbortSignal.timeout(30_000),
       });
     } catch (e) {
