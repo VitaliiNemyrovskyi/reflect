@@ -188,7 +188,7 @@ export class TtsService implements OnModuleInit {
       input: text,
       language: lang,
       instruct: voice?.instruct ?? this.voiceInstruct(gender),
-      speed: voice?.speed ?? 0.85,
+      speed: voice?.speed ?? 0.77,
       response_format: 'mp3',
     };
     if (voice?.tone) body.description = voice.tone;

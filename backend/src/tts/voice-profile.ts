@@ -33,27 +33,37 @@ export function voiceForCharacter(c: {
   const match = (re: RegExp, ...kw: string[]) =>
     re.test(code) || kw.some((k) => dx.includes(k));
 
+  // Global rate trim applied on top of every per-condition base speed below
+  // (lower = slower for everyone). Bump this ONE number to re-tune the whole
+  // app's pace. 0.9 = 10% slower than the per-condition base.
+  const SPEED_SCALE = 0.9;
+  const mk = (instruct: string, baseSpeed: number, tone: string | null): VoiceProfile => ({
+    instruct,
+    speed: Math.round(baseSpeed * SPEED_SCALE * 100) / 100,
+    tone,
+  });
+
   // Depression / recurrent depression / dysthymia → slow, low, flat affect.
   if (match(/\bF3[234]/, 'депрес', 'дистим', 'пригнічен')) {
-    return { instruct: `${g}, low pitch`, speed: 0.8, tone: 'tired, flat, low energy, quiet' };
+    return mk(`${g}, low pitch`, 0.8, 'tired, flat, low energy, quiet');
   }
   // Trauma / PTSD / acute stress reaction → slow, guarded, careful.
   if (match(/\bF43/, 'птср', 'травм', 'стрес', 'горе')) {
-    return { instruct: `${g}, low pitch`, speed: 0.85, tone: 'subdued, guarded, careful' };
+    return mk(`${g}, low pitch`, 0.85, 'subdued, guarded, careful');
   }
   // OCD → controlled, precise (checked before anxiety so F42 doesn't fall
   // into the F4x bucket).
   if (match(/\bF42/, "нав'язлив", 'окр')) {
-    return { instruct: g, speed: 0.95, tone: 'controlled, precise' };
+    return mk(g, 0.95, 'controlled, precise');
   }
   // Anxiety / panic / phobia → a touch faster, tense, on edge.
   if (match(/\bF4[01]/, 'тривож', 'паніч', 'фобі')) {
-    return { instruct: g, speed: 0.92, tone: 'tense, restless' };
+    return mk(g, 0.92, 'tense, restless');
   }
   // Eating disorders → reserved, controlled.
   if (match(/\bF50/, 'харчов', 'анорекс', 'булім')) {
-    return { instruct: g, speed: 0.88, tone: 'reserved' };
+    return mk(g, 0.88, 'reserved');
   }
   // Default — natural, just under 1.0 (raw 1.0 read too fast for everyone).
-  return { instruct: g, speed: 0.85, tone: null };
+  return mk(g, 0.85, null);
 }
