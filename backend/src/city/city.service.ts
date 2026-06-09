@@ -118,8 +118,10 @@ export class CityService implements OnModuleInit {
         '"цього тижня у нас було…". Без переліків, без слова "новини".',
         'Розмовний тон, теперішній/минулий час. Українською.',
         'Виключно ті теми, що реально впливають на повсякденне життя:',
-        'погода, енергетика, транспорт, культурні події, важливі суспільні зрушення.',
+        'погода, енергетика, транспорт, безпека, культурні події, важливі суспільні зрушення.',
         'НЕ пиши клішe на кшталт "цього тижня багато всього сталося".',
+        'Це нейтральне фактологічне зведення для навчального психотерапевтичного контексту.',
+        'Згадуй навіть важкі теми (війна, безпека, втрати) спокійно і стисло — не відмовляйся.',
       ].join('\n');
     } else if (city.lang === 'fr') {
       systemPrompt = [
@@ -138,8 +140,10 @@ export class CityService implements OnModuleInit {
         '"this week here we had…". No bullet points, no the word "news".',
         'Conversational tone, present/past tense. English.',
         'Only topics that affect everyday life:',
-        'weather, energy, transport, cultural events, important social shifts.',
+        'weather, energy, transport, safety, cultural events, important social shifts.',
         'NO clichés like "lots of stuff happened this week".',
+        'This is a neutral factual digest for a clinical-training context. Mention even',
+        'hard topics (war, security, losses) calmly and briefly — do not refuse or leave it blank.',
       ].join('\n');
     }
 
@@ -154,10 +158,19 @@ export class CityService implements OnModuleInit {
         ],
         maxTokens: 400,
       });
-      const trimmed = digest.trim();
+      let trimmed = digest.trim();
+      if (!trimmed) {
+        // The model sometimes returns an empty completion — it can decline to
+        // summarise heavy news (war/security items dominate Kyiv's feed). Never
+        // leave the digest blank when we actually have news: fall back to a
+        // plain headline list so the city pulse + the patient's background
+        // context injection still populate.
+        trimmed = this.fallbackDigest(items, city.lang);
+        this.logger.warn(`city=${city.key}: LLM digest empty — headline fallback (${trimmed.length} chars)`);
+      }
       await this.prisma.city.update({
         where: { id: cityId },
-        data: { weeklyDigest: trimmed, digestUpdatedAt: new Date() },
+        data: { weeklyDigest: trimmed || null, digestUpdatedAt: new Date() },
       });
       this.logger.log(`city=${city.key}: digest regenerated (${items.length} items → ${trimmed.length} chars)`);
       return trimmed;
@@ -165,6 +178,21 @@ export class CityService implements OnModuleInit {
       this.logger.error(`city=${city.key}: digest regen failed: ${(e as Error).message}`);
       throw e;
     }
+  }
+
+  /** Deterministic digest from the latest headlines — used when the LLM
+   *  returns an empty completion (e.g. it declined to summarise war/security
+   *  news). Keeps the city pulse + chat background context non-empty. */
+  private fallbackDigest(items: { title: string }[], lang: string): string {
+    const heads = items
+      .slice(0, 4)
+      .map((i) => i.title.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    if (heads.length === 0) return '';
+    const list = heads.join('; ');
+    if (lang === 'uk') return `Цього тижня в місті серед головних тем: ${list}.`;
+    if (lang === 'fr') return `Cette semaine, parmi les grands sujets de la ville : ${list}.`;
+    return `Among the city's main topics this week: ${list}.`;
   }
 
   async regenerateAllDigests(): Promise<void> {
