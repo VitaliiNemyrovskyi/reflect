@@ -46,7 +46,12 @@ export class ErrorLogFilter implements ExceptionFilter {
     const body =
       exception instanceof HttpException
         ? exception.getResponse()
-        : { statusCode: 500, message: (exception as Error)?.message ?? 'Internal server error' };
+        : // Non-HttpException = an unexpected 5xx. Return a FIXED generic
+          // message — never the raw exception text, which can leak Prisma /
+          // internal details (column names, query context, stack hints) to the
+          // client. The real message + stack are still captured in ErrorLog
+          // below for admins.
+          { statusCode: 500, message: 'Internal server error' };
 
     if (!res.headersSent) {
       res.status(status).json(body);

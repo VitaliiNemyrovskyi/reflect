@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { computeWellbeing, patientStateScore } from '../dashboard/wellbeing';
+import { clampAssessment } from './assessment-clamp';
 
 /**
  * Gamification progress (Phase 1a). Everything here is derived from data we
@@ -585,7 +586,11 @@ export class ProgressService {
   private parse(json: string | null): Assessment | null {
     if (!json) return null;
     try {
-      return JSON.parse(json) as Assessment;
+      // Clamp scores to their declared scales — the radar % and the badge
+      // gates below both read these, and an out-of-scale value from the LLM
+      // would otherwise inflate the radar past 100% or permanently mint a
+      // badge. See assessment-clamp.ts.
+      return clampAssessment(JSON.parse(json) as Assessment);
     } catch {
       return null;
     }
