@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -343,13 +344,30 @@ export class CharactersService {
   }
 
   /**
-   * Hard-delete a character. Cascades to all sessions (per schema).
+   * Hard-delete a character. Cascades to its sessions — and their messages,
+   * notes, tests and memories — via `Session.character onDelete: Cascade`.
    * Owner or admin only.
+   *
+   * Guard: if OTHER users have sessions with this patient (a shared or system
+   * character), we refuse with a 409 rather than cascade-deleting their
+   * clinical history out from under them. The owner must revoke the shares
+   * first. A private patient only ever has the owner's own sessions, so this
+   * never blocks the common case.
    */
   async delete(userId: number, id: number): Promise<{ deleted: true }> {
     const character = await this.prisma.character.findUnique({ where: { id } });
     if (!character) throw new NotFoundException('character not found');
     await this.assertCanEdit(userId, character);
+
+    const foreignSessions = await this.prisma.session.count({
+      where: { characterId: id, userId: { not: userId } },
+    });
+    if (foreignSessions > 0) {
+      throw new ConflictException(
+        'Цього пацієнта використовують інші користувачі — спершу приберіть спільний доступ',
+      );
+    }
+
     await this.prisma.character.delete({ where: { id } });
     return { deleted: true };
   }

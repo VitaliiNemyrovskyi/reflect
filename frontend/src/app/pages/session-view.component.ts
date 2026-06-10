@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { ApiService, SessionView } from '../api.service';
 import { I18nService } from '../i18n.service';
 import { TestResultCardComponent } from '../test-result-card.component';
@@ -385,7 +386,16 @@ export class SessionViewComponent implements OnInit {
   feedbackHtml = computed<SafeHtml>(() => {
     const fb = this.session()?.feedback;
     if (!fb) return '';
-    const html = marked.parse(fb, { async: false }) as string;
+    // Sanitize the LLM-authored markdown BEFORE we trust it. The feedback
+    // body derives from the session transcript, which contains the trainee's
+    // free-typed messages — without this a crafted message could smuggle
+    // `<img onerror=…>` through marked (which passes raw HTML verbatim) into a
+    // supervisor's/admin's browser when they open the session view. DOMPurify
+    // keeps the <details>/<summary> + class markup the feedback prompt uses
+    // while stripping scripts, event handlers and javascript: URLs. The [L<n>]
+    // anchors are injected AFTER sanitize because we build them ourselves (n is
+    // digits-only), so they stay trusted.
+    const html = DOMPurify.sanitize(marked.parse(fb, { async: false }) as string);
     const withRefs = html.replace(
       /\[L(\d+)\]/g,
       (_m, n: string) =>

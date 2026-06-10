@@ -18,6 +18,9 @@ backend/prisma/migrations/dev.db*
 *.log
 npm-debug.log*
 
+# local TTS scratch (OmniVoice app bundle, venv, audio samples — ~1.9GB, never commit)
+.tts-bench/
+
 # Claude harness local files (only launch.json should be tracked)
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
