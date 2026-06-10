@@ -37,24 +37,32 @@ test('clampScore: non-numbers → null', () => {
 
 test('clampAssessment: clamps therapist (0–6) and patient (1–10), preserves other fields', () => {
   const out = clampAssessment({
-    therapist: { empathy: 60, collaboration: 5, structure: 6.1 },
-    patient: { insight: 12, alliance: 7, symptomSeverity: 0 },
+    therapist: { empathy: 60, collaboration: 5, structure: 6.1 } as Record<string, number | null>,
+    patient: { insight: 12, alliance: 7, symptomSeverity: 0 } as Record<string, number | null>,
     signals: { riskScreened: true },
     patientMemory: 'kept',
-  } as Record<string, unknown>);
+  });
 
-  assert.equal(out.therapist!.empathy, null); // 60 → null, NOT 6 (no false badge)
-  assert.equal(out.therapist!.collaboration, 5);
-  assert.equal(out.therapist!.structure, 6); // 6.1 → 6
-  assert.equal(out.patient!.insight, null); // 12 → null
-  assert.equal(out.patient!.alliance, 7);
-  assert.equal(out.patient!.symptomSeverity, 1); // 0 → 1 (patient floor)
-  assert.deepEqual((out as Record<string, unknown>).signals, { riskScreened: true });
-  assert.equal((out as Record<string, unknown>).patientMemory, 'kept');
+  assert.equal(out.therapist.empathy, null); // 60 → null, NOT 6 (no false badge)
+  assert.equal(out.therapist.collaboration, 5);
+  assert.equal(out.therapist.structure, 6); // 6.1 → 6
+  assert.equal(out.patient.insight, null); // 12 → null
+  assert.equal(out.patient.alliance, 7);
+  assert.equal(out.patient.symptomSeverity, 1); // 0 → 1 (patient floor)
+  assert.deepEqual(out.signals, { riskScreened: true });
+  assert.equal(out.patientMemory, 'kept');
 });
 
 test('clampAssessment: missing therapist/patient maps stay absent', () => {
-  const out = clampAssessment({ signals: { ruptureRepaired: true } } as Record<string, unknown>);
+  // Annotate the input with the optional score maps so it shares properties
+  // with the generic constraint (avoids TS's weak-type rejection) — the values
+  // are still absent, which is what we're asserting survives.
+  const input: {
+    therapist?: Record<string, number | null>;
+    patient?: Record<string, number | null>;
+    signals: { ruptureRepaired: boolean };
+  } = { signals: { ruptureRepaired: true } };
+  const out = clampAssessment(input);
   assert.equal(out.therapist, undefined);
   assert.equal(out.patient, undefined);
 });
