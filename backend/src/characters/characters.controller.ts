@@ -262,7 +262,19 @@ export class CharactersController {
     @CurrentUser() user: AuthUser,
   ) {
     const userId = user.id;
-    const character = await this.prisma.character.findUnique({ where: { id } });
+    // Gate the read by visibility: a user may open the full card only for a
+    // system patient, their own, or one shared with them (admins: all) — same
+    // filter `list()` uses. Without this, iterating `:id` leaks every other
+    // therapist's private authored case. The sessions sub-query below is
+    // already scoped by `userId`; this closes the character profile itself.
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true },
+    });
+    const visibility = this.characters.visibilityFilter(userId, !!me?.isAdmin);
+    const character = await this.prisma.character.findFirst({
+      where: { AND: [{ id }, visibility] },
+    });
     if (!character) throw new NotFoundException('character not found');
 
     const sessions = await this.prisma.session.findMany({

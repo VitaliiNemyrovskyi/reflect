@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { ApiService, AssessmentJson } from '../api.service';
 import { SessionStateService } from '../session-state.service';
 import { AnalyticsService } from '../analytics.service';
@@ -623,11 +624,13 @@ export class FeedbackComponent implements OnInit, OnDestroy {
    * enough (~5ms for typical feedback) that doing it per-chunk during
    * streaming gives a clean live preview without throttling.
    *
-   * Uses `bypassSecurityTrustHtml` because the source is our own LLM
-   * piped through a tightly controlled prompt — Angular's default
-   * sanitizer would strip out the audit-section's <details>/<summary>
-   * elements (it lists them as "non-standard" even though they're
-   * vanilla HTML5) and class attributes we use for styling.
+   * We run the parsed HTML through DOMPurify, then `bypassSecurityTrustHtml`.
+   * DOMPurify is what actually makes it safe (the LLM body is NOT trusted —
+   * it derives from the trainee-typed transcript); we bypass Angular's own
+   * sanitizer only because it would strip the audit-section's
+   * <details>/<summary> elements (it lists them as "non-standard" even though
+   * they're vanilla HTML5) and the class attributes we use for styling, all of
+   * which DOMPurify keeps.
    *
    * After parsing we wrap `[L<n>]` line references in inline badges so
    * the visual anchor between supervisor claim and transcript line is
@@ -637,7 +640,12 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   feedbackHtml = computed<SafeHtml>(() => {
     const text = this.feedback();
     if (!text) return '';
-    const html = marked.parse(text, { async: false }) as string;
+    // Sanitize the LLM-authored markdown before trusting it (the feedback
+    // body derives from the trainee-typed transcript). DOMPurify strips
+    // scripts/event-handlers/javascript: URLs while keeping the
+    // <details>/<summary> + class markup the prompt emits; the [L<n>] anchors
+    // are injected afterwards and are self-built (digits only), so safe.
+    const html = DOMPurify.sanitize(marked.parse(text, { async: false }) as string);
     // Each [L<n>] becomes an anchor whose href targets the session-view
     // route + hash. We intercept the click below via onFeedbackClick to
     // do an SPA navigation instead of a full reload; the href stays so
