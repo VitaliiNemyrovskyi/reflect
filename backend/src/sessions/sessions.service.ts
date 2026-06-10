@@ -23,6 +23,15 @@ function safeParseJson(json: string): unknown {
 const SEED_OPENING =
   '[Сесія розпочалася. Терапевт сидить навпроти і чекає, поки ви заговорите.]';
 
+// Per-turn chat replies only need recent context (the patient profile and
+// cross-session memory are injected separately), so we cap how many prior
+// messages we resend to the model each turn. Without a cap a long session
+// resends its entire growing transcript every turn, eventually blowing past the
+// model's prompt-token budget (mid-session 400s on cheaper tiers). Feedback
+// generation deliberately does NOT use this cap — the supervisor must see the
+// whole transcript with stable [L<n>] line numbers.
+const MAX_CHAT_HISTORY_MESSAGES = 40;
+
 const FEEDBACK_USER_PROMPT =
   'Будь ласка, дай структурований фідбек згідно інструкції вище.\n\n' +
   '**ПОВТОРНО**: кожне твердження про конкретний момент сесії — підкріплюй посиланням `[L<n>]` на номер рядка транскрипту. Цитати у `«…»` мають бути verbatim з зазначеного рядка. Сервер автоматично перевіряє це і виносить галюцинації у червону плашку — не псуй собі довіру вигадуванням.\n\n' +
@@ -339,11 +348,13 @@ export class SessionsService {
     if (!session || session.userId !== userId) throw new NotFoundException('session not found');
     if (session.endedAt) throw new BadRequestException('session ended');
 
-    await this.prisma.message.create({
-      data: { sessionId, role: 'user', content },
-    });
-
-    const history = await this.loadHistory(sessionId);
+    // Build the prompt history WITHOUT persisting the user message yet, capped
+    // to the most recent turns. We persist the user message and the reply
+    // together in a single transaction only AFTER the LLM succeeds — so a
+    // failed/timed-out turn leaves no orphaned user message in the DB, and the
+    // client's retry can't create a duplicate user turn.
+    const prior = await this.loadHistory(sessionId, MAX_CHAT_HISTORY_MESSAGES);
+    const history: ChatMessage[] = [...prior, { role: 'user', content }];
     const priorMemories = await this.loadPriorMemories(userId, session.characterId);
     const reply = await this.respondAsCharacter(
       session.character.profileText,
@@ -358,9 +369,12 @@ export class SessionsService {
       userId,
     );
 
-    await this.prisma.message.create({
-      data: { sessionId, role: 'assistant', content: reply },
-    });
+    // Sequential inside the transaction → user row gets the lower id, so the
+    // [L<n>] ordering (by id asc) stays correct.
+    await this.prisma.$transaction([
+      this.prisma.message.create({ data: { sessionId, role: 'user', content } }),
+      this.prisma.message.create({ data: { sessionId, role: 'assistant', content: reply } }),
+    ]);
 
     return { reply };
   }
@@ -1569,12 +1583,23 @@ export class SessionsService {
     }
   }
 
-  private async loadHistory(sessionId: number): Promise<ChatMessage[]> {
+  /**
+   * Load a session's messages in chronological order. With `limit`, returns
+   * only the most recent `limit` messages (still chronological) — used by the
+   * per-turn chat path to bound prompt tokens. Without `limit` returns the full
+   * transcript — required by feedback/hint generation, which numbers every line
+   * as [L<n>] and must not drop any.
+   */
+  private async loadHistory(sessionId: number, limit?: number): Promise<ChatMessage[]> {
     const rows = await this.prisma.message.findMany({
       where: { sessionId },
-      orderBy: { id: 'asc' },
+      // When capping, fetch newest-first + take, then restore chronological
+      // order below; otherwise read straight through oldest-first.
+      orderBy: { id: limit ? 'desc' : 'asc' },
+      ...(limit ? { take: limit } : {}),
       select: { role: true, content: true },
     });
+    if (limit) rows.reverse();
     return rows.map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content }));
   }
 
